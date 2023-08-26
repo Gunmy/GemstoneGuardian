@@ -1,0 +1,28 @@
+@import url("https://fonts.googleapis.com/css2?family=Silkscreen&display=swap");
+
+
+.Everything {
+   -fx-background-radius: 0;
+
+   -fx-font-size: 12;
+   -fx-font-family: 'Silkscreen', cursive;
+   -fx-shape: "M0,0 H100 V100 H0 L0,0";
+   -fx-background-color: white;
+   -fx-border-color: black;
+   -fx-border-width: 3px;
+   -fx-padding: 0;
+   -fx-accent: #0dff00;
+   -fx-margin: 0;
+   -fx-box-border: white;
+   -fx-focus-color: transparent;
+   -fx-border-style: none;
+
+}
+#progressBar1, #progressBar2 {
+   -fx-background-color: red;
+   -fx-background-radius: 0;
+   -fx-control-inner-background: red;
+   -fx-box-border: transparent;
+   -fx-inner-border: transparent;
+}
+
