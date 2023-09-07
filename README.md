@@ -7,7 +7,7 @@ You play as a boy that uncovers one of his grandmas greatest secrets: that she h
 To start the game you run the app.java file.
 You use WASD to move around, and space/mouseclick to battle and talk to people.
 
-|[image](https://github.com/Gunmy/GemstoneGuardian/assets/99408493/3742cb0f-1b10-4c6b-a173-39f2a2ad1590)|
+|<img width="483" alt="image" src="https://github.com/Gunmy/GemstoneGuardian/assets/99408493/e639918b-61c4-4b9f-a31b-0cd3b527d733">|
 |:--:|
 |*Figure 1: Thumbnail*|
 
