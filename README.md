@@ -22,7 +22,7 @@ You use WASD to move around, and space/mouseclick to battle and talk to people.
 
 |<img width="669" alt="image" src="https://github.com/Gunmy/GemstoneGuardian/assets/99408493/40549f39-ad0d-4c10-91f4-d1196cbe8697">|
 |:--:|
-|*Your very fist battle*|
+|*Figure 4: Your very fist battle*|
 
 
 
