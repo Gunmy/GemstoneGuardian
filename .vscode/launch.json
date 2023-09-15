@@ -6,13 +6,6 @@
     "configurations": [
         {
             "type": "java",
-            "name": "app",
-            "request": "launch",
-            "mainClass": "GemstoneGuardian/game.app",
-            "projectName": "tdt4100_v2023_prosjekt_boilerplate"
-        },
-        {
-            "type": "java",
             "name": "Current File",
             "request": "launch",
             "mainClass": "${file}"
