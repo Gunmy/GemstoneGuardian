@@ -3,12 +3,12 @@
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
  
-    <groupId>TDT4100_project</groupId>
-    <artifactId>tdt4100_v2023_prosjekt_boilerplate</artifactId>
+    <groupId>GemstoneGuardian</groupId>
+    <artifactId>GemstoneGuardian</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <packaging>jar</packaging>
  
-    <name>tdt4100_v2023_prosjekt_boilerplate</name>
+    <name>GemstoneGuardian</name>
 	
 
    <dependencies>
