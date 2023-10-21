@@ -63,7 +63,7 @@ public class readChunks {
     }
 
     private static String getPath () {
-        String resourceFolder = "GemstoneGuardian/src/main/resources/game/reading/";
+        String resourceFolder = "src/main/resources/game/reading/";
         String absolutePath = new File(resourceFolder).getAbsolutePath();
         return absolutePath;
     }

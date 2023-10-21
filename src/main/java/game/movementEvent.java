@@ -10,6 +10,10 @@ public class movementEvent implements event {
     private double bindTime;
     private gameHandler handler;
 
+    private double xTarget;
+    private double yTarget;
+
+
     public movementEvent (gameHandler handler, character targetCharacter, List<Integer> moveList, boolean bindCam) {
         this.targetCharacter = targetCharacter;
         this.moveList = moveList;
@@ -25,24 +29,44 @@ public class movementEvent implements event {
         this.bindTime = bindTime;
     }
 
-    public void trigger() {
-        for (Integer move : moveList) {
-            switch (move) {
-                case 0:
-                    targetCharacter.addMovementToQueue(-1, 0);
-                    break;
-                case 1:
-                    targetCharacter.addMovementToQueue(0, -1);
-                    break;
-                case 2:
-                    targetCharacter.addMovementToQueue(1, 0);
-                    break;
-                case 3:
-                    targetCharacter.addMovementToQueue(0, 1);
-                    break;
-            }
-        }
+    public movementEvent (gameHandler handler, character targetCharacter, double xTarget, double yTarget, boolean bindCam) {
+        this.targetCharacter = targetCharacter;
+        this.xTarget = xTarget;
+        this.yTarget = yTarget;
+        this.bindCam = bindCam;
+        this.handler = handler;
 
+    }
+
+    public movementEvent (gameHandler handler, character targetCharacter, double xTarget, double yTarget, boolean bindCam, double bindTime) {
+        this(handler, targetCharacter, xTarget, yTarget, bindCam);
+        this.bindTime = bindTime;
+    }
+
+    public void trigger() {
+        if (moveList != null) {
+            for (Integer move : moveList) {
+                switch (move) {
+                    case 0:
+                        targetCharacter.addMovementToQueue(-1, 0);
+                        break;
+                    case 1:
+                        targetCharacter.addMovementToQueue(0, -1);
+                        break;
+                    case 2:
+                        targetCharacter.addMovementToQueue(1, 0);
+                        break;
+                    case 3:
+                        targetCharacter.addMovementToQueue(0, 1);
+                        break;
+                }
+            }
+        } else {
+            targetCharacter.pathFindToCoord(xTarget, yTarget);
+        }
+        
+        
+        
         if (bindCam) {
             handler.getCamera().bindTo(targetCharacter);
             handler.getCamera().setBindTime(bindTime);

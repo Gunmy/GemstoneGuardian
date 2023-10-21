@@ -34,6 +34,7 @@ public class character implements cordinate, entity {
     private List<item> inventory = new ArrayList<item>();
 
     private List<List<Integer>> queuedMovement = new ArrayList<List<Integer>>();
+    private Stack<Pair<Double, Double>> pathMovemet;
 
     public character (String name, double x, double y, int imgX, int imgY, int height, int width, int world, gameHandler handler, double speed) {
         this.name = name;
@@ -347,7 +348,13 @@ public class character implements cordinate, entity {
         return x == xTarget && y*tileCount == yTarget*tileCount;
     }
 
-    public List<Pair<Double, Double>> calcPath(double x, double y, int world) {
+    
+    public Boolean pathFindToCoord(double x, double y) {
+        pathMovemet = calcPath(x, y, this.world);
+        return pathMovemet != null;
+    }
+
+    private Stack<Pair<Double, Double>> calcPath(double x, double y, int world) {
         //Kan kun søke etter en firkant i verdenen vi er i
         if (world != getWorld()) return null;
 
@@ -375,18 +382,16 @@ public class character implements cordinate, entity {
 
             if (handler.getWorld(getWorld()).getTile(pos.getKey(), pos.getValue()).equals(handler.getWorld(getWorld()).getTile(x, y))) {
                 //Lagre veien        
-                List<Pair<Double, Double>> path = new ArrayList<>();
+                Stack<Pair<Double, Double>> path = new Stack<>();
 
                 //Legger til slutten
-                path.add(new Pair<>(x, y));
+                path.push(new Pair<>(x, y));
 
                 while (visited.get(pos) != null) {
                     pos = visited.get(pos);
-                    path.add(pos);
+                    path.push(pos);
                 }
                 
-                //Veien er baklengs, må reverseres
-                Collections.reverse(path);
                 return path;
             }
 
@@ -446,13 +451,22 @@ public class character implements cordinate, entity {
         } else {
             y += Math.signum(yTarget-y)*speed;
         }    
+
+        if (pathMovemet != null && pathMovemet.size() > 0 && targetSameAsCoords()) {
+            Pair<Double, Double> xyTarget = pathMovemet.pop();
+            xTarget = xyTarget.getKey();
+            yTarget = xyTarget.getValue();
+        }
+
+        //For backwards compatability
         if (queuedMovement.size() > 0 && targetSameAsCoords()) {
             List<Integer> coords = queuedMovement.get(0);
             if (setTarget(coords.get(0), coords.get(1))) {
                 queuedMovement.remove(0);
-
             }
         }
+
+
     }
 
     public tileType getStandingTileType () {

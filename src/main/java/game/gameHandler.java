@@ -75,8 +75,7 @@ public class gameHandler {
 
     //Debug and reload
     private boolean info = false;
-    public void Mpress () {info = info == false;
-    getMainCharacter().calcPath(10001, 10001, 0);}
+    public void Mpress () {info = info == false;}
     public boolean infoOn () {return this.info;}
     public void Npress () {if (infoOn()) readChunks.read(this);}
 
@@ -248,13 +247,13 @@ public class gameHandler {
 
 
         //Create events
-        event blockDoor1      = new movementEvent(this, characters.get("Guard 1"), Arrays.asList(2, 2, 2, 3, 3, 3, 3, 3), false);
-        event blockDoor2      = new movementEvent(this, characters.get("Guard 2"), Arrays.asList(3, 3, 3, 3), true, 3.5);
-        event blockDoor3      = new movementEvent(this, characters.get("Guard 3"), Arrays.asList(0, 0, 0, 3, 3, 3, 3, 3), false);
+        event blockDoor1      = new movementEvent(this, characters.get("Guard 1"), 10000.33, 9993.44, false);
+        event blockDoor2      = new movementEvent(this, characters.get("Guard 2"), 10000.44, 9993.44, true, 3.5);
+        event blockDoor3      = new movementEvent(this, characters.get("Guard 3"), 10000.56, 9993.44, false);
         event secretPath      = new movementEvent(this, characters.get("Tree"), Arrays.asList(0), true, 2);
         event showPath        = new movementEvent(this, characters.get("Guard 2"), Arrays.asList(), true, 3.5);
         event unblock         = new movementEvent(this, characters.get("Guard 2"), Arrays.asList(3, 3, 0), true, 1);
-        event motherTellEvent = new movementEvent(this, characters.get("Mother"), Arrays.asList(3, 3, 3, 3), true, 1);
+        event motherTellEvent = new movementEvent(this, characters.get("Mother"), 10000.33, 10000.67, true, 1);
         event block           = new movementEvent(this, characters.get("Knight"), Arrays.asList(3, 3, 3, 3), true, 3);
         event cornerstone     = new movementEvent(this, characters.get("Cornerstone"), Arrays.asList(), true, 3);
         event guardman        = new movementEvent(this, characters.get("Guardman"), Arrays.asList(1, 1, 1, 1, 1), true, 3);
@@ -283,7 +282,7 @@ public class gameHandler {
         //Battle 1
         event theyWin     = new teleportEvent(getMainCharacter());
 
-        event youWin      = new movementEvent(this, characters.get("Girl (Beginner)"), Arrays.asList(1, 1, 1, 0), true, 1);
+        event youWin      = new movementEvent(this, characters.get("Girl (Beginner)"), 10000.44, 9999.22, true, 1);
         event firstBattle = new battleEvent(getMainCharacter(), characters.get("Girl (Beginner)"), battleHandler, youWin, theyWin, characters.get("Girl (Beginner)").getX(), characters.get("Girl (Beginner)").getY(), 0.15, 0);
         eventListeners.add(new eventListener(this, characters.get("Girl (Beginner)").getX(), characters.get("Girl (Beginner)").getY(), 0.15, 0, firstBattle, Arrays.asList(new dialogue(getMainCharacter(), "!!!"),new dialogue(characters.get("Girl (Beginner)"), "I wont let you pass unless you beat me!\nChallenge accepted?"),new dialogue(getMainCharacter(), "✓✓✓ !"))));
 
