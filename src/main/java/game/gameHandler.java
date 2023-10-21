@@ -75,7 +75,8 @@ public class gameHandler {
 
     //Debug and reload
     private boolean info = false;
-    public void Mpress () {info = info == false;}
+    public void Mpress () {info = info == false;
+    getMainCharacter().calcPath(10001, 10001, 0);}
     public boolean infoOn () {return this.info;}
     public void Npress () {if (infoOn()) readChunks.read(this);}
 
@@ -247,14 +248,22 @@ public class gameHandler {
 
 
         //Create events
-        event blockDoor1 = new movementEvent(this, characters.get("Guard 1"), Arrays.asList(2, 2, 2, 3, 3, 3, 3, 3), false);
-        event blockDoor2 = new movementEvent(this, characters.get("Guard 2"), Arrays.asList(3, 3, 3, 3), true, 3.5);
-        event blockDoor3 = new movementEvent(this, characters.get("Guard 3"), Arrays.asList(0, 0, 0, 3, 3, 3, 3, 3), false);
-        event secretPath = new movementEvent(this, characters.get("Tree"), Arrays.asList(0), true, 2);
-        event showPath   = new movementEvent(this, characters.get("Guard 2"), Arrays.asList(), true, 3.5);
-        event unblock    = new movementEvent(this, characters.get("Guard 2"), Arrays.asList(3, 3, 0), true, 1);
+        event blockDoor1      = new movementEvent(this, characters.get("Guard 1"), Arrays.asList(2, 2, 2, 3, 3, 3, 3, 3), false);
+        event blockDoor2      = new movementEvent(this, characters.get("Guard 2"), Arrays.asList(3, 3, 3, 3), true, 3.5);
+        event blockDoor3      = new movementEvent(this, characters.get("Guard 3"), Arrays.asList(0, 0, 0, 3, 3, 3, 3, 3), false);
+        event secretPath      = new movementEvent(this, characters.get("Tree"), Arrays.asList(0), true, 2);
+        event showPath        = new movementEvent(this, characters.get("Guard 2"), Arrays.asList(), true, 3.5);
+        event unblock         = new movementEvent(this, characters.get("Guard 2"), Arrays.asList(3, 3, 0), true, 1);
+        event motherTellEvent = new movementEvent(this, characters.get("Mother"), Arrays.asList(3, 3, 3, 3), true, 1);
+        event block           = new movementEvent(this, characters.get("Knight"), Arrays.asList(3, 3, 3, 3), true, 3);
+        event cornerstone     = new movementEvent(this, characters.get("Cornerstone"), Arrays.asList(), true, 3);
+        event guardman        = new movementEvent(this, characters.get("Guardman"), Arrays.asList(1, 1, 1, 1, 1), true, 3);
+        event security        = new movementEvent(this, characters.get("Security Guard"), Arrays.asList(1, 1, 1), true, 4);
+        event guard4          = new movementEvent(this, characters.get("Guard 4"), Arrays.asList(2, 2, 2, 2, 1, 1, 1), false);
+        event guard5          = new movementEvent(this, characters.get("Guard 5"), Arrays.asList(0, 0, 0, 0, 1, 1, 1), false);
+
+        event grandmaCome = new movementEvent(this, characters.get("Grandma"), Arrays.asList(3, 2, 2, 1), true, 2);
         event spawnEvent = new movementEvent(this, getMainCharacter(), Arrays.asList(), false);
-        event motherTellEvent     = new movementEvent(this, characters.get("Mother"), Arrays.asList(3, 3, 3, 3), true, 1);
         event giveFirstStoneEvent = new giveEvent(getMainCharacter(), gemstoneDict.rock(), dialogueContainer);
         event giveObisidan = new giveEvent(getMainCharacter(), gemstoneDict.obsidian(), dialogueContainer);
         event giveBoltstone = new giveEvent(getMainCharacter(), gemstoneDict.boltstone(), dialogueContainer);
@@ -268,15 +277,6 @@ public class gameHandler {
 
         event bindToPers = new movementEvent(this, characters.get("Girl (Beginner)"), Arrays.asList(), true, 3);       
         
-
-        event block = new movementEvent(this, characters.get("Knight"), Arrays.asList(3, 3, 3, 3), true, 3);
-        event cornerstone = new movementEvent(this, characters.get("Cornerstone"), Arrays.asList(), true, 3);
-        event guardman = new movementEvent(this, characters.get("Guardman"), Arrays.asList(1, 1, 1, 1, 1), true, 3);
-        event security = new movementEvent(this, characters.get("Security Guard"), Arrays.asList(1, 1, 1), true, 4);
-        event guard4 = new movementEvent(this, characters.get("Guard 4"), Arrays.asList(2, 2, 2, 2, 1, 1, 1), false);
-        event guard5 = new movementEvent(this, characters.get("Guard 5"), Arrays.asList(0, 0, 0, 0, 1, 1, 1), false);
-
-        event grandmaCome = new movementEvent(this, characters.get("Grandma"), Arrays.asList(3, 2, 2, 1), true, 2);
 
 
         //Battles-------------

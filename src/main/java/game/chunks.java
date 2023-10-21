@@ -100,5 +100,17 @@ public class chunks {
         return getChunk(chunkx, chunky).getTile(tilex, tiley);
     }
 
+    public List<Integer> getChunkCoords (int x, int y) {
+        return Arrays.asList((int) x, (int) y);
+    }
+
+    public List<Integer> getTileInChunkCoords (int x, int y) {
+        int tilex = (int) Math.round(x%1*handler.getTileCount())%handler.getTileCount();
+        int tiley = (int) Math.round(y%1*handler.getTileCount())%handler.getTileCount();
+        return Arrays.asList(tilex, tiley);
+    }
+
+    
+
 }
  

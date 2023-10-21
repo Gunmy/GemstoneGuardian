@@ -2,13 +2,19 @@ package game;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 import java.util.Random;
+import java.util.Stack;
 import java.util.stream.Collectors;
 
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.TextAlignment;
+import javafx.util.Pair;
 
 public class character implements cordinate, entity {
 
@@ -224,11 +230,6 @@ public class character implements cordinate, entity {
         return inventory.stream().collect(Collectors.toList());
     }
 
-    public void addMovementToQueue (int xChange, int yChange) {
-        if (xChange < -1 || xChange > 1 || yChange < -1 || yChange > 1) throw new IllegalArgumentException("Endring kan ikke være større enn 1 eller mindre enn -1");
-        queuedMovement.add(Arrays.asList(xChange, yChange));
-    }
-
     public gemstone getGemstone () {
         return this.equipped;
     }
@@ -344,6 +345,68 @@ public class character implements cordinate, entity {
     private boolean targetSameAsCoords () {
         int tileCount = handler.getTileCount();
         return x == xTarget && y*tileCount == yTarget*tileCount;
+    }
+
+    public List<Pair<Double, Double>> calcPath(double x, double y, int world) {
+        //Kan kun søke etter en firkant i verdenen vi er i
+        if (world != getWorld()) return null;
+
+        //Maks antall sjekker
+        int maxCheck = 10000;
+        int currentCheck = 0;
+        //Radius
+        double maxDistance = 13;
+
+        HashMap<Pair<Double, Double>, Pair<Double, Double>> visited = new HashMap<>();
+        Queue<Pair<Double, Double>> queue = new LinkedList<>();
+
+        double step = 1.0/handler.getTileCount();
+        List<Double> xMove = Arrays.asList(step, 0.0, -step, 0.0);
+        List<Double> yMove = Arrays.asList(0.0, -step, 0.0, step);
+
+        //Start
+        Pair<Double, Double> start = new Pair<>(this.xTarget, this.yTarget);
+        queue.offer(start);
+        visited.put(start, null);
+    
+        while (!queue.isEmpty() && currentCheck < maxCheck) {
+            Pair<Double, Double> pos = queue.poll();
+            currentCheck++;
+
+            if (handler.getWorld(getWorld()).getTile(pos.getKey(), pos.getValue()).equals(handler.getWorld(getWorld()).getTile(x, y))) {
+                //Lagre veien        
+                List<Pair<Double, Double>> path = new ArrayList<>();
+
+                //Legger til slutten
+                path.add(new Pair<>(x, y));
+
+                while (visited.get(pos) != null) {
+                    pos = visited.get(pos);
+                    path.add(pos);
+                }
+                
+                //Veien er baklengs, må reverseres
+                Collections.reverse(path);
+                return path;
+            }
+
+            for (int i = 0; i < 4; i++) {
+                Pair<Double, Double> checkPos = new Pair<>(pos.getKey()+xMove.get(i), pos.getValue()+yMove.get(i));
+
+                if (!handler.getWorld(getWorld()).getTile(checkPos.getKey(), checkPos.getValue()).isBlocked() 
+                && !visited.keySet().contains(checkPos)
+                && (Math.sqrt(Math.pow(checkPos.getKey()-x, 2)+Math.pow(checkPos.getValue()-y, 2))) < maxDistance) {
+                    visited.put(checkPos, pos);
+                    queue.offer(checkPos);
+                }
+            }
+        }
+        return null;
+    }
+
+    public void addMovementToQueue (int xChange, int yChange) {
+        if (xChange < -1 || xChange > 1 || yChange < -1 || yChange > 1) throw new IllegalArgumentException("Endring kan ikke være større enn 1 eller mindre enn -1");
+        queuedMovement.add(Arrays.asList(xChange, yChange));
     }
 
     public boolean setTarget (double xChange, double yChange) {
