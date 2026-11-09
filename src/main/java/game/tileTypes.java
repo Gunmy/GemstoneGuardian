@@ -10,6 +10,11 @@ public class tileTypes {
 
     private List<tileType> types = new ArrayList<tileType>();
     private shader shader;
+    //How many tiles high a tree is drawn
+    private double treeHeight = 1.4;
+    //How far (in tiles) a tree can stand from the middle of its tile, so that a forest does not look like a grid.
+    //A tree is 0.7 tiles wide, so above 0.15 the trees next to each other start to overlap
+    private double treeScatter = 0.12;
     public tileTypes (GraphicsContext gc) {
         shader = new shader(gc);
         addType("Window", 0, 0, 100, 100, true, null); //0 window
@@ -36,7 +41,7 @@ public class tileTypes {
         addType("InsideRight", 500, 400, 100, 100, true, null); //21 insideright
         addType("Firdgetop", 200, 400, 100, 100, true, null); //22 fridgetop
         addWaveType("Firdgebottom", 200, 500, 100, 100, true, null, types.get(15), false); //23 fridgebottom
-        addWaveType("Tree", 400, 1100, 100, 100, true, null, types.get(1), true); //24  tree
+        addTreeType("Tree", 400, 1100, types.get(1)); //24  tree
         addType("Cavefloor", 600, 0, 100, 100, false, null); //25  cavefloor
         addType("CaveWallLeft", 700, 0, 100, 100, true, null); //26  cavewallleft
         addType("CaveWallMiddle", 800, 0, 100, 100, true, null); //27  cavewallmiddle
@@ -125,9 +130,9 @@ public class tileTypes {
         addType("Snow", 800, 500, 100, 100, false, null); //110 snow
         addWaveType("Brickpathsnow", 1000, 500, 100, 100, false, null, types.get(110), false); //111 brickssnow
         addType("Ice", 800, 1000, 100, 100, false, null); //112 ice
-        addWaveType("Treesnow", 400, 1200, 100, 100, true, null, types.get(110), true); //113 treesnow
+        addTreeType("Treesnow", 400, 1200, types.get(110)); //113 treesnow
         addWaveType("Rocksnow", 700, 300, 100, 100, true, null, types.get(110), false); //114  rocksnow
-        addWaveType("Treesnow2", 400, 1200, 100, 100, true, null, types.get(1), true); //115 treesnow2
+        addTreeType("Treesnow2", 400, 1200, types.get(1)); //115 treesnow2
         addWaveType("Oven top", 1100, 1300, 100, 100, true, null, types.get(20), true); //116 oven top
         addWaveType("Oven bottom", 1100, 1400, 100, 100, true, null, types.get(82), false); //117 oven bottom
         addType("BigDoor", 100, 200, 100, 100, false, c -> c.setWorld(2)); //118 big door
@@ -148,8 +153,8 @@ public class tileTypes {
         addWaveType("Watertiny3", 1300, 400, 100, 100, false, null, types.get(57), false); //130 watertiny3
         addWaveType("Watertinypath", 100, 100, 100, 100, false, null, types.get(130), false); //131 watertinypath
         addWaveType("Watertinypath2", 100, 100, 100, 100, false, null, types.get(129), false); //132 watertinypath2
-        addWaveType("Watertinytree", 400, 1100, 100, 100, true, null, types.get(130), true); //133 watertinytree
-        addWaveType("Watertinytree", 400, 1100, 100, 100, true, null, types.get(129), true); //134 watertinytree
+        addTreeType("Watertinytree", 400, 1100, types.get(130)); //133 watertinytree
+        addTreeType("Watertinytree", 400, 1100, types.get(129)); //134 watertinytree
 
         addType("Snowwall", 700, 400, 100, 100, true, null); //135 snowwall
         addWaveType("Igloo1", 800, 1300, 100, 100, true, null, types.get(110), false); //136 igloo1
@@ -176,12 +181,17 @@ public class tileTypes {
 
     //Overlays that wave stick out of their own tile, so they are lifted off the ground (z = 1). The rest lie flat on it (z = 0)
     private void addWaveType (String name, int xOverlay, int yOverlay, int width, int height, boolean blocked, Consumer<character> pressurePlate, tileType underlay, boolean wave) {
-        addWaveType(name, xOverlay, yOverlay, width, height, blocked, pressurePlate, underlay, wave, wave ? 1 : 0);
+        addWaveType(name, xOverlay, yOverlay, width, height, blocked, pressurePlate, underlay, wave, wave ? 1 : 0, 1, 0);
     }
 
-    //z is the level the overlay is drawn on (2 and up is above the characters)
-    private void addWaveType (String name, int xOverlay, int yOverlay, int width, int height, boolean blocked, Consumer<character> pressurePlate, tileType underlay, boolean wave, int z) {
-        types.add(new waveType(name, xOverlay, yOverlay, width, height, getLength(), blocked, pressurePlate, underlay, wave, z));
+    //z is the level the overlay is drawn on (2 and up is above the characters), tall is how many tiles high it is,
+    //scatter is how far (in tiles) it can be randomly moved away from the middle of its tile (0 keeps it in the grid)
+    private void addWaveType (String name, int xOverlay, int yOverlay, int width, int height, boolean blocked, Consumer<character> pressurePlate, tileType underlay, boolean wave, int z, double tall, double scatter) {
+        types.add(new waveType(name, xOverlay, yOverlay, width, height, getLength(), blocked, pressurePlate, underlay, wave, z, tall, scatter));
+    }
+
+    private void addTreeType (String name, int xOverlay, int yOverlay, tileType underlay) {
+        addWaveType(name, xOverlay, yOverlay, 100, 100, true, null, underlay, true, 1, treeHeight, treeScatter);
     }
 
     public int getMaxZ () {return types.stream().mapToInt(t -> t.getMaxZ()).max().orElse(0);}
