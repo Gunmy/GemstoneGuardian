@@ -42,12 +42,21 @@ public class chunks {
         return chunks.get(Arrays.asList(x, y));
     }
     
+    //A render distance below 1 does not reach the edge of the screen, the rest is left dark
+    public boolean isDark () {return this.renderDistance < 1;}
+
+    //Enough chunks in each direction to cover the screen, also when zoomed out
+    private int getChunkCountLoad () {
+        double halfScreen = Math.max(handler.getMidWIDTH()/handler.getUnitWidth(), handler.getMidHEIGHT()/handler.getUnitHeight());
+        return Math.max(2, (int) Math.ceil(halfScreen+1));
+    }
+
     //Z = 0: the ground of every tile on screen
     public void drawGround () {
 
         int tempX = (int) (handler.getCamera().getX()+0.5);
         int tempY = (int) (handler.getCamera().getY()+0.5);
-        int chunkCountLoad = 2;
+        int chunkCountLoad = getChunkCountLoad();
 
         IntStream.range(-chunkCountLoad, chunkCountLoad).forEachOrdered(relativeX -> {
             IntStream.range(-chunkCountLoad, chunkCountLoad).forEachOrdered(relativeY -> {
@@ -64,7 +73,7 @@ public class chunks {
         int tempX = (int) (handler.getCamera().getX()+0.5);
         int tempY = (int) (handler.getCamera().getY()+0.5);
         int tC = handler.getTileCount();
-        int chunkCountLoad = 2;
+        int chunkCountLoad = getChunkCountLoad();
 
         List<character> sorted = new ArrayList<character>();
         for (character c : characters) {

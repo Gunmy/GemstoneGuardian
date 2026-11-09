@@ -45,7 +45,7 @@ public class camera {
     }
 
     public double inRendered (double rendx, double rendy) {
-        return Math.pow((getRenderDistance()*handler.getUnitHeight()*2-getDistance(rendx, rendy))/(getRenderDistance()*handler.getUnitHeight()), 5);
+        return Math.pow((getRenderDistance()*handler.getFadeUnit()*2-getDistance(rendx, rendy))/(getRenderDistance()*handler.getFadeUnit()), 5);
 
     }
 

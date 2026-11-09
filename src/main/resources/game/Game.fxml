@@ -8,7 +8,7 @@
 <?import javafx.scene.control.TextArea?>
 <?import javafx.scene.layout.AnchorPane?>
 
-<AnchorPane fx:id="Pane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" onKeyPressed="#keyPressed" onKeyReleased="#keyReleased" onMouseClicked="#mouseClick" prefHeight="500.0" prefWidth="900.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="game.controller">
+<AnchorPane fx:id="Pane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" onKeyPressed="#keyPressed" onKeyReleased="#keyReleased" onMouseClicked="#mouseClick" onScroll="#scroll" prefHeight="500.0" prefWidth="900.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="game.controller">
    <children>
       <Label layoutX="14.0" layoutY="14.0" styleClass="Everything" text="Label" fx:id="xyBox" />
       <TextArea id="TextArea" fx:id="dialogueBox" editable="false" focusTraversable="false" layoutX="100.0" layoutY="344.0" mouseTransparent="true" pickOnBounds="false" prefHeight="100.0" prefWidth="700.0">

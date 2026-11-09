@@ -14,10 +14,31 @@ public class gameHandler {
     private double unitWidth = 0.1;
     private double unitHeight = 0.1;
 
-    public double getUnitWidth () {return unitWidth*getWIDTH();}
-    public double getUnitHeight () {return unitHeight*getWIDTH();}
+    public double getUnitWidth () {return unitWidth*zoom*getWIDTH();}
+    public double getUnitHeight () {return unitHeight*zoom*getWIDTH();}
+
+    //Zoom, on top of the size the current world is drawn in. Changed with the scrollwheel
+    private double zoom = 1;
+    private double zoomTarget = 1;
+    private double minZoom = 0.2;
+    private double maxZoom = 2;
+
+    public void zoom (double scroll) {
+        if (battleHandler.isActive()) return;
+        //One notch on a mouse wheel is 40
+        zoomTarget = Math.max(minZoom, Math.min(maxZoom, zoomTarget*Math.pow(1.1, scroll/40)));
+    }
+
+    //The size the fade to the background is measured in. In a dark world the light reaches
+    //equally many tiles no matter the zoom, otherwise it always covers the same part of the screen
+    public double getFadeUnit () {
+        if (worlds.get(getCurrentWorld()).isDark()) return getUnitHeight();
+        return unitHeight*getWIDTH();
+    }
 
     private void updateWidthHeight () {
+        zoom += ((battleHandler.isActive() ? 1 : zoomTarget)-zoom)*0.2;
+
         double var = 0.05;
         if (battleHandler.isActive()) {
             unitWidth += (1-unitWidth)*var;

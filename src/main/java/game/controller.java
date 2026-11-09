@@ -10,6 +10,7 @@ import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TextArea;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.util.Duration;
 
@@ -34,6 +35,8 @@ public class controller {
     @FXML private void button4click () {battleHandler.button4click();}
 
     @FXML private void mouseClick () {dialogueContainer.next();}
+
+    @FXML private void scroll (ScrollEvent e) {handler.zoom(e.getDeltaY());}
 
 
     @FXML private void keyPressed (KeyEvent e) {
