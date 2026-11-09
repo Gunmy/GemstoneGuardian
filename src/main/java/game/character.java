@@ -358,14 +358,20 @@ public class character implements cordinate, entity {
         return x == xTarget && y*tileCount == yTarget*tileCount;
     }
 
+    //Both the tile you stand on has to let you out, and the tile you go to has to let you in
+    private boolean canStep (double xChange, double yChange) {
+        return !getStandingTile().isBlockedOut(xChange, yChange)
+        && !getStandingTile(xChange/handler.getTileCount(), yChange/handler.getTileCount()).isBlocked(xChange, yChange);
+    }
+
     public boolean setTarget (double xChange, double yChange) {
         if (targetSameAsCoords()) {
 
-            if (xChange != 0 && !getStandingTile(xChange/handler.getTileCount(), 0).isBlocked()) { //  
+            if (xChange != 0 && canStep(xChange, 0)) { //
                 if (this.x + xChange/handler.getTileCount() < 0) throw new IllegalStateException("Koordinat kan ikke være under 0");
                 xTarget = this.x + xChange/handler.getTileCount();
                 return true;
-            } else if (yChange != 0 && !getStandingTile(0, yChange/handler.getTileCount()).isBlocked()) { // 
+            } else if (yChange != 0 && canStep(0, yChange)) { //
                 if (this.y + yChange/handler.getTileCount() < 0) throw new IllegalStateException("Koordinat kan ikke være under 0");
                 yTarget = this.y + yChange/handler.getTileCount();
                 return true;

@@ -22,6 +22,46 @@ public class tileType {
 
     public boolean isBlocked () {return this.block;}
 
+    //Only set for special tiles that are solid from some sides and open from others.
+    //Every other tile is solid from all sides or none, decided by block
+    private boolean[] solidFrom;
+
+    //1 if the tile is solid when you come from that side, 0 if not. Same order as the moves in movementEvent
+    public void setSolidFrom (int left, int top, int right, int bottom) {
+        this.solidFrom = new boolean[] {left != 0, top != 0, right != 0, bottom != 0};
+    }
+
+    //xChange and yChange is the step taken to get into the tile
+    public boolean isBlocked (double xChange, double yChange) {
+        if (solidFrom == null) return this.block;
+
+        if (xChange > 0) return solidFrom[0];
+        if (yChange > 0) return solidFrom[1];
+        if (xChange < 0) return solidFrom[2];
+        if (yChange < 0) return solidFrom[3];
+        return this.block;
+    }
+
+    //Only set for special tiles that you can stand on, but not leave in every direction
+    private boolean[] solidTo;
+
+    //1 if you can not leave the tile in that direction, 0 if you can. Not the same setting as solidFrom:
+    //solidFrom is about getting into the tile, solidTo is about getting out of it
+    public void setSolidTo (int left, int top, int right, int bottom) {
+        this.solidTo = new boolean[] {left != 0, top != 0, right != 0, bottom != 0};
+    }
+
+    //xChange and yChange is the step taken to get out of the tile
+    public boolean isBlockedOut (double xChange, double yChange) {
+        if (solidTo == null) return false;
+
+        if (xChange < 0) return solidTo[0];
+        if (yChange < 0) return solidTo[1];
+        if (xChange > 0) return solidTo[2];
+        if (yChange > 0) return solidTo[3];
+        return false;
+    }
+
     public int getId () {return this.id;}
 
     protected boolean insideScreen (gameHandler handler, double x, double y) {

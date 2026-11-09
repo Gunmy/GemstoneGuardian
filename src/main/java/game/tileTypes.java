@@ -97,7 +97,7 @@ public class tileTypes {
         addWaveType("Emptyshelf", 700, 700, 100, 100, true, null, types.get(15), false); //77 emptyshelf
         addType("Wheelchairtop", 400, 500, 100, 100, true, null); //78 wheelchairtop
         addWaveType("Wheelchairbottom", 400, 600, 100, 100, true, null, types.get(15), false); //79 wheelchairbottom
-        addWaveType("Sign", 200, 100, 100, 100, true, null, types.get(1), false); //80 sign
+        addWaveType("Sign", 200, 100, 100, 100, true, null, types.get(1), false, 1, 1, 0); solidFrom(0, 0, 0, 1); solidTo(0, 0, 0, 1); //80 sign, can be walked behind
         addWaveType("Chest", 800, 700, 100, 100, true, null, types.get(15), true); //81 chest
         addFluidType("Lava", 1000, 1000, 100, 100, true, null, 0.3, 0, 0.4, 1, true); //82 lava
         addWaveType("Cracked", 1100, 400, 100, 100, false, null, types.get(82), false); //83 cracked
@@ -192,6 +192,18 @@ public class tileTypes {
 
     private void addTreeType (String name, int xOverlay, int yOverlay, tileType underlay) {
         addWaveType(name, xOverlay, yOverlay, 100, 100, true, null, underlay, true, 1, treeHeight, treeScatter);
+    }
+
+    //Makes the type that was just added solid only from the given sides (1 solid, 0 open). The side is the one you come from,
+    //so solidFrom(0, 0, 0, 1) can be entered from the left, top and right, but not from below
+    private void solidFrom (int left, int top, int right, int bottom) {
+        types.get(getLength()-1).setSolidFrom(left, top, right, bottom);
+    }
+
+    //Stops you from leaving the type that was just added in the given directions (1 closed, 0 open),
+    //so solidTo(0, 0, 0, 1) lets you walk off it to the left, up and to the right, but not down
+    private void solidTo (int left, int top, int right, int bottom) {
+        types.get(getLength()-1).setSolidTo(left, top, right, bottom);
     }
 
     public int getMaxZ () {return types.stream().mapToInt(t -> t.getMaxZ()).max().orElse(0);}

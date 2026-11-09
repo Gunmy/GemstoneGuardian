@@ -100,6 +100,11 @@ public class gameHandler {
     public boolean infoOn () {return this.info;}
     public void Npress () {if (infoOn()) readChunks.read(this);}
 
+    //Colliders off lets every character walk through tiles and each other
+    private boolean colliders = true;
+    public void Cpress () {colliders = colliders == false;}
+    public boolean collidersOn () {return this.colliders;}
+
     public character getMainCharacter () {return characters.get("Boy");}
 
     private battle battleHandler;;

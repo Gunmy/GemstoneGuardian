@@ -47,6 +47,7 @@ public class controller {
         else if (e.getCode() == KeyCode.SPACE) {dialogueContainer.next();}
         else if (e.getCode() == KeyCode.M) {handler.Mpress();}
         else if (e.getCode() == KeyCode.N) {handler.Npress();}
+        else if (e.getCode() == KeyCode.C) {handler.Cpress();}
     }
     
 
@@ -90,14 +91,15 @@ public class controller {
             deltaT.next();
             handler.next(deltaT.getSeconds()); 
 
+            String collidersText = handler.collidersOn() ? "" : "Colliders off";
             if (handler.infoOn()) {
                 xyBox.setText(
                     "X: " + Math.round(handler.getMainCharacter().getX()*100)/100.0 + "  \t" +
                     "Y: " + Math.round(handler.getMainCharacter().getY()*100)/100.0 + "  \t" +
-                    "FPS: " + (int)(1/deltaT.getSeconds())
+                    "FPS: " + (int)(1/deltaT.getSeconds()) + "  \t" + collidersText
                 );
             } else {
-                xyBox.setText("");
+                xyBox.setText(collidersText);
             }
         }));
         tl.setCycleCount(Timeline.INDEFINITE);

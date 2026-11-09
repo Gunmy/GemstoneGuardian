@@ -18,8 +18,15 @@ public class tile {
         this.y = y + chunky*handler.getTileCount();
     }
 
-    public boolean isBlocked() {
-        if (getTileType().isBlocked()) {return true;}
+    //xChange and yChange is the step taken to get out of the tile
+    public boolean isBlockedOut(double xChange, double yChange) {
+        return handler.collidersOn() && getTileType().isBlockedOut(xChange, yChange);
+    }
+
+    //xChange and yChange is the step taken to get into the tile
+    public boolean isBlocked(double xChange, double yChange) {
+        if (!handler.collidersOn()) {return false;}
+        if (getTileType().isBlocked(xChange, yChange)) {return true;}
 
         for (character character : handler.getCharacters()) {
             if (character.getStandingTile() == this) {return true;}
