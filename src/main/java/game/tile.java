@@ -32,15 +32,31 @@ public class tile {
 
     public tileType getTileType() {return this.tileType;}
 
-    public void draw (double realx, double realy) {
-
+    private double getRenderVal (double realx, double realy) {
         double rendx = realx+0.5*handler.getUnitWidth()/handler.getTileCount();
         double rendy = realy+0.5*handler.getUnitHeight()/handler.getTileCount();
 
-        double renderVal = handler.getCamera().inRendered(rendx, rendy);
+        return handler.getCamera().inRendered(rendx, rendy);
+    }
+
+    //Z = 1 and up, the ground is drawn by drawGround
+    public void drawLayer (double realx, double realy, int z) {
+        if (z > tileType.getMaxZ()) return;
+
+        double renderVal = getRenderVal(realx, realy);
         if (renderVal > 0.01) {
             handler.getTempGc().setGlobalAlpha(renderVal);
-            tileType.draw(handler, realx, realy, x, y);
+            tileType.drawLayer(handler, realx, realy, x, y, z);
+            handler.getTempGc().setGlobalAlpha(1);
+        }
+    }
+
+    public void drawGround (double realx, double realy) {
+
+        double renderVal = getRenderVal(realx, realy);
+        if (renderVal > 0.01) {
+            handler.getTempGc().setGlobalAlpha(renderVal);
+            tileType.drawLayer(handler, realx, realy, x, y, 0);
 
             Random gen = new Random();
             double rdm = (gen).nextDouble();

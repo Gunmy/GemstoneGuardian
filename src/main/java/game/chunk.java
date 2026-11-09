@@ -30,11 +30,17 @@ public class chunk {
         return tiles.get(Arrays.asList(x, y));
     }
 
-    public void draw () {
-        camera cam = handler.getCamera();
+    private double getRealX () {
+        return handler.getMidWIDTH() + ((x-handler.getCamera().getX()))*handler.getUnitWidth();
+    }
 
-        double realx = handler.getMidWIDTH() + ((x-cam.getX()))*handler.getUnitWidth();
-        double realy = handler.getMidHEIGHT() + ((y-cam.getY()))*handler.getUnitHeight();
+    private double getRealY () {
+        return handler.getMidHEIGHT() + ((y-handler.getCamera().getY()))*handler.getUnitHeight();
+    }
+
+    public void drawGround () {
+        double realx = getRealX();
+        double realy = getRealY();
 
         drawTiles(realx, realy);
 
@@ -43,10 +49,10 @@ public class chunk {
 
         }
         //handler.getTempGc().drawImage(handler.images.getImage(0), (x%5)*100, (y%2)*100, 100, 100, (int) realx,  (int) realy, handler.getUnitWidth(), handler.getUnitHeight());
-        
+
     }
 
-    private void drawTiles (double x, double y) {    
+    private void drawTiles (double x, double y) {
 
         int tC = handler.getTileCount();
         double tW = handler.getUnitWidth()/handler.getTileCount();
@@ -55,10 +61,24 @@ public class chunk {
         //For loops er nok bedre her men streams er kulere B)
         IntStream.range(0, tC).forEachOrdered(relativeX -> {
             IntStream.range(0, tC).forEachOrdered(relativeY -> {
-                getTile(relativeX, relativeY).draw(x+relativeX*tW, y+relativeY*tH);
+                getTile(relativeX, relativeY).drawGround(x+relativeX*tW, y+relativeY*tH);
             });
         });
 
+    }
+
+    //One row at a time, so that chunks can draw the whole screen row by row
+    public void drawRow (int relativeY, int z) {
+        double realx = getRealX();
+        double realy = getRealY();
+
+        int tC = handler.getTileCount();
+        double tW = handler.getUnitWidth()/handler.getTileCount();
+        double tH = handler.getUnitHeight()/handler.getTileCount();
+
+        IntStream.range(0, tC).forEachOrdered(relativeX -> {
+            getTile(relativeX, relativeY).drawLayer(realx+relativeX*tW, realy+relativeY*tH, z);
+        });
     }
 
     public void setTiles ( Hashtable<List<Integer>, tile> replaceTiles) {

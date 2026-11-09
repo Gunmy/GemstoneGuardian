@@ -1,6 +1,8 @@
 package game;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
@@ -40,25 +42,57 @@ public class chunks {
         return chunks.get(Arrays.asList(x, y));
     }
     
-    public void drawChunks () {
+    //Z = 0: the ground of every tile on screen
+    public void drawGround () {
 
         int tempX = (int) (handler.getCamera().getX()+0.5);
         int tempY = (int) (handler.getCamera().getY()+0.5);
-    
-
         int chunkCountLoad = 2;
 
         IntStream.range(-chunkCountLoad, chunkCountLoad).forEachOrdered(relativeX -> {
             IntStream.range(-chunkCountLoad, chunkCountLoad).forEachOrdered(relativeY -> {
-
-                if (getChunk(tempX+relativeX, tempY+relativeY) == null) {
-                    generateNewChunk(tempX+relativeX, tempY+relativeY);
-                }
-
-                getChunk(tempX+relativeX, tempY+relativeY).draw();
+                getChunk(tempX+relativeX, tempY+relativeY).drawGround();
             });
         });
 
+    }
+
+    //Z = 1 and up: everything on the given level. Drawn row by row from the top of the screen
+    //and down, with the characters in between, so that whatever is further down ends up in front
+    public void drawLayer (int z, List<character> characters) {
+
+        int tempX = (int) (handler.getCamera().getX()+0.5);
+        int tempY = (int) (handler.getCamera().getY()+0.5);
+        int tC = handler.getTileCount();
+        int chunkCountLoad = 2;
+
+        List<character> sorted = new ArrayList<character>();
+        for (character c : characters) {
+            if (c.getZ() == z) sorted.add(c);
+        }
+        sorted.sort(Comparator.comparingDouble(character::getFeetY));
+        int next = 0;
+
+        for (int chunkY = tempY-chunkCountLoad; chunkY < tempY+chunkCountLoad; chunkY++) {
+            for (int relativeY = 0; relativeY < tC; relativeY++) {
+
+                //Characters with their feet above the bottom of this row are behind it
+                double rowBottom = chunkY + (relativeY+1.0)/tC;
+                while (next < sorted.size() && sorted.get(next).getFeetY() < rowBottom) {
+                    sorted.get(next).draw();
+                    next++;
+                }
+
+                for (int chunkX = tempX-chunkCountLoad; chunkX < tempX+chunkCountLoad; chunkX++) {
+                    getChunk(chunkX, chunkY).drawRow(relativeY, z);
+                }
+            }
+        }
+
+        while (next < sorted.size()) {
+            sorted.get(next).draw();
+            next++;
+        }
     }
 
     private void generateNewChunk (int x, int y) {

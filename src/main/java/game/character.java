@@ -299,6 +299,18 @@ public class character implements cordinate, entity {
     @Override
     public double getY() {return y;}
 
+    //The sprite is drawn half a tile up, so the feet are in the middle of the tile
+    public double getFeetY () {return y + 0.5/handler.getTileCount();}
+
+    //The z-level the character is drawn on. 1 is on the ground, between the trees and flowers.
+    //2 and up is above everything on the levels below, like a bird flying over the trees
+    private int z = 1;
+    public int getZ () {return this.z;}
+    public void setZ (int z) {
+        if (z < 1) throw new IllegalArgumentException("Z kan ikke være under 1");
+        this.z = z;
+    }
+
     public void draw () {
         if (handler.getCurrentWorld() == world) {
             double time = (double) System.nanoTime();
@@ -348,7 +360,7 @@ public class character implements cordinate, entity {
 
     public boolean setTarget (double xChange, double yChange) {
         if (targetSameAsCoords()) {
-            
+
             if (xChange != 0 && !getStandingTile(xChange/handler.getTileCount(), 0).isBlocked()) { //  
                 if (this.x + xChange/handler.getTileCount() < 0) throw new IllegalStateException("Koordinat kan ikke være under 0");
                 xTarget = this.x + xChange/handler.getTileCount();

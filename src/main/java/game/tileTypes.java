@@ -174,9 +174,17 @@ public class tileTypes {
         types.add(new fluidType(name, x, y, width, height, getLength(), blocked, pressurePlate, speed, redWeight, greenWeight, blueWeight, shader, inverse));
     }
 
+    //Overlays that wave stick out of their own tile, so they are lifted off the ground (z = 1). The rest lie flat on it (z = 0)
     private void addWaveType (String name, int xOverlay, int yOverlay, int width, int height, boolean blocked, Consumer<character> pressurePlate, tileType underlay, boolean wave) {
-        types.add(new waveType(name, xOverlay, yOverlay, width, height, getLength(), blocked, pressurePlate, underlay, wave));
+        addWaveType(name, xOverlay, yOverlay, width, height, blocked, pressurePlate, underlay, wave, wave ? 1 : 0);
     }
+
+    //z is the level the overlay is drawn on (2 and up is above the characters)
+    private void addWaveType (String name, int xOverlay, int yOverlay, int width, int height, boolean blocked, Consumer<character> pressurePlate, tileType underlay, boolean wave, int z) {
+        types.add(new waveType(name, xOverlay, yOverlay, width, height, getLength(), blocked, pressurePlate, underlay, wave, z));
+    }
+
+    public int getMaxZ () {return types.stream().mapToInt(t -> t.getMaxZ()).max().orElse(0);}
 
     private int getLength () {return types.size();}
     public tileType get(int n) {return types.get(n);}

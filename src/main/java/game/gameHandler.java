@@ -497,15 +497,18 @@ public class gameHandler {
 
         //Set current world
         this.world = getCamera().getBound().getWorld();
-        worlds.get(getCurrentWorld()).drawChunks();
+        worlds.get(getCurrentWorld()).drawGround();
 
         //Remove dead
         behindParticles = behindParticles.stream().filter(e -> !e.isDead()).collect(Collectors.toList());
         frontParticles  = frontParticles.stream().filter(e -> !e.isDead()).collect(Collectors.toList());
 
-        //Draw entities (particles + entities)
+        //Draw entities (particles + tiles and characters above the ground, one z-level at a time)
         behindParticles.forEach(c -> c.draw());
-        characters.getCharacters().forEach(c ->        c.draw());
+        int maxZ = Math.max(tileTypes.getMaxZ(), characters.getCharacters().stream().mapToInt(c -> c.getZ()).max().orElse(0));
+        for (int z = 1; z <= maxZ; z++) {
+            worlds.get(getCurrentWorld()).drawLayer(z, characters.getCharacters());
+        }
         frontParticles.forEach(c ->  c.draw());
 
         //Info

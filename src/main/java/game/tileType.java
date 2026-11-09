@@ -24,18 +24,23 @@ public class tileType {
 
     public int getId () {return this.id;}
 
-    private boolean insideScreen (gameHandler handler, double x, double y) {
-        return -handler.getUnitWidth()/handler.getTileCount() <= x 
-        && x <= handler.getWIDTH() 
-        && -handler.getUnitHeight()/handler.getTileCount() <= y 
+    protected boolean insideScreen (gameHandler handler, double x, double y) {
+        return -handler.getUnitWidth()/handler.getTileCount() <= x
+        && x <= handler.getWIDTH()
+        && -handler.getUnitHeight()/handler.getTileCount() <= y
         && y <= handler.getHEIGHT();
     }
 
-    public void draw (gameHandler handler, double realx, double realy, int x, int y) {
-        if (insideScreen(handler, realx, realy)) {
+    //Draws the part of the tile that is on the given z-level. The levels are drawn one at a time:
+    //0 is the ground, 1 is whatever stands on it (trees, flowers, most characters...),
+    //2 and up is above that again. A plain tile is only ground
+    public void drawLayer (gameHandler handler, double realx, double realy, int x, int y, int z) {
+        if (z == 0 && insideScreen(handler, realx, realy)) {
             drawSpecial(handler, realx, realy, x, y);
         }
     }
+
+    public int getMaxZ () {return 0;}
 
     protected void drawSpecial (gameHandler handler, double realx, double realy, int x, int y) {
         int correctionVal =0;
