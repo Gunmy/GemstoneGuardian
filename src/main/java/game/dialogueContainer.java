@@ -2,38 +2,38 @@ package game;
 
 import java.util.ArrayList;
 import java.util.List;
-import javafx.scene.control.TextArea;
 
+//The queue of things said. The one being shown is drawn by guiDialogue
 public class dialogueContainer {
     private List<dialogue> dialogues = new ArrayList<dialogue>();
-    private TextArea dialogueBox;
+    private dialogue current;
 
-    public dialogueContainer (TextArea dialogueBox) {
-        this.dialogueBox = dialogueBox;
-        dialogueBox.setVisible(false);
-    }
+    //What is hurting or healing right now (an ability, an item, a pad...). Whoever applies damage
+    //or healing sets it around the call, and the damage and heal messages pick it up as their picture
+    private picture source;
+
+    public void setSource (picture source) {this.source = source;}
+    public void clearSource () {this.source = null;}
+    public picture getSource () {return this.source;}
 
     public boolean hasNext() {
         return dialogues.size() > 0;
     }
-    
+
     public void next() {
         if (hasNext()) {
-            dialogueBox.setVisible(true);
-
-            dialogueBox.setText("");
-            dialogueBox.appendText(dialogues.get(0).getNameText() + ":\n");
-            dialogueBox.appendText(dialogues.get(0).getText());
-            dialogueBox.appendText("\n\n----- PRESS SPACE TO CONTINUE -----");
-
-            dialogues.remove(0);
+            current = dialogues.remove(0);
         } else {
-            dialogueBox.setVisible(false);
+            current = null;
         }
     }
 
     public boolean isActive () {
-        return dialogueBox.isVisible();
+        return current != null;
+    }
+
+    public dialogue getCurrent () {
+        return this.current;
     }
 
     public void add (dialogue dialog) {

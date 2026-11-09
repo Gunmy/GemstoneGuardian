@@ -16,7 +16,7 @@ public class giveEvent implements event {
     @Override
     public void trigger() {
         targetCharacter.give(giveItem);
-        dialogueContainer.add(new dialogue("Game", "You picked up " + giveItem.getName()));
+        dialogueContainer.add(new dialogue("Game", "You picked up " + giveItem.getName()).highlight(dialogue.ITEM_BORDER, giveItem));
         targetCharacter.restore();
     }
     

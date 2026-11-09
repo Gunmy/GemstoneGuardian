@@ -112,6 +112,12 @@ public class gameHandler {
 
     private SnapshotParameters params = new SnapshotParameters();
 
+    private gui gui;
+    public gui getGui () {return this.gui;}
+
+    private settings settings = new settings();
+    public settings getSettings () {return this.settings;}
+
 
     public gameHandler (RCanvas canvas, dialogueContainer dialogueContainer, battle battleHandler, imgDict imgDict) {
         this.canvas = canvas;
@@ -233,6 +239,14 @@ public class gameHandler {
 
         //Main character
         characters.add(new character("Boy",  10000.3, 10000.3, 0, 500, 100, 100, 3, this, 5));
+
+        //What enemies leave behind when beaten
+        items itemDict = new items(this);
+        characters.get("Girl (Beginner)").addDrop(() -> itemDict.healingPotion(), 1, 1);
+        for (character sheep : Arrays.asList(characters.get("Dolly"), characters.get("Sauen Shaun"), characters.get("Gerd Borghild"), characters.get("Sheep"),
+                characters.get("Tikke"), characters.get("Åge"), characters.get("Magical Sheep"), characters.get("Nonmagical Sheep"), characters.get("Semi Magical Sheep"))) {
+            sheep.addDrop(() -> itemDict.woolBandage(), 0.5, 2);
+        }
 
 
         List<character> noWin = Arrays.asList(
@@ -478,6 +492,8 @@ public class gameHandler {
         camera = new camera(this, getMainCharacter());
         //Generate map
         readChunks.read(this);
+
+        gui = new gui(this);
     }
 
     private dialogueContainer dialogueContainer;
@@ -547,7 +563,7 @@ public class gameHandler {
 
         //Move stuff
 
-        if (!dialogueContainer.isActive() && getCamera().bindTimeOver() && !battleHandler.isActive()) {
+        if (!dialogueContainer.isActive() && getCamera().bindTimeOver() && !battleHandler.isActive() && !gui.blocksMovement()) {
             getMainCharacter().setTarget(dPressed - aPressed, sPressed - wPressed);
         }
         getCamera().move(deltaTime);
@@ -560,6 +576,10 @@ public class gameHandler {
         if (battleHandler.isActive()) {
             battleHandler.carryOn(this);
         }
+
+        //The GUI goes on top of everything
+        gui.next(deltaTime);
+        gui.draw(getTempGc());
 
         //Copy from tempCanvas to other canvas
         getCanvas().getGraphicsContext2D().clearRect(0, 0, getWIDTH(), getHEIGHT());

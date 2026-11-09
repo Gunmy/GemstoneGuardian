@@ -2,7 +2,9 @@ package game;
 
 import java.util.function.Consumer;
 
-public class tileType {
+import javafx.scene.canvas.GraphicsContext;
+
+public class tileType implements picture {
 
     protected String name;
     protected int x, y, width, height, id;
@@ -105,12 +107,20 @@ public class tileType {
 
     public void doFunction (character character) {
         if (this.pressurePlate != null) {
+            dialogueContainer dialogues = character.getHandler().getDiealoguecontainer();
+            dialogues.setSource(this);
             pressurePlate.accept(character);
-
+            dialogues.clearSource();
         }
     }
 
     public String getName () {
         return this.name;
+    }
+
+    //In a box the tile is its own cell from the sheet
+    @Override
+    public void draw (GraphicsContext gc, gui gui, double x, double y, double size) {
+        gc.drawImage(gui.getHandler().getImages().getImage(0), this.x+1, this.y+1, width-2, height-2, Math.round(x), Math.round(y), Math.round(size), Math.round(size));
     }
 }

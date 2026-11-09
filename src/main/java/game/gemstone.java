@@ -1,5 +1,6 @@
 package game;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
@@ -8,17 +9,22 @@ import java.util.function.BiConsumer;
 public class gemstone extends item {
     private BiConsumer<character, character> ability1, ability2, ability3;
     private String ability1name, ability2name, ability3name;
+    private abilityType ability1type, ability2type, ability3type;
+    private String ability1description, ability2description, ability3description;
     private int ability1usages, ability2usages, ability3usages;
     private int ability1uses, ability2uses, ability3uses;
     private double ability1chance, ability2chance, ability3chance;
     private Random rdm = new Random();
 
+    //Every gemstone is the same grey rock texture coloured in with color, and can give off particles
     public gemstone(
-        String name, gameHandler handler, 
-        String ability1name, BiConsumer<character, character> ability1, int ability1usages, double ability1chance,
-        String ability2name, BiConsumer<character, character> ability2, int ability2usages, double ability2chance, 
-        String ability3name, BiConsumer<character, character> ability3, int ability3usages, double ability3chance) {
+        String name, String color, itemParticles particles, gameHandler handler,
+        String ability1name, abilityType ability1type, String ability1description, BiConsumer<character, character> ability1, int ability1usages, double ability1chance,
+        String ability2name, abilityType ability2type, String ability2description, BiConsumer<character, character> ability2, int ability2usages, double ability2chance,
+        String ability3name, abilityType ability3type, String ability3description, BiConsumer<character, character> ability3, int ability3usages, double ability3chance) {
         super(name, null, false, handler);
+        look(guiSkin.ROCK_X, guiSkin.GUI_Y, color);
+        particles(particles);
         this.useFunct = (c1, c2) -> {
             if (c1.getGemstone() == this) {
                 c1.deEquip();
@@ -30,6 +36,12 @@ public class gemstone extends item {
         this.ability2 = ability2;
         this.ability3 = ability3;
         this.ability1name = ability1name;
+        this.ability1type = ability1type;
+        this.ability1description = ability1description;
+        this.ability2description = ability2description;
+        this.ability3description = ability3description;
+        this.ability2type = ability2type;
+        this.ability3type = ability3type;
         this.ability2name = ability2name;
         this.ability3name = ability3name;
         this.ability1usages = ability1usages;
@@ -50,7 +62,9 @@ public class gemstone extends item {
         if (you == them) throw new IllegalArgumentException("Kan ikke slåss mot seg selv");
         if (rdm.nextDouble() <= chances(you).get(0)) {
             handler.getDiealoguecontainer().add(new dialogue(you, "Used " + ability1name));
+            handler.getDiealoguecontainer().setSource(ability1type);
             ability1.accept(you, them);
+            handler.getDiealoguecontainer().clearSource();
         } else {
             handler.getDiealoguecontainer().add(new dialogue(you, "Failed at using " + ability1name));
         }
@@ -69,7 +83,9 @@ public class gemstone extends item {
         
         if (rdm.nextDouble() <= chances(you).get(1)) {
             handler.getDiealoguecontainer().add(new dialogue(you, "Used " + ability2name));
+            handler.getDiealoguecontainer().setSource(ability2type);
             ability2.accept(you, them);
+            handler.getDiealoguecontainer().clearSource();
         } else {
             handler.getDiealoguecontainer().add(new dialogue(you, "Failed at using " + ability2name));
         }
@@ -83,7 +99,9 @@ public class gemstone extends item {
     public void ability3 (character you, character them) {
         if (rdm.nextDouble() <= chances(you).get(2)) {
             handler.getDiealoguecontainer().add(new dialogue(you, "Used " + ability3name));
+            handler.getDiealoguecontainer().setSource(ability3type);
             ability3.accept(you, them);
+            handler.getDiealoguecontainer().clearSource();
         } else {
             handler.getDiealoguecontainer().add(new dialogue(you, "Failed at using " + ability3name));
         }
@@ -98,6 +116,19 @@ public class gemstone extends item {
     public String getAbility1name() {return ability1name;}
     public String getAbility2name() {return ability2name;}
     public String getAbility3name() {return ability3name;}
+
+    public abilityType getAbility1type() {return ability1type;}
+    public abilityType getAbility2type() {return ability2type;}
+    public abilityType getAbility3type() {return ability3type;}
+
+    @Override
+    public List<infoBox> getInfoBoxes () {
+        List<infoBox> boxes = new ArrayList<infoBox>();
+        boxes.add(new infoBox(ability1type, ability1name, ability1usages + " uses, " + Math.round(ability1chance*100) + "% hit", ability1description));
+        boxes.add(new infoBox(ability2type, ability2name, ability2usages + " uses, " + Math.round(ability2chance*100) + "% hit", ability2description));
+        boxes.add(new infoBox(ability3type, ability3name, ability3usages + " uses, " + Math.round(ability3chance*100) + "% hit", ability3description));
+        return boxes;
+    }
 
     @Override
     protected void dialogueAdd(character you) {

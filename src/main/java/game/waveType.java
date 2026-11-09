@@ -2,6 +2,8 @@ package game;
 
 import java.util.function.Consumer;
 
+import javafx.scene.canvas.GraphicsContext;
+
 public class waveType extends tileType {
     private boolean wave;
     private tileType underlay;
@@ -53,6 +55,13 @@ public class waveType extends tileType {
         && realx <= handler.getWIDTH()+tileWidth
         && -2*tileHeight <= realy
         && realy <= handler.getHEIGHT()+tileHeight;
+    }
+
+    //In a box a waving overlay waves like it does in the world
+    @Override
+    public void draw (GraphicsContext gc, gui gui, double x, double y, double size) {
+        double heightOffset = wave ? Math.sin(System.nanoTime()/300000000.0)*size*0.09 : 0;
+        gc.drawImage(gui.getHandler().getImages().getImage(0), this.x+1, this.y+1, width-2, height-2, Math.round(x), y - heightOffset, Math.round(size), size + heightOffset);
     }
 
     //Only the overlay, the underlay is drawn by drawLayer

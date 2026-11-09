@@ -16,6 +16,7 @@ public class app extends Application {
 
     @Override
     public void start(Stage primaryStage) throws IOException {
+        guiText.loadFont();
         Parent root = FXMLLoader.load(getClass().getResource("Game.fxml"));
         Scene scene = new Scene(root);
         

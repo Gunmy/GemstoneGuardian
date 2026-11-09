@@ -4,13 +4,16 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
-import java.util.stream.Collectors;
+import java.util.function.Supplier;
 
+
+import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.TextAlignment;
 
-public class character implements cordinate, entity {
+public class character implements cordinate, entity, picture {
 
     private String name;
     private double x, y;
@@ -25,9 +28,42 @@ public class character implements cordinate, entity {
 
     private double xp = 0;
 
-    private List<item> inventory = new ArrayList<item>();
+    private inventory inventory = new inventory();
 
     private List<List<Integer>> queuedMovement = new ArrayList<List<Integer>>();
+
+    //What the character can leave behind when beaten: each entry is rolled `rolls` times with `chance` each
+    private List<drop> drops = new ArrayList<drop>();
+
+    private static class drop {
+        Supplier<item> item;
+        double chance;
+        int rolls;
+
+        drop (Supplier<item> item, double chance, int rolls) {
+            this.item = item;
+            this.chance = chance;
+            this.rolls = rolls;
+        }
+    }
+
+    public void addDrop (Supplier<item> item, double chance, int rolls) {
+        if (chance < 0 || chance > 1) throw new IllegalArgumentException("Chance må være mellom 0 og 1");
+        if (rolls < 1) throw new IllegalArgumentException("Rolls kan ikke være under 1");
+        drops.add(new drop(item, chance, rolls));
+    }
+
+    //Rolls every drop and returns the items won this time
+    public List<item> rollDrops () {
+        Random rdm = new Random();
+        List<item> won = new ArrayList<item>();
+        for (drop drop : drops) {
+            for (int i = 0; i < drop.rolls; i++) {
+                if (rdm.nextDouble() < drop.chance) won.add(drop.item.get());
+            }
+        }
+        return won;
+    }
 
     public character (String name, double x, double y, int imgX, int imgY, int height, int width, int world, gameHandler handler, double speed) {
         this.name = name;
@@ -93,9 +129,12 @@ public class character implements cordinate, entity {
 
         
 
+        boolean leveledUp = getLevel() + 1 <= xpToLvl(this.xp+xp);
         this.xp += xp;
 
-        handler.getDiealoguecontainer().add(new dialogue("Game", msg));
+        dialogue message = new dialogue("Game", msg);
+        if (leveledUp) message.highlight(dialogue.LEVEL_BORDER, picture.of(handler.getImages().getTinted(guiSkin.LEVEL_UP_X, guiSkin.ICON_Y, "#60E060")));
+        handler.getDiealoguecontainer().add(message);
     }
 
     //Effects, kunne blitt gjort en del kortere
@@ -187,8 +226,11 @@ public class character implements cordinate, entity {
         }
 
         if (dialogue != "") {
+            abilityType cause = fireDamageTimes > 0 ? abilityType.FIRE : poisonDamageTimes > 0 ? abilityType.POISON : abilityType.HEAL;
+            handler.getDiealoguecontainer().setSource(cause);
             handler.getDiealoguecontainer().add(new dialogue("Game", dialogue));
             takeDmg(dmg);
+            handler.getDiealoguecontainer().clearSource();
         }
 
         if (confusionTimes > 0) {
@@ -220,8 +262,13 @@ public class character implements cordinate, entity {
         this.health = getMaxHealth();
     }
 
-    public List<item> getInventory () {
-        return inventory.stream().collect(Collectors.toList());
+    public inventory getInventory () {
+        return this.inventory;
+    }
+
+    //Uses up one of a consumable item
+    public void consume (item item) {
+        inventory.consume(item);
     }
 
     public void addMovementToQueue (int xChange, int yChange) {
@@ -229,12 +276,14 @@ public class character implements cordinate, entity {
         queuedMovement.add(Arrays.asList(xChange, yChange));
     }
 
+    //Only a rock in one of the active rock slots can be equipped. One that is moved out is unequipped
     public gemstone getGemstone () {
+        if (equipped != null && !inventory.inRockSlot(equipped)) equipped = null;
         return this.equipped;
     }
 
     public void equipGemstone (gemstone equipped) {
-        if (!inventory.contains(equipped)) throw new IllegalArgumentException(equipped + " er ikke i inventory: " + inventory);
+        if (!inventory.inRockSlot(equipped)) throw new IllegalArgumentException(equipped.getName() + " ligger ikke i et rock slot");
         this.equipped = equipped;
     }
 
@@ -244,6 +293,23 @@ public class character implements cordinate, entity {
 
     public String getName () {
         return this.name;
+    }
+
+    public gameHandler getHandler () {return this.handler;}
+
+    //The character's sprite as a picture, for dialogue boxes and health bars
+    public Image getIcon () {
+        return handler.getImages().getTinted(imgX, imgY, null);
+    }
+
+    //In a box the character bounces the same way it does in the world
+    @Override
+    public void draw (GraphicsContext gc, gui gui, double x, double y, double size) {
+        double time = (double) System.nanoTime();
+        double division = 100000000;
+        double heightOffset = Math.sin(time/division)*size*0.03;
+        double widthOffset = Math.sin(time/division)*size*0.03;
+        gc.drawImage(getIcon(), 1, 1, guiSkin.CELL-2, guiSkin.CELL-2, x + widthOffset/2, y - heightOffset, size - widthOffset, size + heightOffset);
     }
 
     public double getHealth () {
@@ -265,7 +331,8 @@ public class character implements cordinate, entity {
             this.health = 0;
         }
 
-        handler.getDiealoguecontainer().add(new dialogue("Game", getName() + " took " + dmg + " damage!\n" + getName() + " now has " + getHealth() + " health left"));
+        handler.getDiealoguecontainer().add(new dialogue("Game", getName() + " took " + dmg + " damage!\n" + getName() + " now has " + getHealth() + " health left")
+            .highlight(dialogue.DAMAGE_BORDER, handler.getDiealoguecontainer().getSource()));
     }
 
     public void heal (double dec) {
@@ -280,7 +347,8 @@ public class character implements cordinate, entity {
             this.health = getMaxHealth();
         }
 
-        handler.getDiealoguecontainer().add(new dialogue("Game", getName() + " healed " + (this.health-temp) + "!\n" + getName() + " now has " + getHealth() + " health left"));
+        handler.getDiealoguecontainer().add(new dialogue("Game", getName() + " healed " + (this.health-temp) + "!\n" + getName() + " now has " + getHealth() + " health left")
+            .highlight(dialogue.DAMAGE_BORDER, handler.getDiealoguecontainer().getSource()));
 
     }
 
@@ -289,7 +357,7 @@ public class character implements cordinate, entity {
     }
 
     public void give (item recievedItem) {
-        inventory.add(recievedItem);
+        inventory.give(recievedItem);
         if (equipped == null && recievedItem instanceof gemstone) equipGemstone((gemstone) recievedItem);
     }
 
@@ -451,7 +519,7 @@ public class character implements cordinate, entity {
     }
 
     public void restoreItems () {
-        for (item item : inventory) {
+        for (item item : inventory.getItems()) {
             item.restore();
         }
     }
@@ -482,7 +550,7 @@ public class character implements cordinate, entity {
                 
             }
         } else {
-            for (item item : getInventory()) {
+            for (item item : getInventory().getItems()) {
                 if (item instanceof gemstone && ((gemstone) item).hasMovesLeft()) {
                     item.use(this, them);
                 }

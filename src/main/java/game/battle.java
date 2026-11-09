@@ -1,45 +1,34 @@
 package game;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
-import javafx.scene.control.Button;
-import javafx.scene.control.ListView;
-import javafx.scene.control.ProgressBar;
-
+//The turn based fight. Holds the state only, the GUI (guiBattle) draws it and calls back in here
 public class battle {
 
-    private List<Button> buttons = new ArrayList<Button>();
     private boolean activeBattle = false;
 
     private character you, them;
-    private ProgressBar bar1, bar2;
-    private boolean buttonsShown = false;
 
     private event youWin, theyWin;
 
     private boolean opponentDoneMove = true;
 
-    private ListView<item> inventory;
+    //True while the player is choosing what to do
+    private boolean waitingForPlayer = false;
+    //True while the rocks and items are shown instead of the abilities
+    private boolean moreView = false;
+
+    //Health bars that slide towards the real health
+    private double yourBar, theirBar;
 
     //To save the event in case player lose
     private double x, y, r;
     private int world;
 
-    public battle (Button button1, Button button2, Button button3, Button button4, ProgressBar progressBar1, ProgressBar progressBar2, ListView<item> inventory) {
-        buttons.add(button1);
-        buttons.add(button2);
-        buttons.add(button3);
-        buttons.add(button4);
-
-        this.bar1 = progressBar1;
-        this.bar2 = progressBar2;
-
-        this.inventory = inventory;
-    
+    public battle () {
         resetBattle();
-
-        inventory.setCellFactory(Item -> new ButtonListCell());
     }
 
     public character getTurnHaver () {
@@ -52,7 +41,15 @@ public class battle {
         return them;
     }
 
+    public character getYou () {return this.you;}
+    public character getThem () {return this.them;}
+    public double getYourBar () {return this.yourBar;}
+    public double getTheirBar () {return this.theirBar;}
+
     public boolean isActive () {return this.activeBattle;}
+    public boolean isWaitingForPlayer () {return this.waitingForPlayer;}
+    public boolean inMoreView () {return this.moreView;}
+
     public void newBattle (character you, character them, event youWin, event theyWin, double x, double y, double r, int world) {
         if (you == them) throw new IllegalArgumentException("Kan ikke slåss mot seg selv");
         activeBattle = true;
@@ -64,102 +61,59 @@ public class battle {
         this.y = y;
         this.r = r;
         this.world = world;
-        bar1.setVisible(true);
-        bar2.setVisible(true);
-        updateButtons();
-
+        this.yourBar = you.getHealthPercentage();
+        this.theirBar = them.getHealthPercentage();
     }
 
-    private void updateButtons () {
-        if (you.getGemstone() != null) {
-            gemstone temp = you.getGemstone();
-            buttons.get(0).setText(temp.getAbility1name()
-            + " (" + temp.howManyAbility1Uses().get(0) + "/" + temp.howManyAbility1Uses().get(1) + ") [" + Math.round(temp.chances(you).get(0)*100) + "%]");
-            buttons.get(1).setText(temp.getAbility2name()
-            + " (" + temp.howManyAbility2Uses().get(0) + "/" + temp.howManyAbility2Uses().get(1) + ") [" + Math.round(temp.chances(you).get(1)*100) + "%]");
-            buttons.get(2).setText(temp.getAbility3name()
-            + " (" + temp.howManyAbility3Uses().get(0) + "/" + temp.howManyAbility3Uses().get(1) + ") [" + Math.round(temp.chances(you).get(2)*100) + "%]");
-        } else {
-            buttons.get(2).setText("Give up");
-        }
-    }
+    public void showMore () {moreView = true;}
+    public void showActions () {moreView = false;}
 
-    private void hideButtons () {
-        buttonsShown = false;
-        for (Button button : buttons) {
-            button.setVisible(false);
-        }
-    }
-
-    private void showButtons () {
-        buttonsShown = true;
-        this.inventory.setVisible(false);
-
-        if (you.getGemstone() == null) {
-            buttons.get(0).setVisible(false);
-            buttons.get(1).setVisible(false);
-            buttons.get(2).setVisible(true);
-    
-            if (you.getInventory().size() == 0) {
-                buttons.get(3).setVisible(false);
-            } else {
-                buttons.get(3).setVisible(true);
-            }
-        } else {
-            for (Button button : buttons) {
-                button.setVisible(true);
-            }
-        }
-
-    }
-
-
-
-    public void button1click () {
-
-        if (you.getGemstone().ability1usesLeft()) {
-            you.getGemstone().ability1(you, them);
-
-            hideButtons();
-            opponentDoneMove = false;
-        }
-    }
-    public void button2click () {
-        if (you.getGemstone().ability2usesLeft()) {
-            you.getGemstone().ability2(you, them);
-
-            hideButtons();
-            opponentDoneMove = false;
-        }
-    }
-    public void button3click () {
-        if (you.getGemstone() == null) {
-            hideButtons();
-            you.kill();
-            opponentDoneMove = false;
-        } else {
-            if (you.getGemstone().ability3usesLeft()) {
-                you.getGemstone().ability3(you, them);
-                hideButtons();
-                opponentDoneMove = false;
-            }
-        }
-
-    }
-    public void button4click () {
-        
-        inventory.getItems().clear();
-        for (item item : you.getInventory()) {
-            inventory.getItems().addAll(item);
-        }
-        inventory.setVisible(true);
-
-        hideButtons();
-    }
-
-    public void itemChosen () {
+    private void endTurn () {
+        waitingForPlayer = false;
+        moreView = false;
         opponentDoneMove = false;
-        inventory.setVisible(false);
+    }
+
+    //n is 0, 1 or 2
+    public void useAbility (int n) {
+        if (!waitingForPlayer) return;
+        gemstone stone = you.getGemstone();
+        if (stone == null) return;
+
+        if (n == 0 && stone.ability1usesLeft()) {stone.ability1(you, them); endTurn();}
+        if (n == 1 && stone.ability2usesLeft()) {stone.ability2(you, them); endTurn();}
+        if (n == 2 && stone.ability3usesLeft()) {stone.ability3(you, them); endTurn();}
+    }
+
+    //Using a rock equips it, using anything else does what the item does. Both take the turn
+    public void useItem (item item) {
+        if (!waitingForPlayer) return;
+        if (item instanceof gemstone && you.getGemstone() == item) return;
+
+        item.use(you, them);
+        if (item.isConsumable()) you.consume(item);
+        endTurn();
+    }
+
+    public void giveUp () {
+        if (!waitingForPlayer) return;
+        you.kill();
+        endTurn();
+    }
+
+    //Hands the player what the loser dropped, one message per kind of item
+    private void giveDrops (gameHandler handler) {
+        Map<String, Integer> counts = new LinkedHashMap<String, Integer>();
+        Map<String, item> examples = new HashMap<String, item>();
+        for (item drop : them.rollDrops()) {
+            you.give(drop);
+            counts.merge(drop.getName(), 1, Integer::sum);
+            examples.put(drop.getName(), drop);
+        }
+        for (String name : counts.keySet()) {
+            String text = counts.get(name) == 1 ? "You got " + name : "You got " + counts.get(name) + " x " + name;
+            handler.getDiealoguecontainer().add(new dialogue("Game", text).highlight(dialogue.ITEM_BORDER, examples.get(name)));
+        }
     }
 
     private void opponentMove () {
@@ -169,9 +123,8 @@ public class battle {
 
     private void resetBattle () {
         activeBattle = false;
-        bar1.setVisible(false);
-        bar2.setVisible(false);
-        hideButtons();
+        waitingForPlayer = false;
+        moreView = false;
         this.you = null;
         this.them = null;
         this.youWin = null;
@@ -181,15 +134,14 @@ public class battle {
         this.r = 0;
         this.world = 0;
         opponentDoneMove = true;
-        this.inventory.setVisible(false);
     }
 
     private boolean checkForDead (gameHandler handler) {
         if (you.getHealth() <= 0.5 || them.getHealth() <= 0.5) {
-            
+
             if (you.getHealth() <= 0.5) {
                 handler.getDiealoguecontainer().add(new dialogue("Game", you.getName() + " lost"));
-                
+
                 if (theyWin != null) {
                     theyWin.trigger();
                 }
@@ -205,6 +157,7 @@ public class battle {
                     this.youWin.trigger();
                 }
                 you.giveXp(Math.pow(them.getLevel()+1, 2));
+                giveDrops(handler);
 
             }
 
@@ -216,15 +169,11 @@ public class battle {
 
     public void carryOn (gameHandler handler) {
 
-        if (!checkForDead(handler) && !handler.getDiealoguecontainer().isActive() && !buttonsShown) {
-            if (opponentDoneMove)  {
-                if (!inventory.isVisible()) {
-                    updateButtons();
-                    showButtons();
-
-                }
-            }
-            else {opponentMove();
+        if (!checkForDead(handler) && !handler.getDiealoguecontainer().isActive() && !waitingForPlayer) {
+            if (opponentDoneMove) {
+                waitingForPlayer = true;
+            } else {
+                opponentMove();
                 if (!checkForDead(handler)) {
                     you.updateEffects();
                     them.updateEffects();
@@ -233,8 +182,8 @@ public class battle {
         }
 
         if (you != null) {
-            bar1.setProgress(bar1.getProgress() + (you.getHealthPercentage()-bar1.getProgress())*0.1);
-            bar2.setProgress(bar2.getProgress() + (them.getHealthPercentage()-bar2.getProgress())*0.1);
+            yourBar += (you.getHealthPercentage()-yourBar)*0.1;
+            theirBar += (them.getHealthPercentage()-theirBar)*0.1;
         }
     }
 
