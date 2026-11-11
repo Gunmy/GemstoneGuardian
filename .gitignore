@@ -201,3 +201,6 @@ buildNumber.properties
 # End of https://www.gitignore.io/api/java,maven,eclipse,intellij+all,visualstudiocode
 # Per player settings written by the game
 src/main/resources/game/reading/settings.txt
+
+# Savefiles written by the game
+saves/
