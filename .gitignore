@@ -204,3 +204,6 @@ src/main/resources/game/reading/settings.txt
 
 # Savefiles written by the game
 saves/
+
+# Python caches of the tools
+__pycache__/
