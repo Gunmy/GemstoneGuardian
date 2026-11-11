@@ -210,7 +210,7 @@ public class guiBattle extends guiElement {
 
         //The character's picture at the right end, the name and bar to the left of it
         double portrait = barHeight - 2*pad*0.6;
-        gc.drawImage(c.getIcon(), 1, 1, guiSkin.CELL-2, guiSkin.CELL-2,
+        gc.drawImage(c.getIcon(), 0, 0, guiSkin.CELL, guiSkin.CELL,
             Math.round(bx + barWidth - pad - portrait), Math.round(by + (barHeight - portrait)/2), Math.round(portrait), Math.round(portrait));
         double innerWidth = barWidth - 3*pad - portrait;
 

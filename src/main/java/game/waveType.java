@@ -20,6 +20,8 @@ public class waveType extends tileType {
     private static final double SWAY_STRETCH = 0.03;
     //How fast the gusts move and how far apart they are (one gust every 2*pi/SWAY_SPACING tiles along the diagonal)
     private static final double SWAY_SPEED = 1.6;
+    //The light breeze that is always there between the gusts; plants lean this much when standing still
+    private static final double BREEZE = 0.15;
     private static final double SWAY_SPACING = 0.45;
 
     //z is the level the overlay is drawn on, tall is how many tiles high it is drawn (it grows upwards),
@@ -53,7 +55,7 @@ public class waveType extends tileType {
         double t = System.nanoTime()/1e9;
         double phase = t*SWAY_SPEED - (x + y)*SWAY_SPACING + scatterValue(x, y, 2)*0.4;
         double peak = 0.5 + 0.5*Math.sin(phase);
-        return 0.15 + 0.85*peak*peak*peak;
+        return BREEZE + (1 - BREEZE)*peak*peak*peak;
     }
 
     //Draws the overlay leaning right by the gust g: the bottom edge stays put and the top is pushed right and a bit up.
@@ -66,7 +68,7 @@ public class waveType extends tileType {
         double shear = -SWAY_LEAN*g*tileWidth*tall/height;
         gc.save();
         gc.transform(1, 0, shear, 1, -shear*bottom, 0);
-        gc.drawImage(sheet, this.x+1, this.y+1, this.width-2, this.height-2, dx, top, dw, height);
+        gc.drawImage(sheet, this.x, this.y, this.width, this.height, dx, top, dw, height);
         gc.restore();
     }
 
@@ -79,6 +81,17 @@ public class waveType extends tileType {
 
     @Override
     public int getMaxZ () {return Math.max(z, underlay.getMaxZ());}
+
+    //The overlay on its own, which is what the tile is (a tree, a flower, a sign), not the ground under it.
+    //An overlay with nothing drawn in it is its underlay
+    @Override
+    protected int[] flatPixels (imgDict images) {
+        int[] over = images.cellPixels(this.x, this.y);
+        for (int p : over) {
+            if ((p >>> 24) >= 128) return over;
+        }
+        return underlay.flatPixels(images);
+    }
 
     //The overlay is drawn on its own level, also when the underlay is higher up. That way a flat
     //overlay (like the edge of a hill) on top of a tree ends up on the ground, behind the tree
@@ -108,7 +121,7 @@ public class waveType extends tileType {
             return;
         }
         double heightOffset = wave ? Math.sin(System.nanoTime()/300000000.0)*size*0.09 : 0;
-        gc.drawImage(gui.getHandler().getImages().getImage(0), this.x+1, this.y+1, width-2, height-2, Math.round(x), y - heightOffset, Math.round(size), size + heightOffset);
+        gc.drawImage(gui.getHandler().getImages().getImage(0), this.x, this.y, width, height, Math.round(x), y - heightOffset, Math.round(size), size + heightOffset);
     }
 
     //Only the overlay, the underlay is drawn by drawLayer
@@ -123,7 +136,9 @@ public class waveType extends tileType {
         double division = 300000000;
 
         double heightOffset = handler.getUnitHeight()/handler.getTileCount()*(tall-1);
-        if (wave && !sway) {
+        //Zoomed far out plants stand still (gameHandler.farView)
+        boolean still = handler.farView();
+        if (wave && !sway && !still) {
             heightOffset += Math.sin(time/division)*handler.getUnitHeight()/handler.getTileCount()*0.09;
         }
 
@@ -134,7 +149,7 @@ public class waveType extends tileType {
 
         if (sway) {
             double tileWidth = handler.getUnitWidth()/handler.getTileCount();
-            drawSwaying(handler.getTempGc(), handler.getImages().getImage(0), gust(x, y),
+            drawSwaying(handler.getTempGc(), handler.getImages().getImage(0), still ? BREEZE : gust(x, y),
                 (int) realx, (int) realy-heightOffset,
                 (int) (tileWidth+correctionVal),
                 (int) (handler.getUnitHeight()/handler.getTileCount()+correctionVal)+heightOffset, tileWidth);
@@ -142,7 +157,7 @@ public class waveType extends tileType {
         }
 
         handler.getTempGc().drawImage(handler.getImages().getImage(0),
-        this.x+1, this.y+1, this.width-2, this.height-2,
+        this.x, this.y, this.width, this.height,
          (int) realx,   (int) realy-heightOffset,
          (int) (handler.getUnitWidth()/handler.getTileCount()+correctionVal),
          (int) (handler.getUnitHeight()/handler.getTileCount()+correctionVal)+heightOffset);
@@ -155,7 +170,7 @@ public class waveType extends tileType {
             double alpha = gc.getGlobalAlpha();
             gc.setGlobalAlpha(alpha*highlight);
             gc.drawImage(handler.getImages().getBrightened(this.x, this.y, gameHandler.CHEST_BRIGHTEN),
-             1, 1, guiSkin.CELL-2, guiSkin.CELL-2,
+             0, 0, guiSkin.CELL, guiSkin.CELL,
              (int) realx,   (int) realy-heightOffset,
              (int) (handler.getUnitWidth()/handler.getTileCount()+correctionVal),
              (int) (handler.getUnitHeight()/handler.getTileCount()+correctionVal)+heightOffset);

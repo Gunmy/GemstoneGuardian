@@ -39,8 +39,20 @@ public class settings {
     //Everything in the GUI scales with the width of the screen relative to this
     private double referenceWidth = 1000;
 
-    //Fluids are either drawn by the shader (pretty, heavy) or by sliding the texture (cheap)
-    private boolean simpleFluids = false;
+    //How water, lava, toxic and the crystal floor are drawn (see fluidType.drawSpecial):
+    //the shader (two sliding layers of noise), the sheet's own texture slid over (cheapest), or ripples
+    //(waves in a few flat colour bands with sparkles, see shader.drawRipples)
+    public enum fluidStyle {
+        SHADER("Shader"), SIMPLE("Simple"), RIPPLES("Ripples");
+
+        public final String label;
+
+        fluidStyle (String label) {this.label = label;}
+
+        public fluidStyle next () {return values()[(ordinal()+1) % values().length];}
+    }
+
+    private fluidStyle fluids = fluidStyle.SHADER;
 
     public settings () {
         load();
@@ -56,8 +68,8 @@ public class settings {
     private double fitHeight = 620;
     public double getFitHeight () {return this.fitHeight;}
 
-    public boolean simpleFluids () {return this.simpleFluids;}
-    public void toggleSimpleFluids () {simpleFluids = !simpleFluids; save();}
+    public fluidStyle getFluidStyle () {return this.fluids;}
+    public void cycleFluidStyle () {fluids = fluids.next(); save();}
 
     private static File getFile () {
         return new File(new File("src/main/resources/game/reading/").getAbsolutePath(), "settings.txt");
@@ -80,13 +92,19 @@ public class settings {
         } catch (IllegalArgumentException e) {
             System.out.println("Ukjent guiSize i settings.txt, bruker " + size.name());
         }
-        simpleFluids = Boolean.parseBoolean(saved.getProperty("simpleFluids", String.valueOf(simpleFluids)));
+        //Settings saved before there were three styles only say whether the simple one was on
+        if (Boolean.parseBoolean(saved.getProperty("simpleFluids", "false"))) fluids = fluidStyle.SIMPLE;
+        try {
+            fluids = fluidStyle.valueOf(saved.getProperty("fluids", fluids.name()));
+        } catch (IllegalArgumentException e) {
+            System.out.println("Ukjent fluids i settings.txt, bruker " + fluids.name());
+        }
     }
 
     private void save () {
         Properties saved = new Properties();
         saved.setProperty("guiSize", size.name());
-        saved.setProperty("simpleFluids", String.valueOf(simpleFluids));
+        saved.setProperty("fluids", fluids.name());
 
         try (FileOutputStream out = new FileOutputStream(getFile())) {
             saved.store(out, "Gemstone Guardian settings");

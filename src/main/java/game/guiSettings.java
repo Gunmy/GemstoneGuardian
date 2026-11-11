@@ -78,7 +78,7 @@ public class guiSettings extends guiElement {
         secretButtons.add(new guiButton(gui, "Back", () -> current = page.MAIN));
 
         sizeButton = new guiButton(gui, "", () -> handler.getSettings().cycleGuiSize());
-        fluidsButton = new guiButton(gui, "", () -> handler.getSettings().toggleSimpleFluids());
+        fluidsButton = new guiButton(gui, "", () -> handler.getSettings().cycleFluidStyle());
         visualButtons.add(sizeButton);
         visualButtons.add(fluidsButton);
         visualButtons.add(new guiButton(gui, "Back", () -> {
@@ -160,7 +160,7 @@ public class guiSettings extends guiElement {
         bordersButton.setText("Show borders: " + (handler.infoOn() ? "On" : "Off"));
         darknessButton.setText("Darkness in caves: " + (handler.darknessOff() ? "Off" : "On"));
         sizeButton.setText("GUI size: " + handler.getSettings().getGuiSize().label);
-        fluidsButton.setText("Fluids: " + (handler.getSettings().simpleFluids() ? "Simple" : "Shader"));
+        fluidsButton.setText("Fluids: " + handler.getSettings().getFluidStyle().label);
         int level = handler.getMainCharacter().getLevel();
         levelButton.setText("Level: " + level);
         levelDown.setEnabled(level > 0);

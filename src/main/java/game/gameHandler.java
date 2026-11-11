@@ -1,6 +1,5 @@
 package game;
 
-import javafx.scene.SnapshotParameters;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
@@ -17,6 +16,22 @@ public class gameHandler {
     public double getUnitWidth () {return unitWidth*effectiveZoom()*getWIDTH();}
     public double getUnitHeight () {return unitHeight*effectiveZoom()*getWIDTH();}
 
+    //Zoomed far out (this many chunks or more across the screen) the world is drawn still and plain: no ambient
+    //particles off the tiles or off worn trinkets, characters do not bob and plants do not sway or bob. What tells the
+    //player something stays (event sparks, chests that heal, lit portals, healing pads, bursts, lightning)
+    public static final double FAR_VIEW_CHUNKS = 10;
+    public boolean farView () {return getWIDTH()/getUnitWidth() >= FAR_VIEW_CHUNKS;}
+
+    //Further out still every tile and character is a single square of its primary colour (chunks.drawFlat,
+    //tileType.getPrimaryColor), which is cheap enough to zoom out much further
+    public static final double FLAT_VIEW_CHUNKS = 20;
+    public boolean flatView () {return getWIDTH()/getUnitWidth() >= FLAT_VIEW_CHUNKS;}
+
+    //And further out again a whole chunk is one square in the colour most of it is (chunk.getChunkColor,
+    //chunks.drawChunks)
+    public static final double CHUNK_VIEW_CHUNKS = 35;
+    public boolean chunkView () {return getWIDTH()/getUnitWidth() >= CHUNK_VIEW_CHUNKS;}
+
     //The scroll zoom, with a teleport's zoom out on top. The teleport never takes it past the furthest
     //you can zoom out yourself (see teleportWithEffect), since drawing that many more tiles makes the game lag
     private double effectiveZoom () {
@@ -26,7 +41,10 @@ public class gameHandler {
     //Zoom, on top of the size the current world is drawn in. Changed with the scrollwheel
     private double zoom = 1;
     private double zoomTarget = 1;
-    private double minZoom = 0.2;
+    //Far out, to test how much can be drawn before the game lags (about 750 tiles across outside)
+    private double minZoom = 0.02;
+    //The furthest a teleport's zoom out takes you, kept where scrolling used to stop (drawing far more is not worth it)
+    private static final double TRANSITION_MIN_ZOOM = 0.2;
     private double maxZoom = 2;
 
     public void zoom (double scroll) {
@@ -151,8 +169,6 @@ public class gameHandler {
     private battle battleHandler;;
     public battle getBattle () {return this.battleHandler;}
 
-    private SnapshotParameters params = new SnapshotParameters();
-
     private gui gui;
     public gui getGui () {return this.gui;}
 
@@ -213,27 +229,27 @@ public class gameHandler {
         this.dialogueContainer = dialogueContainer;
         this.battleHandler     = battleHandler;
 
-        tempCanvas = new RCanvas();
+        //Everything is drawn straight onto the canvas on screen (see next)
+        tempCanvas = canvas;
         images = imgDict;
-
-        params.setFill(Color.TRANSPARENT);
 
 
         gemstones gemstoneDict = new gemstones(this);
 
 
         tileTypes = new tileTypes(getTempGc());
+        tileTypes.assignPrimaryColors(images);
 
         //Create characters
-        characters.add(new character("Guard 1", 10000, 9992.85, 100, 1100, 100, 100, 0, this, 3));
-        characters.add(new character("Guard 2", 10000.4, 9993, 100, 1100, 100, 100, 0, this, 3));
-        characters.add(new character("Guard 3", 10000.9, 9992.85, 100, 1100, 100, 100, 0, this, 3));
-        characters.add(new character("Tree", 9999.5, 9994, 400, 1100, 100, 100, 0, this, 0.5));
-        characters.add(new character("Mother", 10000.33, 10000.22, 200, 1100, 100, 100, 2, this, 3));
-        characters.add(new character("Grandma", 10001.11, 10000.22, 400, 1000, 100, 100, 2, this, 3));
-        characters.add(new character("Girl (Beginner)", 10000.56, 9999.67, 500, 1100, 100, 100, 0, this, 3));
+        characters.add(new character("Guard 1", 10000, 9992.85, 20, 220, 20, 20, 0, this, 3));
+        characters.add(new character("Guard 2", 10000.4, 9993, 20, 220, 20, 20, 0, this, 3));
+        characters.add(new character("Guard 3", 10000.9, 9992.85, 20, 220, 20, 20, 0, this, 3));
+        characters.add(new character("Tree", 9999.5, 9994, 80, 220, 20, 20, 0, this, 0.5));
+        characters.add(new character("Mother", 10000.33, 10000.22, 40, 220, 20, 20, 2, this, 3));
+        characters.add(new character("Grandma", 10001.11, 10000.22, 80, 200, 20, 20, 2, this, 3));
+        characters.add(new character("Girl (Beginner)", 10000.56, 9999.67, 100, 220, 20, 20, 0, this, 3));
         characters.get("Girl (Beginner)").give(gemstoneDict.rock());
-        characters.add(new character("Girl (Master)", 10010.44, 9959.45, 500, 1100, 100, 100, 2, this, 3, 17));
+        characters.add(new character("Girl (Master)", 10010.44, 9959.45, 100, 220, 20, 20, 2, this, 3, 17));
         characters.get("Girl (Master)").give(gemstoneDict.meteorite());
         characters.get("Girl (Master)").give(gemstoneDict.boltstone());
         characters.get("Girl (Master)").give(gemstoneDict.giantBolder());
@@ -250,166 +266,166 @@ public class gameHandler {
         //Levels, gems and trinkets are listed in BALANCING.md under "After the final boss".
         //`python tools/check_postgame_characters.py .` compares all of this (places, worlds, levels, gems, trinkets,
         //fights, guards' steps aside, chests) with the grids and BALANCING.md and lists every mismatch.
-        //Sprites are drafts at y = 1800 (tools/art_postgame.py)
+        //Sprites are drafts at y = 360 (tools/art_postgame.py)
         double pt = 1.0/getTileCount();
         //Ember Wraith (digit 1, XP fight, level 17): volcano depths, in the middle of the cave west of the big lava
         //lake, on the main way north from the landing (grid row 7, column 12; corner chunk 10009, 9956)
-        characters.add(new character("Ember Wraith", 10010 + 3*pt, 9956 + 7*pt, 100, 1800, 100, 100, 1, this, 3, 17));
+        characters.add(new character("Ember Wraith", 10010 + 3*pt, 9956 + 7*pt, 20, 360, 20, 20, 1, this, 3, 17));
         characters.get("Ember Wraith").give(gemstoneDict.magma());
         characters.get("Ember Wraith").give(gemstoneDict.obsidian());
         //Ash Golem (digit 2, guard, level 18): volcano depths, the north-east, in the one tile wide way just below the
         //cave passage up to the desert ('U', grid row 1 column 19), blocking it (grid row 3, column 18)
-        characters.add(new character("Ash Golem", 10011 + 0*pt, 9956 + 3*pt, 200, 1800, 100, 100, 1, this, 3, 18));
+        characters.add(new character("Ash Golem", 10011 + 0*pt, 9956 + 3*pt, 40, 360, 20, 20, 1, this, 3, 18));
         characters.get("Ash Golem").give(gemstoneDict.giantBolder());
         characters.get("Ash Golem").give(gemstoneDict.lava());
         //Dune Scorpion (digit 3, XP fight, level 18): desert, in the middle of the brick plaza in the desert's north
         //half, west of the small oasis (grid row 8, column 12; corner chunk 10009, 9954)
-        characters.add(new character("Dune Scorpion", 10010 + 3*pt, 9954 + 8*pt, 300, 1800, 100, 100, 0, this, 3, 18));
+        characters.add(new character("Dune Scorpion", 10010 + 3*pt, 9954 + 8*pt, 60, 360, 20, 20, 0, this, 3, 18));
         characters.get("Dune Scorpion").give(gemstoneDict.sandstone());
         characters.get("Dune Scorpion").give(gemstoneDict.discombobulateShard());
         //Desert Nomad (digit 4, guard, level 19): desert, the north edge, in the one tile wide neck between the brick
         //plaza and the walkway under the 3x3 sky portal set in the dunes, blocking it (grid row 4, column 13)
-        characters.add(new character("Desert Nomad", 10010 + 4*pt, 9954 + 4*pt, 400, 1800, 100, 100, 0, this, 3, 19));
+        characters.add(new character("Desert Nomad", 10010 + 4*pt, 9954 + 4*pt, 80, 360, 20, 20, 0, this, 3, 19));
         characters.get("Desert Nomad").give(gemstoneDict.saltstone());
         characters.get("Desert Nomad").give(gemstoneDict.glass());
         //Storm Harpy (digit 5, XP fight, level 19): sky ruins, the western island, next to its pillar
         //(grid row 10, column 5; corner chunk 10009, 9951)
-        characters.add(new character("Storm Harpy", 10009 + 5*pt, 9952 + 1*pt, 500, 1800, 100, 100, 4, this, 3, 19));
+        characters.add(new character("Storm Harpy", 10009 + 5*pt, 9952 + 1*pt, 100, 360, 20, 20, 4, this, 3, 19));
         characters.get("Storm Harpy").give(gemstoneDict.boltstone());
         characters.get("Storm Harpy").give(gemstoneDict.copper());
         //Cloud Knight (digit 6, guard, level 20): sky ruins, the north, in the one tile wide way between the kitchen
         //tile path and the floor in front of the 3x3 portal down to the crystal caverns, blocking it (grid row 6, column 13)
-        characters.add(new character("Cloud Knight", 10010 + 4*pt, 9951 + 6*pt, 600, 1800, 100, 100, 4, this, 3, 20));
+        characters.add(new character("Cloud Knight", 10010 + 4*pt, 9951 + 6*pt, 120, 360, 20, 20, 4, this, 3, 20));
         characters.get("Cloud Knight").give(gemstoneDict.meteorite());
         characters.get("Cloud Knight").give(gemstoneDict.healite());
         //Crystal Sentinel (digit 7, XP fight, level 20): crystal caverns, in the open hall between the toxic pools, on
         //the way north from the landing (grid row 10, column 14; corner chunk 10009, 9949)
-        characters.add(new character("Crystal Sentinel", 10010 + 5*pt, 9950 + 1*pt, 700, 1800, 100, 100, 1, this, 3, 20));
+        characters.add(new character("Crystal Sentinel", 10010 + 5*pt, 9950 + 1*pt, 140, 360, 20, 20, 1, this, 3, 20));
         characters.get("Crystal Sentinel").give(gemstoneDict.uranium());
         characters.get("Crystal Sentinel").give(gemstoneDict.ice());
         //Prism Warden (digit 8, guard and last boss, level 22): crystal caverns, the far north, in the one tile wide way
         //just below the throne room with the Elemental Rock's chest (grid row 1, column 13), blocking it (grid row 4, column 13)
-        characters.add(new character("Prism Warden", 10010 + 4*pt, 9949 + 4*pt, 800, 1800, 100, 100, 1, this, 3, 22));
+        characters.add(new character("Prism Warden", 10010 + 4*pt, 9949 + 4*pt, 160, 360, 20, 20, 1, this, 3, 22));
         characters.get("Prism Warden").give(gemstoneDict.meteorite());
         characters.get("Prism Warden").give(gemstoneDict.boltstone());
         characters.get("Prism Warden").give(gemstoneDict.uranium());
         characters.get("Prism Warden").give(gemstoneDict.healite());
         //Crystal Boy (digit 9, the kidnapper, level 24): the player's double (the boy's sprite with white eyes, a draft
-        //at (1200, 1800)). He takes the girl when she is beaten (kidnapping()) and waits in his castle north of the
+        //at (240, 360)). He takes the girl when she is beaten (kidnapping()) and waits in his castle north of the
         //crystal caverns, in the doorway of the mirror room at the top of his hall, beside her (grid row 6, column 4 of the castle hall;
         //corner chunk 10010, 9942)
-        characters.add(new character("Crystal Boy", 10010 + 4*pt, 9942 + 6*pt, 1200, 1800, 100, 100, 2, this, 3, 24));
+        characters.add(new character("Crystal Boy", 10010 + 4*pt, 9942 + 6*pt, 240, 360, 20, 20, 2, this, 3, 24));
         characters.get("Crystal Boy").give(gemstoneDict.ice());
         characters.get("Crystal Boy").give(gemstoneDict.uranium());
         characters.get("Crystal Boy").give(gemstoneDict.meteorite());
         characters.get("Crystal Boy").give(gemstoneDict.healite());
         //In the mirror dimension your mother and grandma stand in stone outside their mirrored houses (house 1 is
         //chunk 10002 there, grandma's house 3 is 10001), on the grass beside the door. Copies: the real ones are at home
-        characters.add(new character("Mother (statue)", 10002 + 2*pt, 10000 + 7*pt, 200, 1100, 100, 100, MIRROR_WORLD, this, 3));
-        characters.add(new character("Grandma (statue)", 10001 + 1*pt, 10000 + 7*pt, 400, 1000, 100, 100, MIRROR_WORLD, this, 3));
+        characters.add(new character("Mother (statue)", 10002 + 2*pt, 10000 + 7*pt, 40, 220, 20, 20, MIRROR_WORLD, this, 3));
+        characters.add(new character("Grandma (statue)", 10001 + 1*pt, 10000 + 7*pt, 80, 200, 20, 20, MIRROR_WORLD, this, 3));
         characters.get("Mother (statue)").setStatue(true);
         characters.get("Grandma (statue)").setStatue(true);
         //You as you were, just after beating the girl in her room: only there once you have come back through the mirror
         //as the reflection (theLoop), standing below her
-        characters.add(new character("You (past)", 10010 + 4*pt, 9959 + 6*pt, 0, 500, 100, 100, 2, this, 5));
+        characters.add(new character("You (past)", 10010 + 4*pt, 9959 + 6*pt, 0, 100, 20, 20, 2, this, 5));
         characters.get("You (past)").setGone(true);
         //A copy of the stone guards from the castle at the start, standing where the girl stood when you first met her
         //(chunk 10000, 9999, column 5, row 6), mirrored: in the one tile wide gap of the village wall, on the only way
         //up to the crystal boy (level 23, between the Prism Warden and him)
-        characters.add(new character("Stone Guardian", 10002 + 3*pt, 9999 + 6*pt, 100, 1100, 100, 100, MIRROR_WORLD, this, 3, 23));
+        characters.add(new character("Stone Guardian", 10002 + 3*pt, 9999 + 6*pt, 20, 220, 20, 20, MIRROR_WORLD, this, 3, 23));
         characters.get("Stone Guardian").give(gemstoneDict.giantBolder());
         characters.get("Stone Guardian").give(gemstoneDict.meteorite());
         characters.get("Stone Guardian").give(gemstoneDict.healite());
 
-        characters.add(new character("Keeper of Fire", 9999.11, 9993.22, 500, 1000, 100, 100, 1, this, 3, 2));
+        characters.add(new character("Keeper of Fire", 9999.11, 9993.22, 100, 200, 20, 20, 1, this, 3, 2));
         characters.get("Keeper of Fire").give(gemstoneDict.obsidian());
-        characters.add(new character("Weird Crab", 10002.44, 9976.56, 300, 1200, 100, 100, 0, this, 3, 11));
+        characters.add(new character("Weird Crab", 10002.44, 9976.56, 60, 240, 20, 20, 0, this, 3, 11));
         characters.get("Weird Crab").give(gemstoneDict.discombobulateShard());
 
-        characters.add(new character("Cool Crab", 10002.33, 9975.56, 300, 1200, 100, 100, 0, this, 3, 10));
-        characters.add(new character("Normal Crab", 10002.55, 9974.56, 300, 1200, 100, 100, 0, this, 3, 10));
+        characters.add(new character("Cool Crab", 10002.33, 9975.56, 60, 240, 20, 20, 0, this, 3, 10));
+        characters.add(new character("Normal Crab", 10002.55, 9974.56, 60, 240, 20, 20, 0, this, 3, 10));
         
-        characters.add(new character("Eugene Krabs", 10001.22, 9971.33, 300, 1200, 100, 100, 0, this, 3, 10));
-        characters.add(new character("Magical Crab", 10004.44, 9972.33, 300, 1200, 100, 100, 0, this, 3, 10));
-        characters.add(new character("Crabby", 10006.44, 9973, 300, 1200, 100, 100, 0, this, 3, 10));
+        characters.add(new character("Eugene Krabs", 10001.22, 9971.33, 60, 240, 20, 20, 0, this, 3, 10));
+        characters.add(new character("Magical Crab", 10004.44, 9972.33, 60, 240, 20, 20, 0, this, 3, 10));
+        characters.add(new character("Crabby", 10006.44, 9973, 60, 240, 20, 20, 0, this, 3, 10));
 
 
-        characters.add(new character("Sandman", 10003.44, 9973.56, 200, 1300, 100, 100, 0, this, 3, 13));
+        characters.add(new character("Sandman", 10003.44, 9973.56, 40, 260, 20, 20, 0, this, 3, 13));
         characters.get("Sandman").give(gemstoneDict.discombobulateShard());
 
-        characters.add(new character("Tree Guard", 10006.89, 9973.89, 300, 1300, 100, 100, 0, this, 3, 13));
+        characters.add(new character("Tree Guard", 10006.89, 9973.89, 60, 260, 20, 20, 0, this, 3, 13));
         characters.get("Tree Guard").give(gemstoneDict.meteorite());
 
-        characters.add(new character("Snowman", 10010.44, 9973.89, 400, 1300, 100, 100, 0, this, 3, 13));
+        characters.add(new character("Snowman", 10010.44, 9973.89, 80, 260, 20, 20, 0, this, 3, 13));
         characters.get("Snowman").give(gemstoneDict.meteorite());
 
-        characters.add(new character("Kalle", 10010.44, 9971.33, 400, 1300, 100, 100, 2, this, 3, 13));
+        characters.add(new character("Kalle", 10010.44, 9971.33, 80, 260, 20, 20, 2, this, 3, 13));
 
 
-        characters.add(new character("Rock", 10013.44, 9968.89, 500, 1300, 100, 100, 0, this, 3, 14));
+        characters.add(new character("Rock", 10013.44, 9968.89, 100, 260, 20, 20, 0, this, 3, 14));
         characters.get("Rock").give(gemstoneDict.pebble());
         characters.get("Rock").give(gemstoneDict.healite());
 
-        characters.add(new character("Cornerstone", 10002.44, 9984.89, 500, 1300, 100, 100, 1, this, 3, 8));
+        characters.add(new character("Cornerstone", 10002.44, 9984.89, 100, 260, 20, 20, 1, this, 3, 8));
         characters.get("Cornerstone").give(gemstoneDict.uranium());
 
 
-        characters.add(new character("Guard 4", 10013.89, 9964.22, 100, 1100, 100, 100, 0, this, 3));
-        characters.add(new character("Guard 5", 10015, 9964.22, 100, 1100, 100, 100, 0, this, 3));
-        characters.add(new character("Security Guard", 10014.44, 9964.11, 0, 1100, 100, 100, 0, this, 3, 15));
+        characters.add(new character("Guard 4", 10013.89, 9964.22, 20, 220, 20, 20, 0, this, 3));
+        characters.add(new character("Guard 5", 10015, 9964.22, 20, 220, 20, 20, 0, this, 3));
+        characters.add(new character("Security Guard", 10014.44, 9964.11, 0, 220, 20, 20, 0, this, 3, 15));
         characters.get("Security Guard").give(gemstoneDict.giantBolder());
         characters.get("Security Guard").give(gemstoneDict.healite());
-        characters.add(new character("Gemstone Guard", 10013.78, 9968.22, 500, 1300, 100, 100, 1, this, 3, 14));
+        characters.add(new character("Gemstone Guard", 10013.78, 9968.22, 100, 260, 20, 20, 1, this, 3, 14));
         characters.get("Gemstone Guard").give(gemstoneDict.pebble());
         characters.get("Gemstone Guard").give(gemstoneDict.healite());
 
 
-        characters.add(new character("Guardman", 10002.44, 9980.89, 0, 1100, 100, 100, 0, this, 3, 11));
+        characters.add(new character("Guardman", 10002.44, 9980.89, 0, 220, 20, 20, 0, this, 3, 11));
         characters.get("Guardman").give(gemstoneDict.pebble());
-        characters.add(new character("Knight", 10000.44, 9991.33, 100, 1400, 100, 100, 2, this, 3, 6));
+        characters.add(new character("Knight", 10000.44, 9991.33, 20, 280, 20, 20, 2, this, 3, 6));
         characters.get("Knight").give(gemstoneDict.giantBolder());
 
-        characters.add(new character("Paladin", 10000.22, 9990.22, 100, 1400, 100, 100, 2, this, 3, 6));
+        characters.add(new character("Paladin", 10000.22, 9990.22, 20, 280, 20, 20, 2, this, 3, 6));
         characters.get("Paladin").give(gemstoneDict.boltstone());
 
-        characters.add(new character("King", 10001.11, 9990.56, 0, 1400, 100, 100, 2, this, 3, 7));
+        characters.add(new character("King", 10001.11, 9990.56, 0, 280, 20, 20, 2, this, 3, 7));
         characters.get("King").give(gemstoneDict.boltstone());
 
 
-        characters.add(new character("Citizen Peter", 10002.44, 9983.89, 0, 1200, 100, 100, 0, this, 3, 9));
-        characters.add(new character("Citizen Marcus", 10003.56, 9982.89, 0, 1300, 100, 100, 0, this, 3, 9));
-        characters.add(new character("Citizen Martin", 10003, 9982, 100, 1300, 100, 100, 0, this, 3, 8));
-        characters.add(new character("Citizen Leidulf Lie", 10002.22, 9981.89, 100, 1200, 100, 100, 0, this, 3, 8));
-        characters.add(new character("Citizen Edna", 10001, 9981, 0, 1300, 100, 100, 0, this, 3, 9));
-        characters.add(new character("Citizen Johann", 10002, 9979, 100, 1200, 100, 100, 0, this, 3, 8));
-        characters.add(new character("Citizen Endre", 10003, 9978, 0, 1200, 100, 100, 0, this, 3, 9));
+        characters.add(new character("Citizen Peter", 10002.44, 9983.89, 0, 240, 20, 20, 0, this, 3, 9));
+        characters.add(new character("Citizen Marcus", 10003.56, 9982.89, 0, 260, 20, 20, 0, this, 3, 9));
+        characters.add(new character("Citizen Martin", 10003, 9982, 20, 260, 20, 20, 0, this, 3, 8));
+        characters.add(new character("Citizen Leidulf Lie", 10002.22, 9981.89, 20, 240, 20, 20, 0, this, 3, 8));
+        characters.add(new character("Citizen Edna", 10001, 9981, 0, 260, 20, 20, 0, this, 3, 9));
+        characters.add(new character("Citizen Johann", 10002, 9979, 20, 240, 20, 20, 0, this, 3, 8));
+        characters.add(new character("Citizen Endre", 10003, 9978, 0, 240, 20, 20, 0, this, 3, 9));
 
-        characters.add(new character("Citizen Ola", 9980, 9988, 0, 1200, 100, 100, 0, this, 3, 3));
-        characters.add(new character("Citizen Olav", 9980.44, 9988.89, 0, 1300, 100, 100, 0, this, 3, 4));
-        characters.add(new character("Citizen Ole", 10000.22, 9988.22, 100, 1300, 100, 100, 0, this, 3, 4));
-        characters.add(new character("Citizen Olga", 10000.56, 9988, 100, 1200, 100, 100, 0, this, 3, 3));
-        characters.add(new character("Citizen Ove", 10002, 9989.89, 0, 1300, 100, 100, 0, this, 3, 4));
-        characters.add(new character("Citizen Odd Ingvar", 10003, 9988.56, 100, 1200, 100, 100, 0, this, 3, 4));
-        characters.add(new character("Citizen Odde", 10000.33, 9989.89, 0, 1200, 100, 100, 0, this, 3, 3));
-        characters.add(new character("Citizen Oliver", 9999.33, 9990.56, 100, 1200, 100, 100, 0, this, 3, 3));
-        characters.add(new character("Citizen Owen", 9999.67, 9989.44, 0, 1300, 100, 100, 0, this, 3, 4));
-        characters.add(new character("Citizen Orlando", 10000, 9987.78, 0, 1300, 100, 100, 0, this, 3, 4));
+        characters.add(new character("Citizen Ola", 9980, 9988, 0, 240, 20, 20, 0, this, 3, 3));
+        characters.add(new character("Citizen Olav", 9980.44, 9988.89, 0, 260, 20, 20, 0, this, 3, 4));
+        characters.add(new character("Citizen Ole", 10000.22, 9988.22, 20, 260, 20, 20, 0, this, 3, 4));
+        characters.add(new character("Citizen Olga", 10000.56, 9988, 20, 240, 20, 20, 0, this, 3, 3));
+        characters.add(new character("Citizen Ove", 10002, 9989.89, 0, 260, 20, 20, 0, this, 3, 4));
+        characters.add(new character("Citizen Odd Ingvar", 10003, 9988.56, 20, 240, 20, 20, 0, this, 3, 4));
+        characters.add(new character("Citizen Odde", 10000.33, 9989.89, 0, 240, 20, 20, 0, this, 3, 3));
+        characters.add(new character("Citizen Oliver", 9999.33, 9990.56, 20, 240, 20, 20, 0, this, 3, 3));
+        characters.add(new character("Citizen Owen", 9999.67, 9989.44, 0, 260, 20, 20, 0, this, 3, 4));
+        characters.add(new character("Citizen Orlando", 10000, 9987.78, 0, 260, 20, 20, 0, this, 3, 4));
 
 
-        characters.add(new character("Dolly", 10000.22, 9997.56, 0, 600, 100, 100, 0, this, 1, 1));
-        characters.add(new character("Sauen Shaun", 10000.56, 9997.33, 0, 600, 100, 100, 0, this, 1, 1));
-        characters.add(new character("Gerd Borghild", 10000.44, 9995.78, 0, 600, 100, 100, 0, this, 1, 1));
-        characters.add(new character("Sheep", 10000.22, 9995.11, 0, 600, 100, 100, 0, this, 1, 1));
-        characters.add(new character("Tikke", 10000.78, 9988.78, 0, 600, 100, 100, 0, this, 1, 1));
-        characters.add(new character("Åge", 10001, 9987.56, 0, 600, 100, 100, 0, this, 1, 1));
-        characters.add(new character("Magical Sheep", 9997.44, 9988.44, 0, 600, 100, 100, 0, this, 1, 1));
-        characters.add(new character("Nonmagical Sheep", 10001.44, 9983, 0, 600, 100, 100, 0, this, 1, 1));
-        characters.add(new character("Semi Magical Sheep", 10003.44, 9980.22, 0, 600, 100, 100, 0, this, 1, 1));
+        characters.add(new character("Dolly", 10000.22, 9997.56, 0, 120, 20, 20, 0, this, 1, 1));
+        characters.add(new character("Sauen Shaun", 10000.56, 9997.33, 0, 120, 20, 20, 0, this, 1, 1));
+        characters.add(new character("Gerd Borghild", 10000.44, 9995.78, 0, 120, 20, 20, 0, this, 1, 1));
+        characters.add(new character("Sheep", 10000.22, 9995.11, 0, 120, 20, 20, 0, this, 1, 1));
+        characters.add(new character("Tikke", 10000.78, 9988.78, 0, 120, 20, 20, 0, this, 1, 1));
+        characters.add(new character("Åge", 10001, 9987.56, 0, 120, 20, 20, 0, this, 1, 1));
+        characters.add(new character("Magical Sheep", 9997.44, 9988.44, 0, 120, 20, 20, 0, this, 1, 1));
+        characters.add(new character("Nonmagical Sheep", 10001.44, 9983, 0, 120, 20, 20, 0, this, 1, 1));
+        characters.add(new character("Semi Magical Sheep", 10003.44, 9980.22, 0, 120, 20, 20, 0, this, 1, 1));
 
 
 
         //Main character
-        characters.add(new character("Boy",  10000.3, 10000.3, 0, 500, 100, 100, 3, this, 5).showInTransition(true));
+        characters.add(new character("Boy",  10000.3, 10000.3, 0, 100, 20, 20, 3, this, 5).showInTransition(true));
 
         //What enemies leave behind when beaten
         items itemDict = new items(this);
@@ -895,7 +911,7 @@ public class gameHandler {
     private boolean twinsHeld = false, girlsMirrorOpen = false;
 
     //The player, turned into the crystal boy: his sprite, white eyes
-    public static final int REFLECTION_X = 1200, REFLECTION_Y = 1800;
+    public static final int REFLECTION_X = 240, REFLECTION_Y = 360;
     public boolean playerIsReflection () {return getMainCharacter().looksLike(REFLECTION_X, REFLECTION_Y);}
 
     //The girl beaten and taken out of her room by the crystal boy
@@ -1603,7 +1619,7 @@ public class gameHandler {
     //menu is the main menu that was left (null if none): it stays on top of the black for the first half of it,
     //so the player shows up under it before it goes away
     public void openFromBlack (guiElement menu) {
-        transition.startFromBlack(minZoom/zoom);
+        transition.startFromBlack(TRANSITION_MIN_ZOOM/zoom);
         if (menu != null) {
             gui.setMenuOverlay(menu);
             //Goes on sliding up from where the menu screen left it, the player is already there under it
@@ -1614,7 +1630,7 @@ public class gameHandler {
     //From the main menu: the screen closes in and goes black, then the campaign starts (and opens from the black)
     public void playWithEffect (saveFile campaign) {
         if (transition.isActive()) return;
-        transition.start(null, minZoom/zoom, () -> launcher.play(campaign));
+        transition.start(null, TRANSITION_MIN_ZOOM/zoom, () -> launcher.play(campaign));
         //The menu starts sliding up halfway through the black, so it is half gone when the player shows up under it
         transition.atBlackShare(0.5, () -> gui.menuLeaves());
     }
@@ -1625,7 +1641,7 @@ public class gameHandler {
         saveGame();
         character player = getMainCharacter();
         burst(player.getX() + 0.5/getTileCount(), player.getY() + 0.5/getTileCount(), player.getWorld(), 90);
-        transition.start(null, minZoom/zoom, () -> launcher.openMenu());
+        transition.start(null, TRANSITION_MIN_ZOOM/zoom, () -> launcher.openMenu());
         //The menu slides down on top of the black while the player is still on it, and is in place for the switch
         transition.atBlackShare(0, () -> gui.setMenuOverlay(gui.makeMenu()));
     }
@@ -1695,7 +1711,7 @@ public class gameHandler {
                 //Keeps the size on screen the same right now, the opening then eases to the new size
                 transition.setSizeCarry(oldWidth/unitWidth);
             }
-        }, minZoom/zoom);
+        }, TRANSITION_MIN_ZOOM/zoom);
     }
 
     //Lightning out of the player. A lightning stone (boltstone) that is equipped strikes now and then while walking
@@ -1792,7 +1808,15 @@ public class gameHandler {
     }
     public void next (Double deltaTime) {
 
-        tempCanvas.resize(getWIDTH(), getHEIGHT());
+        //The frame starts from the world's background colour. The canvas only shows what it was given once the frame is
+        //done, so it is drawn on straight away (it used to be drawn on a second canvas that was snapshotted over each
+        //frame, which copied the whole screen off the graphics card and back every frame)
+        getTempGc().clearRect(0, 0, getWIDTH(), getHEIGHT());
+        //The textures are pixel art, so they are scaled with nearest neighbour and never smoothed. Smoothing also
+        //blended in the edge of the next cell on the sheet, which showed as thin lines along tiles and characters
+        getTempGc().setImageSmoothing(false);
+        getTempGc().setFill(Color.web(getWorld(getCurrentWorld()).getBackground())); //"#70C0A0"
+        getTempGc().fillRect(0, 0, getWIDTH(), getHEIGHT());
 
         updateWidthHeight();
 
@@ -1822,7 +1846,10 @@ public class gameHandler {
         //Set current world
         this.world = getCamera().getBound().getWorld();
         if (worlds.get(getCurrentWorld()).isSky()) sky.drawBack(getTempGc());
-        worlds.get(getCurrentWorld()).drawGround();
+        boolean flat = flatView();
+        if (chunkView()) worlds.get(getCurrentWorld()).drawChunks();
+        else if (flat) worlds.get(getCurrentWorld()).drawFlat();
+        else worlds.get(getCurrentWorld()).drawGround();
 
         //Remove dead
         behindParticles = behindParticles.stream().filter(e -> !e.isDead()).collect(Collectors.toList());
@@ -1831,9 +1858,14 @@ public class gameHandler {
 
         //Draw entities (particles + tiles and characters above the ground, one z-level at a time)
         behindParticles.forEach(c -> c.draw());
-        int maxZ = Math.max(tileTypes.getMaxZ(), characters.getCharacters().stream().mapToInt(c -> c.getZ()).max().orElse(0));
-        for (int z = 1; z <= maxZ; z++) {
-            worlds.get(getCurrentWorld()).drawLayer(z, characters.getCharacters());
+        if (flat) {
+            //The tiles are all drawn already, only the characters are left
+            characters.getCharacters().forEach(character::draw);
+        } else {
+            int maxZ = Math.max(tileTypes.getMaxZ(), characters.getCharacters().stream().mapToInt(c -> c.getZ()).max().orElse(0));
+            for (int z = 1; z <= maxZ; z++) {
+                worlds.get(getCurrentWorld()).drawLayer(z, characters.getCharacters());
+            }
         }
         frontParticles.forEach(c ->  c.draw());
         if (worlds.get(getCurrentWorld()).isSky()) sky.drawFront(getTempGc());
@@ -1885,11 +1917,5 @@ public class gameHandler {
         gui.next(deltaTime);
         gui.draw(getTempGc());
 
-        //Copy from tempCanvas to other canvas
-        getCanvas().getGraphicsContext2D().clearRect(0, 0, getWIDTH(), getHEIGHT());
-        getCanvas().getGraphicsContext2D().drawImage(getTempCanvas().snapshot(params, null), 0, 0);
-        getTempGc().clearRect(0, 0, getWIDTH(), getHEIGHT());
-        getTempGc().setFill(Color.web(getWorld(getCurrentWorld()).getBackground())); //"#70C0A0"
-        getTempGc().fillRect(0, 0, getWIDTH(), getHEIGHT());
     }
 }

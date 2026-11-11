@@ -23,7 +23,7 @@ public class mirrorType extends waveType {
     }
 
     public mirrorType (String name, int x, int y, int id, tileType underlay, Consumer<character> through) {
-        super(name, x, y, 100, 100, id, true, through, underlay, false, 1, 1, 0);
+        super(name, x, y, guiSkin.CELL, guiSkin.CELL, id, true, through, underlay, false, 1, 1, 0);
     }
 
     //Always there and open

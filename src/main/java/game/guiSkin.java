@@ -9,23 +9,23 @@ import javafx.scene.image.Image;
 //the middle is stretched
 public class guiSkin {
 
-    public static final int CELL = 100;
-    public static final int GUI_Y = 1500;
+    public static final int CELL = 20;
+    public static final int GUI_Y = 300;
     public static final int SLOT_X = 0;
-    public static final int SLOT_SELECTED_X = 100;
-    public static final int PANEL_X = 200;
-    public static final int BUTTON_X = 600;
-    public static final int ROCK_X = 1000;
-    public static final int POTION_X = 1100;
-    public static final int BANDAGE_X = 1200;
+    public static final int SLOT_SELECTED_X = 20;
+    public static final int PANEL_X = 40;
+    public static final int BUTTON_X = 120;
+    public static final int ROCK_X = 200;
+    public static final int POTION_X = 220;
+    public static final int BANDAGE_X = 240;
     //The heart of the warrior, also the white shape in empty trinket slots
-    public static final int HEART_X = 1300;
+    public static final int HEART_X = 260;
 
-    //The icon row (y = 1600): ability type icons first (see abilityType), then message icons
-    public static final int ICON_Y = 1600;
-    public static final int LEVEL_UP_X = 900;
+    //The icon row (y = 320): ability type icons first (see abilityType), then message icons
+    public static final int ICON_Y = 320;
+    public static final int LEVEL_UP_X = 180;
 
-    //How many screen pixels the border pieces of panels and buttons get (a whole 100px cell).
+    //How many screen pixels the border pieces of panels and buttons get (a whole 20px cell).
     //The pieces are drawn as 20x20 pixel art, so at 20 one drawn pixel is one screen pixel
     private double border = 20;
 
@@ -48,7 +48,7 @@ public class guiSkin {
         gc.save();
         gc.translate(Math.round(x) + (flipX ? Math.round(w) : 0), Math.round(y) + (flipY ? Math.round(h) : 0));
         gc.scale(flipX ? -1 : 1, flipY ? -1 : 1);
-        gc.drawImage(img, cellX+1, cellY+1, CELL-2, CELL-2, 0, 0, Math.round(w), Math.round(h));
+        gc.drawImage(img, cellX, cellY, CELL, CELL, 0, 0, Math.round(w), Math.round(h));
         gc.restore();
     }
 
@@ -93,7 +93,7 @@ public class guiSkin {
         }
         Image shape = handler.getImages().getSilhouette(cellX, GUI_Y, "#FFFFFF");
         gc.setGlobalAlpha(hintOpacity);
-        gc.drawImage(shape, 1, 1, CELL-2, CELL-2, Math.round(x + size*0.1), Math.round(y + size*0.1), Math.round(size*0.8), Math.round(size*0.8));
+        gc.drawImage(shape, 0, 0, CELL, CELL, Math.round(x + size*0.1), Math.round(y + size*0.1), Math.round(size*0.8), Math.round(size*0.8));
         gc.setGlobalAlpha(1);
     }
 

@@ -56,7 +56,7 @@ public class guiButton extends guiElement {
         if (icon != null) {
             double iconSize = Math.round(Math.min(height*0.4, 24*gui.s()));
             double inset = Math.round(gui.getSkin().getBorder()*0.4);
-            gc.drawImage(icon, 1, 1, guiSkin.CELL-2, guiSkin.CELL-2, Math.round(x + width - inset - iconSize), Math.round(y + inset), iconSize, iconSize);
+            gc.drawImage(icon, 0, 0, guiSkin.CELL, guiSkin.CELL, Math.round(x + width - inset - iconSize), Math.round(y + inset), iconSize, iconSize);
         }
 
         if (face != null) face.accept(gc);

@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import javafx.scene.image.Image;
+import javafx.scene.image.PixelFormat;
 import javafx.scene.image.PixelReader;
 import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
@@ -50,18 +51,62 @@ public class imgDict {
                         writer.setColor(x, y, c);
                         continue;
                     }
-                    //Washed out (most of the way to its own grey), a little brighter, then a pale blue over it
-                    double grey = 0.3*c.getRed() + 0.59*c.getGreen() + 0.11*c.getBlue();
-                    double r = Math.min(1, (c.getRed() + (grey - c.getRed())*0.55)*1.08);
-                    double g = Math.min(1, (c.getGreen() + (grey - c.getGreen())*0.55)*1.08);
-                    double b = Math.min(1, (c.getBlue() + (grey - c.getBlue())*0.55)*1.08);
-                    double a = 0.22;
-                    writer.setColor(x, y, new Color(r + (190/255.0 - r)*a, g + (225/255.0 - g)*a, b + (1 - b)*a, c.getOpacity()));
+                    writer.setColor(x, y, cold(c));
                 }
             }
             coldSheet = out;
         }
         return coldSheet;
+    }
+
+    //A colour the way the cold copy of the sheet has it: washed out (most of the way to its own grey), a little
+    //brighter, then a pale blue over it
+    public static Color cold (Color c) {
+        double grey = 0.3*c.getRed() + 0.59*c.getGreen() + 0.11*c.getBlue();
+        double r = Math.min(1, (c.getRed() + (grey - c.getRed())*0.55)*1.08);
+        double g = Math.min(1, (c.getGreen() + (grey - c.getGreen())*0.55)*1.08);
+        double b = Math.min(1, (c.getBlue() + (grey - c.getBlue())*0.55)*1.08);
+        double a = 0.22;
+        return new Color(r + (190/255.0 - r)*a, g + (225/255.0 - g)*a, b + (1 - b)*a, c.getOpacity());
+    }
+
+    //The pixels of one cell of the sheet, row by row, as ARGB
+    public int[] cellPixels (int cellX, int cellY) {
+        int size = guiSkin.CELL;
+        int[] out = new int[size*size];
+        images.get(0).getPixelReader().getPixels(cellX, cellY, size, size, PixelFormat.getIntArgbInstance(), out, 0, size);
+        return out;
+    }
+
+    //The colour most of the (not see-through) pixels have, null if they are all see-through. Pixel art has few
+    //colours, so this is the one the eye takes the thing to be. Used when zoomed so far out that everything is
+    //drawn as one colour (see gameHandler.flatView)
+    public static Color mostCommon (int[] argb) {
+        Map<Integer, Integer> counts = new HashMap<Integer, Integer>();
+        int best = 0, bestCount = 0;
+        for (int p : argb) {
+            if ((p >>> 24) < 128) continue;
+            int opaque = p | 0xFF000000;
+            int count = counts.merge(opaque, 1, Integer::sum);
+            if (count > bestCount) {best = opaque; bestCount = count;}
+        }
+        if (bestCount == 0) return null;
+        return Color.rgb((best >> 16) & 0xFF, (best >> 8) & 0xFF, best & 0xFF);
+    }
+
+    //The main colour of a cell of the sheet (a character's sprite), worked out once
+    private Map<Long, Color> primaryColors = new HashMap<Long, Color>();
+    public Color primaryColor (int cellX, int cellY) {
+        long key = ((long) cellX << 32) | (cellY & 0xFFFFFFFFL);
+        if (!primaryColors.containsKey(key)) primaryColors.put(key, mostCommon(cellPixels(cellX, cellY)));
+        return primaryColors.get(key);
+    }
+
+    //A colour as ARGB (0 for none)
+    public static int argb (Color c) {
+        if (c == null) return 0;
+        return ((int) Math.round(c.getOpacity()*255) << 24) | ((int) Math.round(c.getRed()*255) << 16)
+            | ((int) Math.round(c.getGreen()*255) << 8) | (int) Math.round(c.getBlue()*255);
     }
 
     //One cell of the sheet with its grey levels turned into shades of the colour (null keeps it as it is).
@@ -109,8 +154,8 @@ public class imgDict {
             PixelWriter writer = out.getPixelWriter();
             Color color = Color.web(hex);
             boolean[] solid = new boolean[size*size];
-            for (int y = 1; y < size-1; y++) {
-                for (int x = 1; x < size-1; x++) solid[y*size + x] = reader.getColor(cellX+x, cellY+y).getOpacity() > 0.5;
+            for (int y = 0; y < size; y++) {
+                for (int x = 0; x < size; x++) solid[y*size + x] = reader.getColor(cellX+x, cellY+y).getOpacity() > 0.5;
             }
             for (int y = 0; y < size; y++) {
                 for (int x = 0; x < size; x++) {

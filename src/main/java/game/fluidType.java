@@ -44,7 +44,8 @@ public class fluidType extends tileType {
         int w = (int) (handler.getUnitWidth()/handler.getTileCount()+correctionVal);
         int h = (int) (handler.getUnitHeight()/handler.getTileCount()+correctionVal);
 
-        if (handler.getSettings().simpleFluids()) {
+        settings.fluidStyle style = handler.getSettings().getFluidStyle();
+        if (style == settings.fluidStyle.SIMPLE) {
             //The cheap way: slide a tile sized window diagonally over the 2x2 cell texture, once every val seconds
             double time = System.nanoTime()/1_000_000_000.0;
             int val = (int) (1/speed) + 1;
@@ -52,8 +53,10 @@ public class fluidType extends tileType {
             handler.getTempGc().drawImage(handler.getImages().getImage(0),
                 this.x + this.width*(1-frac), this.y + this.height*(1-frac), this.width, this.height,
                 (int) realx, (int) realy, w, h);
+        } else if (style == settings.fluidStyle.RIPPLES) {
+            shader.drawRipples(x, y, realx, realy, w, h, redWeight, greenWeight, blueWeight, speed, inverse);
         } else {
-            shader.drawShader(x, y, realx, realy, w, h, 0, redWeight, greenWeight, blueWeight, speed, inverse);
+            shader.drawShader(x, y, realx, realy, w, h, redWeight, greenWeight, blueWeight, speed, inverse);
         }
     }    
 }

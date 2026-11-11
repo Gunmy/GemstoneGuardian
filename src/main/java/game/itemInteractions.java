@@ -488,7 +488,7 @@ public class itemInteractions {
         burst(x + size/2, y + size/2, size/48, color, 70 + rdm.nextInt(30), 1.3, rdm);
         Color light = color.interpolate(Color.WHITE, 0.5);
         String hex = String.format("#%02X%02X%02X", (int) Math.round(light.getRed()*255), (int) Math.round(light.getGreen()*255), (int) Math.round(light.getBlue()*255));
-        javafx.scene.image.Image outline = became.getOutlineImage(hex, 4);
+        javafx.scene.image.Image outline = became.getOutlineImage(hex, 1);
         if (outline == null) return;
         //The icon fills 80% of its box (see slotGrid.drawStack)
         double icon = size*0.8;

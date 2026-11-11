@@ -12,4 +12,8 @@ public class openSkyType extends tileType {
 
     @Override
     protected void drawSpecial (gameHandler handler, double realx, double realy, int x, int y) {}
+
+    //Nothing is drawn, so far out it has no colour either
+    @Override
+    protected int[] flatPixels (imgDict images) {return new int[guiSkin.CELL*guiSkin.CELL];}
 }

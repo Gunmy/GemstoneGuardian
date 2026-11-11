@@ -366,7 +366,7 @@ public class item implements picture {
         y += (size - scaled)/2;
         gc.save();
         gc.setGlobalAlpha(Math.min(1, 0.8*p));
-        gc.drawImage(handler.getImages().getSilhouette(imgX, imgY, c.color), 1, 1, guiSkin.CELL-2, guiSkin.CELL-2, Math.round(x), Math.round(y), Math.round(scaled), Math.round(scaled));
+        gc.drawImage(handler.getImages().getSilhouette(imgX, imgY, c.color), 0, 0, guiSkin.CELL, guiSkin.CELL, Math.round(x), Math.round(y), Math.round(scaled), Math.round(scaled));
         gc.restore();
     }
 
@@ -572,14 +572,14 @@ public class item implements picture {
         double scaled = size*iconScale;
         x += (size - scaled)/2;
         y += (size - scaled)/2;
-        //One drawn pixel of the 100px cell is scaled/98 screen pixels; the outline is one to two of those, at least 1px
-        double step = Math.max(1, Math.round(scaled/98*(1 + a)*2));
+        //One drawn pixel of the 100px cell is scaled/guiSkin.CELL screen pixels; the outline is one to two of those, at least 1px
+        double step = Math.max(1, Math.round(scaled/guiSkin.CELL*(1 + a)*2));
         gc.save();
         gc.setGlobalAlpha(Math.min(1, 0.25 + 0.75*a));
         for (int dx = -1; dx <= 1; dx++) {
             for (int dy = -1; dy <= 1; dy++) {
                 if (dx == 0 && dy == 0) continue;
-                gc.drawImage(shape, 1, 1, guiSkin.CELL-2, guiSkin.CELL-2, Math.round(x + dx*step), Math.round(y + dy*step), Math.round(scaled), Math.round(scaled));
+                gc.drawImage(shape, 0, 0, guiSkin.CELL, guiSkin.CELL, Math.round(x + dx*step), Math.round(y + dy*step), Math.round(scaled), Math.round(scaled));
             }
         }
         gc.restore();
@@ -597,7 +597,7 @@ public class item implements picture {
         y += (size - scaled)/2;
         gc.save();
         gc.setGlobalAlpha(0.55*a);
-        gc.drawImage(handler.getImages().getSilhouette(imgX, imgY, hex), 1, 1, guiSkin.CELL-2, guiSkin.CELL-2, Math.round(x), Math.round(y), Math.round(scaled), Math.round(scaled));
+        gc.drawImage(handler.getImages().getSilhouette(imgX, imgY, hex), 0, 0, guiSkin.CELL, guiSkin.CELL, Math.round(x), Math.round(y), Math.round(scaled), Math.round(scaled));
         gc.restore();
     }
 
@@ -715,7 +715,7 @@ public class item implements picture {
         }
         double alpha = gc.getGlobalAlpha();
         gc.setGlobalAlpha(alpha*iconAlpha);
-        gc.drawImage(getIcon(), 1, 1, guiSkin.CELL-2, guiSkin.CELL-2, Math.round(x), Math.round(y), Math.round(scaled), Math.round(scaled));
+        gc.drawImage(getIcon(), 0, 0, guiSkin.CELL, guiSkin.CELL, Math.round(x), Math.round(y), Math.round(scaled), Math.round(scaled));
         gc.setGlobalAlpha(alpha);
     }
 

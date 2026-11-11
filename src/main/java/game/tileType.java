@@ -4,6 +4,7 @@ import java.util.function.Consumer;
 
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
+import javafx.scene.paint.Color;
 
 public class tileType implements picture {
 
@@ -67,6 +68,65 @@ public class tileType implements picture {
 
     public int getId () {return this.id;}
 
+    //The one colour the tile is drawn in when zoomed far out (see gameHandler.flatView, chunks.drawFlat). Worked out
+    //from the texture (the colour most of its pixels have, see flatPixels) unless set by hand in tileTypes
+    private Color primaryColor;
+    private boolean primaryKnown = false;
+    //Set by hand: kept as it is when the colours are made unique (tileTypes.assignPrimaryColors)
+    private boolean primaryFixed = false;
+    private int primaryArgb, primaryColdArgb;
+
+    public void setPrimaryColor (String hex) {
+        this.primaryColor = hex == null ? null : Color.web(hex);
+        this.primaryKnown = true;
+        this.primaryFixed = true;
+        cacheArgb();
+    }
+    public boolean isPrimaryFixed () {return this.primaryFixed;}
+
+    //The colour most of its texture is (or the one set by hand), before assignPrimaryColors moved it away from the
+    //others. The chunks drawn as one colour each use this (chunk.getChunkColor), so tiles that look alike count together
+    private Color textureColor;
+    private boolean textureKnown = false;
+    public Color getTextureColor (imgDict images) {
+        if (!textureKnown) {
+            textureColor = primaryFixed ? primaryColor : imgDict.mostCommon(flatPixels(images));
+            textureKnown = true;
+        }
+        return textureColor;
+    }
+
+    //The colour tileTypes.assignPrimaryColors gave it, close to its own but not the same as any other tile's
+    public void assignPrimaryColor (Color color) {
+        this.primaryColor = color;
+        this.primaryKnown = true;
+        cacheArgb();
+    }
+
+    //Null when the tile is see-through (the open sky)
+    public Color getPrimaryColor (imgDict images) {
+        if (!primaryKnown) {
+            primaryColor = imgDict.mostCommon(flatPixels(images));
+            primaryKnown = true;
+            cacheArgb();
+        }
+        return primaryColor;
+    }
+
+    //The primary colour as ARGB, in the cold colours of a mirror world if cold. 0 when see-through
+    public int getPrimaryArgb (imgDict images, boolean cold) {
+        getPrimaryColor(images);
+        return cold ? primaryColdArgb : primaryArgb;
+    }
+
+    private void cacheArgb () {
+        primaryArgb = imgDict.argb(primaryColor);
+        primaryColdArgb = primaryColor == null ? 0 : imgDict.argb(imgDict.cold(primaryColor));
+    }
+
+    //The tile as it looks lying still, one cell of ARGB pixels, which its primary colour is taken from
+    protected int[] flatPixels (imgDict images) {return images.cellPixels(this.x, this.y);}
+
     //Tiles of a type that is a teleport target (the healing pads) are listed in the teleports menu
     private boolean teleportTarget = false;
     public void setTeleportTarget (boolean teleportTarget) {this.teleportTarget = teleportTarget;}
@@ -79,7 +139,7 @@ public class tileType implements picture {
 
     //The tile flat and still in a small map (the teleports menu): its cell from the sheet in the given rectangle
     public void drawMini (GraphicsContext gc, Image sheet, double x, double y, double width, double height) {
-        gc.drawImage(sheet, this.x+1, this.y+1, this.width-2, this.height-2, x, y, width, height);
+        gc.drawImage(sheet, this.x, this.y, this.width, this.height, x, y, width, height);
     }
 
     protected boolean insideScreen (gameHandler handler, double x, double y) {
@@ -109,10 +169,10 @@ public class tileType implements picture {
         handler.getTempGc().drawImage(
 
         handler.getImages().getImage(0), 
-        this.x+1, 
-        this.y+1, 
-        this.width-2, 
-        this.height-2, 
+        this.x, 
+        this.y, 
+        this.width, 
+        this.height, 
         (int) realx,   
         (int) realy, 
         (int) (handler.getUnitWidth()/handler.getTileCount()+correctionVal), 
@@ -141,6 +201,6 @@ public class tileType implements picture {
     //In a box the tile is its own cell from the sheet
     @Override
     public void draw (GraphicsContext gc, gui gui, double x, double y, double size) {
-        gc.drawImage(gui.getHandler().getImages().getImage(0), this.x+1, this.y+1, width-2, height-2, Math.round(x), Math.round(y), Math.round(size), Math.round(size));
+        gc.drawImage(gui.getHandler().getImages().getImage(0), this.x, this.y, width, height, Math.round(x), Math.round(y), Math.round(size), Math.round(size));
     }
 }

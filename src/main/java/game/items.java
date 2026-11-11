@@ -36,12 +36,12 @@ public class items {
     }
 
     //Trinkets, worn in the two trinket slots left of the inventory (see trinket). Their icons are drafts in tiles.png:
-    //heart (1300, 1500), withered heart (1400, 1500), feather (1000, 1600), syringe (1100, 1600)
+    //heart (260, 300), withered heart (280, 300), feather (200, 320), syringe (220, 320)
 
     //Worn on the head. Walk 1.75 times as fast
     public trinket featherOfHermesBoots () {
         trinket t = new trinket("Feather of Hermes Boots", trinket.place.HEAD, handler).speed(1.75).wornScale(1.4);
-        t.look(1000, 1600, null).particles(itemParticles.SPARKLE).glowColor("#FFC830").restingGlow(0.5)
+        t.look(200, 320, null).particles(itemParticles.SPARKLE).glowColor("#FFC830").restingGlow(0.5)
             .lore("A single feather plucked from a pair of winged boots. Your feet forget how heavy they are.")
             .details("Walking speed: x1.75");
         return t;
@@ -60,7 +60,7 @@ public class items {
     //The heart of the warrior burnt out: weaker, but angrier. Healite heals it back
     public trinket witheredHeart () {
         trinket t = new trinket("Withered Heart", trinket.place.CHEST, handler).health(0.95).damage(1.1);
-        t.look(1400, 1500, null).particles(itemParticles.SMOKE)
+        t.look(280, 300, null).particles(itemParticles.SMOKE)
             .lore("Scorched and still. It does not beat any more, but it has not forgiven whoever did this.")
             .details("Max health: -5%. Damage of your moves: +10% (not burn or poison)");
         t.transformsInto(itemInfluence.HEALING, 1, "#DC283C", () -> heartOfTheWarrior());
@@ -70,16 +70,16 @@ public class items {
     //Worn in the shoulder
     public trinket creatine () {
         trinket t = new trinket("Creatine", trinket.place.SHOULDER, handler).damage(1.1).wornScale(1.4);
-        t.look(1100, 1600, null)
+        t.look(220, 320, null)
             .lore("A syringe of something the label calls a supplement. Nobody reads the small print.")
             .details("Damage of your moves: +10% (not burn or poison)");
         return t;
     }
 
-    //Worn over the eyes: see 2 tiles further in the dark caves, and give off a soft light. Its icon is a draft at (900, 1800)
+    //Worn over the eyes: see 2 tiles further in the dark caves, and give off a soft light. Its icon is a draft at (180, 360)
     public trinket goggles () {
         trinket t = new trinket("Goggles", trinket.place.EYES, handler).sight(2).lightsWearer();
-        t.look(900, 1800, null).glowColor("#FFF0B0").restingGlow(0.3)
+        t.look(180, 360, null).glowColor("#FFF0B0").restingGlow(0.3)
             .lore("Miner's goggles with a little lamp between the lenses. The dark is not so dark any more.")
             .details("In dark places you see 2 tiles further in every direction, and you give off a soft light");
         return t;

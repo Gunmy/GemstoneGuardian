@@ -11,6 +11,6 @@ public interface picture {
 
     //A picture that is just a still image of one sheet cell
     static picture of (Image image) {
-        return (gc, gui, x, y, size) -> gc.drawImage(image, 1, 1, guiSkin.CELL-2, guiSkin.CELL-2, Math.round(x), Math.round(y), Math.round(size), Math.round(size));
+        return (gc, gui, x, y, size) -> gc.drawImage(image, 0, 0, guiSkin.CELL, guiSkin.CELL, Math.round(x), Math.round(y), Math.round(size), Math.round(size));
     }
 }

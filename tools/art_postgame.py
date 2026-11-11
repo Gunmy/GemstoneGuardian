@@ -1,5 +1,5 @@
 """Drafts for the areas after the final boss (volcano depths, desert, sky ruins, crystal caverns), their characters,
-and the trinkets. Every one is 20x20 art scaled 5x, in the colours of the existing art only, with the #404868
+and the trinkets. Every one is 20x20 art, in the colours of the existing art only, with the #404868
 outline on characters and objects (not plants), and specks at least 2x2 (see pixelart.py). The trinket icons are the
 owner's (redrawn from earlier drafts) and are not in here.
 
@@ -7,7 +7,7 @@ owner's (redrawn from earlier drafts) and are not in here.
     python tools/art_postgame.py --redraw   draws them all again: only while every cell is still a draft from here,
                                             it overwrites redrawn ones
 
-The owner redraws them. Rows y = 1700 (tiles) and y = 1800 (gate and characters).
+The owner redraws them. Rows y = 340 (tiles) and y = 360 (gate and characters).
 """
 import random
 import sys
@@ -15,14 +15,14 @@ import sys
 from pixelart import Sheet, noise, outline, OUTLINE
 
 CELLS = {
-    'basalt': (0, 1700), 'ash': (100, 1700), 'vent': (200, 1700), 'spire': (300, 1700),
-    'dune': (400, 1700), 'cactus': (500, 1700), 'desert_brick': (600, 1700), 'ruin_pillar': (700, 1700),
-    'sky': (800, 1700), 'cloud': (900, 1700), 'marble': (1000, 1700), 'broken_column': (1100, 1700),
-    'crystal_wall': (1200, 1700), 'crystal_floor': (1300, 1700), 'crystal_cluster': (1400, 1700),
-    'gate': (0, 1800),
-    'ember_wraith': (100, 1800), 'ash_golem': (200, 1800), 'dune_scorpion': (300, 1800), 'desert_nomad': (400, 1800),
-    'storm_harpy': (500, 1800), 'cloud_knight': (600, 1800), 'crystal_sentinel': (700, 1800), 'prism_warden': (800, 1800),
-    'goggles': (900, 1800),
+    'basalt': (0, 340), 'ash': (20, 340), 'vent': (40, 340), 'spire': (60, 340),
+    'dune': (80, 340), 'cactus': (100, 340), 'desert_brick': (120, 340), 'ruin_pillar': (140, 340),
+    'sky': (160, 340), 'cloud': (180, 340), 'marble': (200, 340), 'broken_column': (220, 340),
+    'crystal_wall': (240, 340), 'crystal_floor': (260, 340), 'crystal_cluster': (280, 340),
+    'gate': (0, 360),
+    'ember_wraith': (20, 360), 'ash_golem': (40, 360), 'dune_scorpion': (60, 360), 'desert_nomad': (80, 360),
+    'storm_harpy': (100, 360), 'cloud_knight': (120, 360), 'crystal_sentinel': (140, 360), 'prism_warden': (160, 360),
+    'goggles': (180, 360),
 }
 
 ART = {}
@@ -520,7 +520,7 @@ ART['goggles'] = framed([
 
 # ---- Portal: a fluid (sliding) texture of 2x2 cells, 40x40 art that repeats seamlessly --------------------------
 
-PORTAL_CELLS = {'portal_tl': (1000, 1800), 'portal_tr': (1100, 1800), 'portal_bl': (1000, 1900), 'portal_br': (1100, 1900)}
+PORTAL_CELLS = {'portal_tl': (200, 360), 'portal_tr': (220, 360), 'portal_bl': (200, 380), 'portal_br': (220, 380)}
 
 def portal():
     import math
@@ -541,20 +541,20 @@ ART['portal_br'] = ([r[20:] for r in _big[20:]], PORTAL_PALETTE)
 CELLS.update(PORTAL_CELLS)
 
 
-# Cave floors are the game's cave floor (tile 25, cell (600, 0)) recoloured, not new textures: the brown and its two
+# Cave floors are the game's cave floor (tile 25, cell (120, 0)) recoloured, not new textures: the brown and its two
 # lighter specks become greys for the volcano's ash and dark blue-purples for the crystal caverns
-CAVE_FLOOR = (600, 0)
+CAVE_FLOOR = (120, 0)
 RECOLORED = {
     'ash': {'#8C6E56': '#515151', '#9B8063': '#5E5E5E', '#B99B65': '#706C6C'},
     'crystal_floor': {'#8C6E56': '#464C61', '#9B8063': '#545B75', '#B99B65': '#656D8E'},
 }
 
 
-# Taller pillars: the owner's pillar top (1000, 300) is the capital and the shaft, with a flare at the bottom (rows 18-19)
+# Taller pillars: the owner's pillar top (200, 60) is the capital and the shaft, with a flare at the bottom (rows 18-19)
 # that meets the base. A pillar more than one tile high is the top, then middles (the shaft, its row 6 repeated), then
 # a bottom (the shaft and the top's flare), then the base. Made from the owner's own cell, not drawn
-PILLAR_TOP = (1000, 300)
-PILLAR_CELLS = {'pillar_middle': (1200, 1900), 'pillar_bottom': (1300, 1900)}
+PILLAR_TOP = (200, 60)
+PILLAR_CELLS = {'pillar_middle': (240, 380), 'pillar_bottom': (260, 380)}
 PILLAR_COLORS = ['#404868', '#D0D0C0', '#E0D8D8', '#94A0BA', '#B8C0A8']
 
 
@@ -571,7 +571,7 @@ if __name__ == '__main__':
     if '--only' in sys.argv:
         only = set(sys.argv[sys.argv.index('--only') + 1].split(','))
     sheet = Sheet()
-    sheet.grow(2000)
+    sheet.grow(400)
     for name, mapping in RECOLORED.items():
         ART[name] = sheet.recolor(CAVE_FLOOR[0], CAVE_FLOOR[1], mapping)
     ART.update(pillar_parts(sheet))

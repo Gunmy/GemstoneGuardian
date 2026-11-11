@@ -7,14 +7,14 @@ import javafx.scene.image.Image;
 //drawn grey-scale and tinted with the type's colour, shown on the ability buttons in battle
 public enum abilityType implements picture {
     ATTACK   (0,   "#E8E8E8"),  //plain damage
-    HEAL     (100, "#FF4060"),  //heals or heals over time
-    FIRE     (200, "#FF7020"),  //sets on fire
-    POISON   (300, "#60D040"),  //poisons
-    CONFUSE  (400, "#D060FF"),  //confuses, lowers hit chance
-    LIGHTNING(500, "#FFE040"),  //damage by share of max health
-    DRAIN    (600, "#C03060"),  //hurts them and heals you
-    CLEANSE  (700, "#60C0FF"),  //removes effects
-    RESTORE  (800, "#FFFFFF");  //restores ability uses
+    HEAL     (20, "#FF4060"),  //heals or heals over time
+    FIRE     (40, "#FF7020"),  //sets on fire
+    POISON   (60, "#60D040"),  //poisons
+    CONFUSE  (80, "#D060FF"),  //confuses, lowers hit chance
+    LIGHTNING(100, "#FFE040"),  //damage by share of max health
+    DRAIN    (120, "#C03060"),  //hurts them and heals you
+    CLEANSE  (140, "#60C0FF"),  //removes effects
+    RESTORE  (160, "#FFFFFF");  //restores ability uses
 
     private final int cellX;
     private final String tint;

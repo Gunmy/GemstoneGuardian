@@ -451,7 +451,7 @@ public class character implements cordinate, entity, picture {
         double division = 100000000;
         double heightOffset = Math.sin(time/division)*size*0.03;
         double widthOffset = Math.sin(time/division)*size*0.03;
-        gc.drawImage(getIcon(), 1, 1, guiSkin.CELL-2, guiSkin.CELL-2, x + widthOffset/2, y - heightOffset, size - widthOffset, size + heightOffset);
+        gc.drawImage(getIcon(), 0, 0, guiSkin.CELL, guiSkin.CELL, x + widthOffset/2, y - heightOffset, size - widthOffset, size + heightOffset);
         drawWorn(gc, x + widthOffset/2, y - heightOffset, size - widthOffset, size + heightOffset, false);
     }
 
@@ -619,7 +619,7 @@ public class character implements cordinate, entity, picture {
     private void spawnWornParticles (trinket t, double[] at, java.util.Random rdm) {
         itemParticles kind = t.getParticles();
         String[] colors = kind.getColors();
-        if (colors.length == 0 || rdm.nextDouble() >= kind.getRate()) return;
+        if (colors.length == 0 || handler.farView() || rdm.nextDouble() >= kind.getRate()) return;
         double tile = 1.0/handler.getTileCount();
         double scale = tile*WORN_SIZE*t.getWornScale()/48;
         double wx = x + at[0]*tile + (rdm.nextDouble() - 0.5)*tile*0.2;
@@ -660,11 +660,15 @@ public class character implements cordinate, entity, picture {
     public boolean showsInTransition () {return this.showInTransition;}
 
     public void draw () {
+        if (handler.getCurrentWorld() == world && !gone && handler.flatView()) {
+            drawFlat();
+            return;
+        }
         if (handler.getCurrentWorld() == world && !gone) {
             double time = (double) System.nanoTime();
             double division = 100000000;
             //Statues do not bob
-            double bob = statue ? 0 : Math.sin(time/division);
+            double bob = statue || handler.farView() ? 0 : Math.sin(time/division);
             double heightOffset = bob*handler.getUnitHeight()/handler.getTileCount()*0.03;
             double widthOffset = bob*handler.getUnitWidth()/handler.getTileCount()*0.03;
     
@@ -712,6 +716,18 @@ public class character implements cordinate, entity, picture {
                 handler.getMidHEIGHT() + ((y-0.05-cam.getY()))*handler.getUnitHeight());
             }
         }
+    }
+
+    //Zoomed far out (gameHandler.flatView): a square the size of a tile in the main colour of the sprite (statues in
+    //stone grey), on the tile it stands on. No name, light or anything worn
+    private void drawFlat () {
+        camera cam = handler.getCamera();
+        double tileW = handler.getUnitWidth()/handler.getTileCount(), tileH = handler.getUnitHeight()/handler.getTileCount();
+        Color color = statue ? Color.web(STONE) : handler.getImages().primaryColor(imgX, imgY);
+        if (color == null) return;
+        handler.getTempGc().setFill(color);
+        handler.getTempGc().fillRect(handler.getMidWIDTH() + (x - cam.getX())*handler.getUnitWidth(),
+            handler.getMidHEIGHT() + (y - cam.getY())*handler.getUnitHeight(), tileW, tileH);
     }
 
     public boolean isDead() {return false;}
@@ -929,6 +945,8 @@ public class character implements cordinate, entity, picture {
         save.set(p + "gone", gone);
         save.set(p + "statue", statue);
         save.set(p + "sprite", imgX + "," + imgY);
+        //The sheet's cell size the sprite above is in, so saves from before the sheet went from 100 to 20 pixel cells load
+        save.set(p + "spriteCell", guiSkin.CELL);
         save.set(p + "follows", leader == null ? "" : leader.getId());
         save.set(p + "effects", fireDamage + "," + fireDamageTimes + "," + poisonDamage + "," + poisonDamageTimes + ","
             + healing + "," + healingTimes + "," + confusion + "," + confusionTimes);
@@ -969,8 +987,10 @@ public class character implements cordinate, entity, picture {
         String[] sprite = save.getString(p + "sprite", "").split(",");
         if (sprite.length == 2) {
             try {
-                imgX = Integer.parseInt(sprite[0]);
-                imgY = Integer.parseInt(sprite[1]);
+                //Saved before the sheet had 20 pixel cells it is in 100 pixel ones (no spriteCell then)
+                int cell = save.getInt(p + "spriteCell", 100);
+                imgX = Integer.parseInt(sprite[0])*guiSkin.CELL/cell;
+                imgY = Integer.parseInt(sprite[1])*guiSkin.CELL/cell;
             } catch (NumberFormatException e) {
                 System.out.println("Ugyldig utseende for " + name);
             }

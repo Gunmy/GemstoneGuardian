@@ -47,7 +47,7 @@ for area in maps.AREAS:
                 places[DIGITS[ch]] = (area['world'], area['x'] + c // 9, area['y'] + r // 9, c % 9, r % 9, area['name'])
 
 for name, (level, gems, worn, kind) in EXPECT.items():
-    m = re.search(r'characters\.add\(new character\("%s", (\d+) \+ (\d+)\*pt, (\d+) \+ (\d+)\*pt, (\d+), (\d+), 100, 100, (\d+), this, 3, (\d+)\)\);' % name, java)
+    m = re.search(r'characters\.add\(new character\("%s", (\d+) \+ (\d+)\*pt, (\d+) \+ (\d+)\*pt, (\d+), (\d+), 20, 20, (\d+), this, 3, (\d+)\)\);' % name, java)
     if not m:
         problems.append('%s: no character line found' % name)
         continue

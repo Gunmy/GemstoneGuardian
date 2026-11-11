@@ -10,6 +10,14 @@ public class tile {
     private gameHandler handler;
     private int x, y;
     
+    //Shared by every tile: making a new one for every tile drawn every frame was slow
+    private static final Random RANDOM = new Random();
+
+    //Tiles whose particles mean something (the healing pad, portals, sky portals), kept when zoomed far out.
+    //The rest (smoke, mist, glints, falling snow...) are only for looks
+    private static final java.util.Set<Integer> SIGNAL_PARTICLES = java.util.Set.of(
+        91, 172, 173, 174, 175, 176, 177, 178, 179, 185, 186, 187, 201, 202, 203);
+
     public tile (int x, int y, tileType tileType, int chunkx, int chunky, gameHandler handler) {
         if (x < 0 || y < 0) throw new IllegalArgumentException("x og y verdi kan ikke være under 0");
         this.tileType = tileType;
@@ -59,7 +67,7 @@ public class tile {
 
         double renderVal = getRenderVal(realx, realy);
         if (renderVal > 0.01) {
-            handler.getTempGc().setGlobalAlpha(renderVal);
+            handler.getTempGc().setGlobalAlpha(Math.min(1, renderVal));
             boolean flip = flipStart(realx);
             tileType.drawLayer(handler, realx, realy, x, y, z);
             if (flip) flipEnd();
@@ -96,14 +104,14 @@ public class tile {
 
         double renderVal = getRenderVal(realx, realy);
         if (renderVal > 0.01) {
-            handler.getTempGc().setGlobalAlpha(renderVal);
+            handler.getTempGc().setGlobalAlpha(Math.min(1, renderVal));
             boolean flip = flipStart(realx);
             tileType.drawLayer(handler, realx, realy, x, y, 0);
             if (flip) flipEnd();
             //The particles this tile gives off are mirrored round its middle too (gameHandler.add*Particle)
             if (flip) handler.mirrorParticlesAround(this.realx + 0.5/handler.getTileCount());
 
-            Random gen = new Random();
+            Random gen = RANDOM;
             double rdm = (gen).nextDouble();
 
             //Chests that will heal you when closed give off small green sparks, like the yellow ones events give off
@@ -116,7 +124,9 @@ public class tile {
                 }
             }
 
-            switch(tileType.getId()) {
+            //Zoomed far out only the particles that tell the player something are given off (see gameHandler.farView)
+            int id = handler.farView() && !SIGNAL_PARTICLES.contains(tileType.getId()) ? -1 : tileType.getId();
+            switch(id) {
                 case 45:
                     if (rdm < 0.05) {
                         handler.addFrontParticle(

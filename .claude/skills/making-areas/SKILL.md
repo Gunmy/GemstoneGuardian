@@ -32,9 +32,9 @@ crystal caverns, after the final boss) were made with; follow it so new areas lo
 
 ## 2. Textures (tools/pixelart.py)
 
-- Every texture is **20x20 pixels of art**, scaled 5x with nearest neighbour into its 100x100 cell. Draw with
+- Every texture is **20x20 pixels of art**, one sheet pixel per art pixel, in its 20x20 cell (the game scales it up with nearest neighbour). Draw with
   `pixelart.Sheet` from a script (see `tools/art_postgame.py`); it grows the sheet when needed (new rows at the
-  bottom, the sheet is 1500 wide) and refuses cells already drawn in.
+  bottom, the sheet is 300 wide) and refuses cells already drawn in.
 - **Only colours already in the art** (`tools/palette.txt`); `draw()` refuses others. Pick the matching existing set:
   tree greens for plants, the sand colours for sand, lava oranges for heat, the greys for stone, and so on. If a colour
   really does not exist, do without it.
@@ -47,7 +47,7 @@ crystal caverns, after the final boss) were made with; follow it so new areas lo
   underlay given in `tileTypes`.
 - Sliding textures (water, lava, portals) are fluid types: a seamless 2x2 cell region (40x40 art), see the portal in
   art_postgame.py.
-- Use what is there before drawing new: the owner's pillar (top (1000, 300) over base (1000, 400), as new tile types
+- Use what is there before drawing new: the owner's pillar (top (200, 60) over base (200, 80), as new tile types
   with the underlay you need), chests, the sand, the healing pad. Only draw what does not exist yet.
 - Pillars more than one tile high: the top, then middles, then a bottom, then the base; never a top on a top. The
   middle and bottom are made from the top's own shaft (`pillar_parts` in art_postgame.py; 188/189 on bluebrick); make
@@ -62,7 +62,7 @@ crystal caverns, after the final boss) were made with; follow it so new areas lo
 ## 3. Tile types (tileTypes.java)
 
 - Tile ids are list positions: **only append**, never reorder. Note the id in a `//147 name` comment.
-- `addType(name, x, y, 100, 100, blocked, pressurePlate)` for a plain cell. `addWaveType(..., underlay, wave)` for an
+- `addType(name, x, y, 20, 20, blocked, pressurePlate)` for a plain cell. `addWaveType(..., underlay, wave)` for an
   overlay on another type. `wave` true makes it bob (and lifts it to z = 1): only for things that would move, never for
   pillars, spikes, rocks or crystals. Solid standing things use `addWaveType(..., underlay, false, 1, 1, 0)` (no bob,
   z = 1, drawn among the characters), like the sign. `addTreeType` for trees.
@@ -87,7 +87,7 @@ crystal caverns, after the final boss) were made with; follow it so new areas lo
 
 ## 5. Characters, fights, rewards (gameHandler constructor)
 
-- `new character(name, x, y, imgX, imgY, 100, 100, world, this, speed, level)`; x = chunk + column/9,
+- `new character(name, x, y, imgX, imgY, 20, 20, world, this, speed, level)`; x = chunk + column/9,
   y = chunk + row/9. Sprite cells for new characters are drafts (20x20, outlined).
 - Gems with `give(gemstones.x())` (existing gems only unless asked), trinkets with `wear(items.x())` after `itemDict`.
 - A guard: `guardFight(character, dialogue)` (fights, steps up and left when beaten). XP fights: a `battleEvent` with

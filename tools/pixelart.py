@@ -1,5 +1,5 @@
-"""Draws textures into media/tiles.png the way the game's art is made: every cell is 20x20 pixels of art, scaled up
-5 times with nearest neighbour into its 100x100 cell, so one art pixel is a 5x5 block.
+"""Draws textures into media/tiles.png the way the game's art is made: every cell is 20x20 pixels of art, one
+sheet pixel per art pixel (the game scales it up with nearest neighbour).
 
 Art is a list of 20 strings of 20 characters, one character per pixel, with a palette that maps characters to
 colours ("#RRGGBB"). '.' is always see-through. Floors and walls fill every pixel; overlays (objects lying on a tile)
@@ -15,8 +15,8 @@ Use from a script (see tools/art_postgame.py):
 
     from pixelart import Sheet, outline, noise
     sheet = Sheet()                      # opens src/main/resources/game/media/tiles.png
-    sheet.grow(1900)                     # makes the sheet taller (never shorter), new space see-through
-    sheet.draw(0, 1700, ART, PALETTE)    # cell with its top left at (0, 1700); refuses a cell already drawn in
+    sheet.grow(380)                      # makes the sheet taller (never shorter), new space see-through
+    sheet.draw(0, 340, ART, PALETTE)     # cell with its top left at (0, 340); refuses a cell already drawn in
     sheet.save()
 
 Never draw over a finished cell: draw() refuses cells that are not empty unless replace=True, which is only for
@@ -31,7 +31,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SHEET = os.path.join(HERE, '..', 'src', 'main', 'resources', 'game', 'media', 'tiles.png')
 PALETTE_FILE = os.path.join(HERE, 'palette.txt')
 ART = 20
-CELL = 100
+CELL = 20
 SCALE = CELL // ART
 OUTLINE = '#404868'
 
@@ -55,7 +55,7 @@ def allowed_colors():
 
 
 def to_image(art, palette):
-    """The 20x20 art as an image, then scaled up 5x with nearest neighbour."""
+    """The 20x20 art as an image, the size of a cell."""
     if len(art) != ART or any(len(row) != ART for row in art):
         raise ValueError('Art must be 20 rows of 20 characters')
     small = Image.new('RGBA', (ART, ART), (0, 0, 0, 0))
@@ -142,7 +142,7 @@ class Sheet:
 
     def draw(self, x, y, art, palette, replace=False):
         if x % CELL or y % CELL:
-            raise ValueError('Cells start at multiples of 100')
+            raise ValueError('Cells start at multiples of %d' % CELL)
         if x + CELL > self.image.width or y + CELL > self.image.height:
             raise ValueError('Cell (%d, %d) is outside the sheet, grow it first' % (x, y))
         if not replace and not self.is_empty(x, y):

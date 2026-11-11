@@ -34,7 +34,7 @@ public class guiOutlinePulse {
         gc.save();
         gc.setImageSmoothing(false);
         gc.setGlobalAlpha(Math.max(0, strength*(1 - t)));
-        gc.drawImage(outline, 1, 1, guiSkin.CELL-2, guiSkin.CELL-2, Math.round(cx - s/2), Math.round(cy - s/2), Math.round(s), Math.round(s));
+        gc.drawImage(outline, 0, 0, guiSkin.CELL, guiSkin.CELL, Math.round(cx - s/2), Math.round(cy - s/2), Math.round(s), Math.round(s));
         gc.restore();
     }
 }
