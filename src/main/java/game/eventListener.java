@@ -23,6 +23,13 @@ public class eventListener implements cordinate {
         this.handler = handler;
     }
 
+    //Names the listener in savefiles. Campaign listeners get one when the campaign is built (see gameHandler)
+    private String key;
+    public String getKey () {return this.key;}
+    public void setKey (String key) {this.key = key;}
+    public event getEvent () {return this.event;}
+    public double getRadius () {return this.radius;}
+
     public eventListener (gameHandler handler, double x, double y, double radius, int world, event event, List<dialogue> dialog) {
         this(handler, x, y, radius, world, event);
         this.dialog = dialog;

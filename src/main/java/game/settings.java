@@ -11,7 +11,7 @@ import java.util.Properties;
 public class settings {
 
     public enum guiSize {
-        SMALL(0.75, "Small"), MEDIUM(1, "Medium"), LARGE(1.3, "Large");
+        SMALL(0.75, "Small"), MEDIUM(1, "Medium"), LARGE(1.15, "Large");
 
         public final double factor;
         public final String label;
@@ -19,6 +19,13 @@ public class settings {
         guiSize (double factor, String label) {
             this.factor = factor;
             this.label = label;
+        }
+
+        //The biggest factor of all the sizes, which the screen height is fitted to
+        public static double largest () {
+            double max = 0;
+            for (guiSize size : values()) max = Math.max(max, size.factor);
+            return max;
         }
 
         public guiSize next () {
@@ -42,6 +49,12 @@ public class settings {
     public guiSize getGuiSize () {return this.size;}
     public void cycleGuiSize () {size = size.next(); save();}
     public double getReferenceWidth () {return this.referenceWidth;}
+
+    //How tall (in the gui classes' pixel sizes) the tallest screen is, with some room around it: the inventory with
+    //a chest above it, like the give item menu, is about 590. At the largest GUI size this always fits on the screen
+    //(the other sizes are that times their share). Raise it if a taller screen is added
+    private double fitHeight = 620;
+    public double getFitHeight () {return this.fitHeight;}
 
     public boolean simpleFluids () {return this.simpleFluids;}
     public void toggleSimpleFluids () {simpleFluids = !simpleFluids; save();}

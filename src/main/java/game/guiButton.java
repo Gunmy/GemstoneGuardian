@@ -30,6 +30,7 @@ public class guiButton extends guiElement {
     public void setText (String text) {this.text = text;}
     public void setEnabled (boolean enabled) {this.enabled = enabled;}
     public boolean isEnabled () {return this.enabled;}
+    public boolean isHovered () {return this.hovered;}
     public void setFace (Consumer<GraphicsContext> face) {this.face = face;}
     public void setTextSize (double size) {this.textSize = size;}
     public void setIcon (Image icon) {this.icon = icon;}

@@ -63,7 +63,7 @@ public class gemstone extends item {
         if (rdm.nextDouble() <= chances(you).get(0)) {
             handler.getDiealoguecontainer().add(new dialogue(you, "Used " + ability1name));
             handler.getDiealoguecontainer().setSource(ability1type);
-            ability1.accept(you, them);
+            them.hitBy(you, () -> ability1.accept(you, them));
             handler.getDiealoguecontainer().clearSource();
         } else {
             handler.getDiealoguecontainer().add(new dialogue(you, "Failed at using " + ability1name));
@@ -84,7 +84,7 @@ public class gemstone extends item {
         if (rdm.nextDouble() <= chances(you).get(1)) {
             handler.getDiealoguecontainer().add(new dialogue(you, "Used " + ability2name));
             handler.getDiealoguecontainer().setSource(ability2type);
-            ability2.accept(you, them);
+            them.hitBy(you, () -> ability2.accept(you, them));
             handler.getDiealoguecontainer().clearSource();
         } else {
             handler.getDiealoguecontainer().add(new dialogue(you, "Failed at using " + ability2name));
@@ -100,7 +100,7 @@ public class gemstone extends item {
         if (rdm.nextDouble() <= chances(you).get(2)) {
             handler.getDiealoguecontainer().add(new dialogue(you, "Used " + ability3name));
             handler.getDiealoguecontainer().setSource(ability3type);
-            ability3.accept(you, them);
+            them.hitBy(you, () -> ability3.accept(you, them));
             handler.getDiealoguecontainer().clearSource();
         } else {
             handler.getDiealoguecontainer().add(new dialogue(you, "Failed at using " + ability3name));
@@ -124,9 +124,9 @@ public class gemstone extends item {
     @Override
     public List<infoBox> getInfoBoxes () {
         List<infoBox> boxes = new ArrayList<infoBox>();
-        boxes.add(new infoBox(ability1type, ability1name, ability1usages + " uses, " + Math.round(ability1chance*100) + "% hit", ability1description));
-        boxes.add(new infoBox(ability2type, ability2name, ability2usages + " uses, " + Math.round(ability2chance*100) + "% hit", ability2description));
-        boxes.add(new infoBox(ability3type, ability3name, ability3usages + " uses, " + Math.round(ability3chance*100) + "% hit", ability3description));
+        boxes.add(new infoBox(ability1type, ability1name, ability1uses + "/" + ability1usages + " uses left, " + Math.round(ability1chance*100) + "% hit", ability1description));
+        boxes.add(new infoBox(ability2type, ability2name, ability2uses + "/" + ability2usages + " uses left, " + Math.round(ability2chance*100) + "% hit", ability2description));
+        boxes.add(new infoBox(ability3type, ability3name, ability3uses + "/" + ability3usages + " uses left, " + Math.round(ability3chance*100) + "% hit", ability3description));
         return boxes;
     }
 
@@ -143,6 +143,23 @@ public class gemstone extends item {
         return ability1usesLeft() || ability2usesLeft() || ability3usesLeft();
     }
 
+
+    //Uses left of the three abilities
+    @Override
+    public String saveState () {return ability1uses + "," + ability2uses + "," + ability3uses;}
+
+    @Override
+    public void loadState (String state) {
+        String[] uses = state.split(",");
+        if (uses.length != 3) return;
+        try {
+            ability1uses = Math.max(0, Math.min(ability1usages, Integer.parseInt(uses[0])));
+            ability2uses = Math.max(0, Math.min(ability2usages, Integer.parseInt(uses[1])));
+            ability3uses = Math.max(0, Math.min(ability3usages, Integer.parseInt(uses[2])));
+        } catch (NumberFormatException e) {
+            System.out.println("Ugyldige bruk i lagret " + getName() + ": " + state);
+        }
+    }
 
     public void restore() {
 

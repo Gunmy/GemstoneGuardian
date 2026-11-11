@@ -20,7 +20,7 @@ public class battle {
     //True while the rocks and items are shown instead of the abilities
     private boolean moreView = false;
 
-    //Health bars that slide towards the real health
+    //Health bars that slide towards the health the messages have shown so far
     private double yourBar, theirBar;
 
     //To save the event in case player lose
@@ -61,8 +61,20 @@ public class battle {
         this.y = y;
         this.r = r;
         this.world = world;
-        this.yourBar = you.getHealthPercentage();
-        this.theirBar = them.getHealthPercentage();
+        you.syncShownHealth();
+        them.syncShownHealth();
+        this.yourBar = you.getShownHealthPercentage();
+        this.theirBar = them.getShownHealthPercentage();
+    }
+
+    //Whose turn it is, for savefiles: true when the player moves next
+    public boolean isPlayersTurn () {return this.opponentDoneMove;}
+
+    //Continues a saved fight (started again with its battleEvent) on the turn it was saved on
+    public void resumeTurn (boolean playersTurn) {
+        this.opponentDoneMove = playersTurn;
+        this.waitingForPlayer = false;
+        this.moreView = false;
     }
 
     public void showMore () {moreView = true;}
@@ -80,9 +92,10 @@ public class battle {
         gemstone stone = you.getGemstone();
         if (stone == null) return;
 
-        if (n == 0 && stone.ability1usesLeft()) {stone.ability1(you, them); endTurn();}
-        if (n == 1 && stone.ability2usesLeft()) {stone.ability2(you, them); endTurn();}
-        if (n == 2 && stone.ability3usesLeft()) {stone.ability3(you, them); endTurn();}
+        dialogueContainer messages = you.getHandler().getDiealoguecontainer();
+        if (n == 0 && stone.ability1usesLeft()) {messages.grouped(() -> stone.ability1(you, them)); endTurn();}
+        if (n == 1 && stone.ability2usesLeft()) {messages.grouped(() -> stone.ability2(you, them)); endTurn();}
+        if (n == 2 && stone.ability3usesLeft()) {messages.grouped(() -> stone.ability3(you, them)); endTurn();}
     }
 
     //Using a rock equips it, using anything else does what the item does. Both take the turn
@@ -90,8 +103,10 @@ public class battle {
         if (!waitingForPlayer) return;
         if (item instanceof gemstone && you.getGemstone() == item) return;
 
-        item.use(you, them);
-        if (item.isConsumable()) you.consume(item);
+        you.getHandler().getDiealoguecontainer().grouped(() -> {
+            item.use(you, them);
+            if (item.isConsumable()) you.consume(item);
+        });
         endTurn();
     }
 
@@ -117,7 +132,7 @@ public class battle {
     }
 
     private void opponentMove () {
-        them.autoMaticMove(you);
+        them.getHandler().getDiealoguecontainer().grouped(() -> them.autoMaticMove(you));
         opponentDoneMove = true;
     }
 
@@ -149,8 +164,7 @@ public class battle {
                 handler.getDiealoguecontainer().add(new dialogue("Game", "Restoring winner..."));
                 them.restore();
 
-                event battleEvent = new battleEvent(you, them, this, youWin, theyWin, x, y, r, world);
-                handler.addEventListener(new eventListener(handler, x, y, r, world, battleEvent));
+                handler.addEventListener(new battleEvent(you, them, this, youWin, theyWin, x, y, r, world).rearm(handler));
             } else {
                 handler.getDiealoguecontainer().add(new dialogue("Game", them.getName() + " lost"));
                 if (youWin != null) {
@@ -175,15 +189,16 @@ public class battle {
             } else {
                 opponentMove();
                 if (!checkForDead(handler)) {
-                    you.updateEffects();
-                    them.updateEffects();
+                    //Each one's burning, poison and healing with the damage it does
+                    handler.getDiealoguecontainer().grouped(() -> you.updateEffects());
+                    handler.getDiealoguecontainer().grouped(() -> them.updateEffects());
                 }
             }
         }
 
         if (you != null) {
-            yourBar += (you.getHealthPercentage()-yourBar)*0.1;
-            theirBar += (them.getHealthPercentage()-theirBar)*0.1;
+            yourBar += (you.getShownHealthPercentage()-yourBar)*0.1;
+            theirBar += (them.getShownHealthPercentage()-theirBar)*0.1;
         }
     }
 

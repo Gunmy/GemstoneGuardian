@@ -18,6 +18,8 @@ public class guiSkin {
     public static final int ROCK_X = 1000;
     public static final int POTION_X = 1100;
     public static final int BANDAGE_X = 1200;
+    //The heart of the warrior, also the white shape in empty trinket slots
+    public static final int HEART_X = 1300;
 
     //The icon row (y = 1600): ability type icons first (see abilityType), then message icons
     public static final int ICON_Y = 1600;
@@ -86,6 +88,7 @@ public class guiSkin {
         switch (kind) {
             case ROCK: cellX = ROCK_X; break;
             case ITEM: cellX = POTION_X; break;
+            case TRINKET: cellX = HEART_X; break;
             default:   return;
         }
         Image shape = handler.getImages().getSilhouette(cellX, GUI_Y, "#FFFFFF");

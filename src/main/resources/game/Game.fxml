@@ -2,5 +2,5 @@
 
 <?import javafx.scene.layout.AnchorPane?>
 
-<AnchorPane fx:id="Pane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" onKeyPressed="#keyPressed" onKeyReleased="#keyReleased" onMouseClicked="#mouseClick" onMouseMoved="#mouseMoved" onScroll="#scroll" prefHeight="500.0" prefWidth="900.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="game.controller">
+<AnchorPane fx:id="Pane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" onKeyPressed="#keyPressed" onKeyReleased="#keyReleased" onKeyTyped="#keyTyped" onMouseClicked="#mouseClick" onMouseMoved="#mouseMoved" onScroll="#scroll" prefHeight="500.0" prefWidth="900.0" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1" fx:controller="game.controller">
 </AnchorPane>

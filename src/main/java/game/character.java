@@ -23,7 +23,14 @@ public class character implements cordinate, entity, picture {
     private double yTarget;
     private int world;
     private double speed;
+    //Walks this many times faster than its speed, for the speed cheat. Not saved
+    private double speedMultiplier = 1;
+    public double getSpeedMultiplier () {return this.speedMultiplier;}
+    public void setSpeedMultiplier (double multiplier) {this.speedMultiplier = multiplier;}
     private double health = 100;
+    //The health the player has been told about. Damage and heal messages move it when they are shown,
+    //so health bars change on the message instead of when the move is done
+    private double shownHealth = 100;
     private gemstone equipped;
 
     private double xp = 0;
@@ -111,6 +118,34 @@ public class character implements cordinate, entity, picture {
         this.ySpawn = this.y;
     }
 
+    //Moves straight to the tile at (x, y) in the given world and does what that tile does, like stepping onto it.
+    //The camera jumps along instead of sliding all the way there
+    public void teleport (int world, double x, double y) {
+        queuedMovement.clear();
+        setWorld(world);
+        setX(x);
+        setY(y);
+        if (handler.getCamera().getBound() == this) {
+            handler.getCamera().setX(x + 0.5/handler.getTileCount());
+            handler.getCamera().setY(y + 0.5/handler.getTileCount());
+        }
+        standingTileDoFunction();
+    }
+
+    //Every teleport target (healing pad) stood on, in the order they were first stood on. The teleporter lists these
+    private List<worldTile> visitedTeleports = new ArrayList<worldTile>();
+
+    public void visitTeleport (tile target) {
+        visitTeleportIn(this.world, target);
+    }
+
+    public List<worldTile> getVisitedTeleports () {return new ArrayList<worldTile>(visitedTeleports);}
+
+    //True when an item with that name is in the inventory
+    public boolean carries (String itemName) {
+        return inventory.getItems().stream().anyMatch(i -> i.getName().equals(itemName));
+    }
+
     public void goToSpawn () {
         setX(xSpawn);
         setY(ySpawn);
@@ -158,6 +193,58 @@ public class character implements cordinate, entity, picture {
         confusion = 0;
         confusionTimes = 0;
     }
+
+    //What the inventory's info panel shows about the character when no item is hovered: level and xp, health,
+    //the equipped rock and one box per effect on it
+    public List<infoBox> getStatBoxes () {
+        List<infoBox> boxes = new ArrayList<infoBox>();
+        int lvl = getLevel();
+        picture levelIcon = picture.of(handler.getImages().getTinted(guiSkin.LEVEL_UP_X, guiSkin.ICON_Y, "#60E060"));
+        //The bar and count are the xp into this level, out of what this level takes
+        double from = LvlToxp(lvl), to = LvlToxp(lvl+1);
+        boxes.add(new infoBox(levelIcon, "Level " + lvl, Math.round(xp) + " xp in all", "")
+            .bar((xp - from)/(to - from), Color.web("#60E060"), Math.round(xp - from) + " / " + Math.round(to - from) + " xp"));
+        boxes.add(new infoBox(abilityType.HEAL, "Health", "", "")
+            .bar(getHealth()/getMaxHealth(), Color.RED, Math.round(getHealth()) + " / " + Math.round(getMaxHealth())));
+        gemstone stone = getGemstone();
+        if (stone == null) {
+            boxes.add(new infoBox(stone, "Equipped rock", "", "None. Right click a rock to equip it"));
+        } else {
+            //Each move with its uses left out of what it has when full
+            //Only the icon: the stone itself (with its particles and lightning) is in its slot already
+            picture still = (gc, g, x, y, size) -> stone.drawIcon(gc, x, y, size);
+            infoBox rock = new infoBox(still, "Equipped rock", stone.getName(), "");
+            List<String> names = Arrays.asList(stone.getAbility1name(), stone.getAbility2name(), stone.getAbility3name());
+            List<List<Integer>> uses = Arrays.asList(stone.howManyAbility1Uses(), stone.howManyAbility2Uses(), stone.howManyAbility3Uses());
+            for (int i = 0; i < 3; i++) rock.row(names.get(i), uses.get(i).get(0) + " / " + uses.get(i).get(1));
+            boxes.add(rock);
+        }
+        boxes.addAll(getEffectBoxes());
+        return boxes;
+    }
+
+    //One box per effect on the character right now: what it is (title, with its ability type as the picture), the turns
+    //left (subtitle) and how strong it is (text). Also listed under the health bars in a fight
+    //short: the wording for the one-line list under a health bar
+    public List<infoBox> getEffectBoxes () {return getEffectBoxes(false);}
+
+    public List<infoBox> getEffectBoxes (boolean short_) {
+        List<infoBox> boxes = new ArrayList<infoBox>();
+        String dmg = short_ ? " dmg/turn" : " damage per turn";
+        if (fireDamageTimes > 0) boxes.add(new infoBox(abilityType.FIRE, "Burning", turns(fireDamageTimes), Math.round(fireDamage) + dmg));
+        if (poisonDamageTimes > 0) boxes.add(new infoBox(abilityType.POISON, "Poisoned", turns(poisonDamageTimes), Math.round(poisonDamage) + dmg));
+        if (healingTimes > 0) boxes.add(new infoBox(abilityType.HEAL, "Healing", turns(healingTimes), Math.round(healing) + (short_ ? " hp/turn" : " health per turn")));
+        if (confusionTimes > 0) boxes.add(new infoBox(abilityType.CONFUSE, "Confused", turns(confusionTimes), Math.round(confusion*100) + (short_ ? "% less hit" : "% lower hit chance")));
+        return boxes;
+    }
+
+    //The health the messages have shown so far (the health bar's number)
+    public double getShownHealth () {
+        getHealth();
+        return this.shownHealth;
+    }
+
+    private static String turns (int n) {return n == 1 ? "1 turn left" : n + " turns left";}
 
     public void addConfusion (double confuse, int times) {
         if (confuse < 0) throw new IllegalArgumentException("Confuse kan ikke være under 0");
@@ -258,6 +345,13 @@ public class character implements cordinate, entity, picture {
         return xpToLvl(this.xp);
     }
 
+    //Sets the xp to the start of a level (the cheat in hidden secrets). Health stays, but not above the new max
+    public void setLevel (int lvl) {
+        this.xp = LvlToxp(Math.max(0, lvl));
+        this.health = Math.min(this.health, getMaxHealth());
+        this.shownHealth = this.health;
+    }
+
     public void resetHealth () {
         this.health = getMaxHealth();
     }
@@ -278,7 +372,11 @@ public class character implements cordinate, entity, picture {
 
     //Only a rock in one of the active rock slots can be equipped. One that is moved out is unequipped
     public gemstone getGemstone () {
-        if (equipped != null && !inventory.inRockSlot(equipped)) equipped = null;
+        //The equipped rock may have turned into another (magma into coal, and back), maybe more than once: the new one
+        //stays equipped. Its slot is only swapped when the slot is drawn, so until then a slot holding an earlier form
+        //of it counts too (in a fight the rock slots are not always on screen)
+        if (equipped != null && equipped.latest() != equipped && equipped.latest() instanceof gemstone) equipped = (gemstone) equipped.latest();
+        if (equipped != null && !inventory.inRockSlotAsLatest(equipped)) equipped = null;
         return this.equipped;
     }
 
@@ -291,8 +389,21 @@ public class character implements cordinate, entity, picture {
         this.equipped = null;
     }
 
+    //The name shown in the game. The player and the girl can be renamed when a campaign starts
     public String getName () {
+        return this.displayName != null ? this.displayName : this.name;
+    }
+
+    //The name the character was made with in the code. Never changes, so lookups and savefiles use it
+    public String getId () {
         return this.name;
+    }
+
+    private String displayName;
+
+    public void setDisplayName (String displayName) {
+        if (displayName == null || displayName.trim().isEmpty()) throw new IllegalArgumentException("Navnet kan ikke være tomt");
+        this.displayName = displayName.trim();
     }
 
     public gameHandler getHandler () {return this.handler;}
@@ -310,14 +421,27 @@ public class character implements cordinate, entity, picture {
         double heightOffset = Math.sin(time/division)*size*0.03;
         double widthOffset = Math.sin(time/division)*size*0.03;
         gc.drawImage(getIcon(), 1, 1, guiSkin.CELL-2, guiSkin.CELL-2, x + widthOffset/2, y - heightOffset, size - widthOffset, size + heightOffset);
+        drawWorn(gc, x + widthOffset/2, y - heightOffset, size - widthOffset, size + heightOffset, false);
     }
 
     public double getHealth () {
+        //Taking off a trinket can drop the max below what the character has (and what its health bar shows)
+        double max = getMaxHealth();
+        if (health > max) health = max;
+        if (shownHealth > max) shownHealth = max;
         return this.health;
     }
 
     public double getHealthPercentage() {
         return getHealth()/getMaxHealth();
+    }
+
+    public double getShownHealthPercentage() {
+        return shownHealth/getMaxHealth();
+    }
+
+    public void syncShownHealth () {
+        this.shownHealth = this.health;
     }
 
     public void takeDmg (double dmg) {
@@ -326,13 +450,17 @@ public class character implements cordinate, entity, picture {
             heal(-dmg);
             return;
         }
+        dmg *= hitMultiplier;
+        getHealth();
         this.health -= dmg;
         if (health < 0) {
             this.health = 0;
         }
 
+        double after = this.health;
         handler.getDiealoguecontainer().add(new dialogue("Game", getName() + " took " + dmg + " damage!\n" + getName() + " now has " + getHealth() + " health left")
-            .highlight(dialogue.DAMAGE_BORDER, handler.getDiealoguecontainer().getSource()));
+            .highlight(dialogue.DAMAGE_BORDER, handler.getDiealoguecontainer().getSource())
+            .onShow(() -> shownHealth = after));
     }
 
     public void heal (double dec) {
@@ -347,13 +475,105 @@ public class character implements cordinate, entity, picture {
             this.health = getMaxHealth();
         }
 
+        double after = this.health;
         handler.getDiealoguecontainer().add(new dialogue("Game", getName() + " healed " + (this.health-temp) + "!\n" + getName() + " now has " + getHealth() + " health left")
-            .highlight(dialogue.DAMAGE_BORDER, handler.getDiealoguecontainer().getSource()));
+            .highlight(dialogue.DAMAGE_BORDER, handler.getDiealoguecontainer().getSource())
+            .onShow(() -> shownHealth = after));
 
     }
 
     public double getMaxHealth () {
-        return 100 + getLevel() * 20;
+        return (100 + getLevel() * 20)*wornProduct(trinket::getHealth);
+    }
+
+    //Trinkets ---------------------------------------------------------------------------------------------------
+    //What the character wears (its inventory's trinket slots) multiplies its stats, and is drawn on it
+
+    //One stat of every worn trinket multiplied together (1 with nothing worn)
+    private double wornProduct (java.util.function.ToDoubleFunction<trinket> stat) {
+        double product = 1;
+        for (trinket t : inventory.getWorn()) product *= stat.applyAsDouble(t);
+        return product;
+    }
+
+    //What the instant damage of this character's moves is multiplied by
+    public double getDamageMultiplier () {return wornProduct(trinket::getDamage);}
+
+    //While a move of attacker's runs, the instant damage this character takes is multiplied by the attacker's
+    //damage multiplier. Burn and poison tick later, outside the move, so they are left as they are, and so is
+    //what a move costs the attacker itself
+    private double hitMultiplier = 1;
+    public void hitBy (character attacker, Runnable move) {
+        double before = hitMultiplier;
+        hitMultiplier = attacker.getDamageMultiplier();
+        try {
+            move.run();
+        } finally {
+            hitMultiplier = before;
+        }
+    }
+
+    //Puts a trinket on, in the first free trinket slot (for characters made in code). False when both are taken
+    //A character at full health stays at full health (a heart raises the max)
+    public boolean wear (trinket worn) {
+        for (int i = 0; i < game.inventory.TRINKETS; i++) {
+            if (inventory.get(game.inventory.slotKind.TRINKET, i) == null) {
+                boolean full = getHealth() >= getMaxHealth();
+                inventory.set(game.inventory.slotKind.TRINKET, i, new itemStack(worn));
+                if (full) health = shownHealth = getMaxHealth();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    //Where each place a trinket is worn sits on this character's sprite: the middle of the trinket, as a share of the
+    //sprite's width and height from its top left. The defaults fit the people (big head, body under it); other
+    //characters (sheep, crabs...) set their own with setAnchor
+    private java.util.Map<trinket.place, double[]> anchors = new java.util.EnumMap<trinket.place, double[]>(trinket.place.class);
+    {
+        anchors.put(trinket.place.HEAD, new double[] {0.5, 0.12});
+        anchors.put(trinket.place.CHEST, new double[] {0.58, 0.68});
+        anchors.put(trinket.place.SHOULDER, new double[] {0.86, 0.5});
+    }
+    public character setAnchor (trinket.place place, double shareX, double shareY) {
+        anchors.put(place, new double[] {shareX, shareY});
+        return this;
+    }
+
+    //How big a worn trinket is, as a share of the sprite's width
+    public static final double WORN_SIZE = 0.34;
+
+    //Draws what the character wears over its sprite, drawn at (x, y) w by h (bobbing included, so they bob with it),
+    //each with its glow behind it like in a slot (the feather's gold). In the world (inWorld) they also give off their
+    //particles there, as world particles at the place they are worn, so they stay with the character
+    private void drawWorn (GraphicsContext gc, double x, double y, double w, double h, boolean inWorld) {
+        double size = w*WORN_SIZE;
+        java.util.Random rdm = new java.util.Random();
+        for (trinket t : inventory.getWorn()) {
+            double[] at = anchors.get(t.getPlace());
+            double own = size*t.getWornScale();
+            double ix = x + at[0]*w - own/2, iy = y + at[1]*h - own/2;
+            t.drawGlowBehind(gc, ix, iy, own);
+            t.drawIcon(gc, ix, iy, own);
+            if (inWorld) spawnWornParticles(t, at, rdm);
+        }
+    }
+
+    //A worn trinket's particles, in the world: from where it sits on the sprite (the sprite is a tile, drawn half a
+    //tile up), moving and sized as in a slot but scaled to the worn size of a tile
+    private void spawnWornParticles (trinket t, double[] at, java.util.Random rdm) {
+        itemParticles kind = t.getParticles();
+        String[] colors = kind.getColors();
+        if (colors.length == 0 || rdm.nextDouble() >= kind.getRate()) return;
+        double tile = 1.0/handler.getTileCount();
+        double scale = tile*WORN_SIZE*t.getWornScale()/48;
+        double wx = x + at[0]*tile + (rdm.nextDouble() - 0.5)*tile*0.2;
+        double wy = y - tile/2 + at[1]*tile + (rdm.nextDouble() - 0.5)*tile*0.2;
+        double life = kind.getLife();
+        double size = Math.max(0.004, kind.getSize()*scale);
+        handler.addFrontParticle(new coloredParticle(wx, wy, world, life, 0, size, size, 0, handler,
+            kind.getVx()*scale*life, kind.getVy()*scale*life, colors[rdm.nextInt(colors.length)]));
     }
 
     public void give (item recievedItem) {
@@ -378,6 +598,12 @@ public class character implements cordinate, entity, picture {
         if (z < 1) throw new IllegalArgumentException("Z kan ikke være under 1");
         this.z = z;
     }
+
+    //Characters with this on are drawn on top of the black of a screen transition (a teleport), so they
+    //stay in sight while the world around them goes dark. Off for everyone but the player
+    private boolean showInTransition = false;
+    public character showInTransition (boolean show) {this.showInTransition = show; return this;}
+    public boolean showsInTransition () {return this.showInTransition;}
 
     public void draw () {
         if (handler.getCurrentWorld() == world) {
@@ -405,6 +631,8 @@ public class character implements cordinate, entity, picture {
               renderx,   rendery, 
               (handler.getUnitWidth()/handler.getTileCount()-widthOffset), 
             (handler.getUnitHeight()/handler.getTileCount()+heightOffset));
+            drawWorn(handler.getTempGc(), renderx, rendery,
+                handler.getUnitWidth()/handler.getTileCount()-widthOffset, handler.getUnitHeight()/handler.getTileCount()+heightOffset, true);
 
             handler.getTempGc().setFill(Color.WHITE);
             handler.getTempGc().setFont(new Font("Silkscreen", 15));
@@ -450,9 +678,12 @@ public class character implements cordinate, entity, picture {
 
     public int getWorld() {return this.world;}
 
+    //True while walking from one tile to the next
+    public boolean isMoving () {return !targetSameAsCoords();}
+
     public void move (double deltaTime) {
 
-        double tPS = speed; //tilespersecond
+        double tPS = speed*speedMultiplier*wornProduct(trinket::getSpeed); //tilespersecond
         double speed = deltaTime*tPS/handler.getTileCount();
         if (Math.abs(xTarget-x) <= speed) {
             x = Math.round(xTarget*handler.getTileCount())/(double)handler.getTileCount();
@@ -530,6 +761,116 @@ public class character implements cordinate, entity, picture {
         restoreItems();
     }
 
+    //Everything about the character that changes while playing, under prefix. What it looks like, its speed
+    //and its drops come from the code that made it, so they are not saved
+    public void saveTo (saveFile save, String p) {
+        save.set(p + "x", x);
+        save.set(p + "y", y);
+        save.set(p + "xTarget", xTarget);
+        save.set(p + "yTarget", yTarget);
+        save.set(p + "world", world);
+        save.set(p + "z", z);
+        save.set(p + "health", health);
+        save.set(p + "xp", xp);
+        save.set(p + "spawn", worldSpawn + "," + xSpawn + "," + ySpawn);
+        save.set(p + "effects", fireDamage + "," + fireDamageTimes + "," + poisonDamage + "," + poisonDamageTimes + ","
+            + healing + "," + healingTimes + "," + confusion + "," + confusionTimes);
+
+        List<String> queue = new ArrayList<String>();
+        for (List<Integer> move : queuedMovement) queue.add(move.get(0) + "," + move.get(1));
+        save.setList(p + "queue", queue, ";");
+
+        List<String> visited = new ArrayList<String>();
+        for (worldTile t : visitedTeleports) visited.add(t.getWorld() + "," + t.getX() + "," + t.getY());
+        save.setList(p + "visited", visited, ";");
+
+        int equippedSlot = -1;
+        for (int i = 0; i < game.inventory.ACTIVE; i++) {
+            itemStack stack = inventory.get(game.inventory.slotKind.ROCK, i);
+            if (stack != null && stack.getItem().latest() == getGemstone()) equippedSlot = i;
+        }
+        save.set(p + "equipped", equippedSlot);
+        inventory.saveTo(save, p + "inv.");
+    }
+
+    //Puts the character back the way saveTo found it. Anything missing in the save keeps what the code gave it
+    public void loadFrom (saveFile save, String p, itemRegistry registry) {
+        if (!save.has(p + "x")) return;
+        int savedWorld = save.getInt(p + "world", world);
+        if (handler.getWorld(savedWorld) != null) world = savedWorld;
+        x = Math.max(0, save.getDouble(p + "x", x));
+        y = Math.max(0, save.getDouble(p + "y", y));
+        xTarget = Math.max(0, save.getDouble(p + "xTarget", x));
+        yTarget = Math.max(0, save.getDouble(p + "yTarget", y));
+        z = Math.max(1, save.getInt(p + "z", z));
+        xp = Math.max(0, save.getDouble(p + "xp", xp));
+        health = Math.max(0, Math.min(getMaxHealth(), save.getDouble(p + "health", health)));
+        shownHealth = health;
+
+        String[] spawn = save.getString(p + "spawn", "").split(",");
+        if (spawn.length == 3) {
+            try {
+                worldSpawn = Integer.parseInt(spawn[0]);
+                xSpawn = Double.parseDouble(spawn[1]);
+                ySpawn = Double.parseDouble(spawn[2]);
+            } catch (NumberFormatException e) {
+                System.out.println("Ugyldig spawn for " + name);
+            }
+        }
+
+        String[] effects = save.getString(p + "effects", "").split(",");
+        if (effects.length == 8) {
+            try {
+                fireDamage = Double.parseDouble(effects[0]);
+                fireDamageTimes = Integer.parseInt(effects[1]);
+                poisonDamage = Double.parseDouble(effects[2]);
+                poisonDamageTimes = Integer.parseInt(effects[3]);
+                healing = Double.parseDouble(effects[4]);
+                healingTimes = Integer.parseInt(effects[5]);
+                confusion = Double.parseDouble(effects[6]);
+                confusionTimes = Integer.parseInt(effects[7]);
+            } catch (NumberFormatException e) {
+                clearEffects();
+            }
+        }
+
+        queuedMovement.clear();
+        for (String move : save.getList(p + "queue", ";")) {
+            String[] xy = move.split(",");
+            try {
+                addMovementToQueue(Integer.parseInt(xy[0]), Integer.parseInt(xy[1]));
+            } catch (RuntimeException e) {
+                System.out.println("Ugyldig bevegelse for " + name + ": " + move);
+            }
+        }
+
+        visitedTeleports.clear();
+        for (String visited : save.getList(p + "visited", ";")) {
+            String[] wxy = visited.split(",");
+            try {
+                int w = Integer.parseInt(wxy[0]);
+                tile t = handler.getWorld(w).getTile(Double.parseDouble(wxy[1]), Double.parseDouble(wxy[2]));
+                //Pads taken off the map since are forgotten
+                if (t.getTileType().isTeleportTarget()) visitTeleportIn(w, t);
+            } catch (RuntimeException e) {
+                System.out.println("Ugyldig teleport for " + name + ": " + visited);
+            }
+        }
+
+        inventory.loadFrom(save, p + "inv.", registry);
+        equipped = null;
+        int equippedSlot = save.getInt(p + "equipped", -1);
+        if (equippedSlot >= 0 && equippedSlot < game.inventory.ACTIVE) {
+            itemStack stack = inventory.get(game.inventory.slotKind.ROCK, equippedSlot);
+            if (stack != null) equipped = (gemstone) stack.getItem();
+        }
+    }
+
+    private void visitTeleportIn (int world, tile target) {
+        worldTile visited = new worldTile(world, target);
+        if (!visitedTeleports.contains(visited)) visitedTeleports.add(visited);
+    }
+
     public void autoMaticMove (character them) {
         if (them == this) throw new IllegalArgumentException("Kan ikke angripe seg selv");
         if (getGemstone() != null) {
@@ -557,7 +898,7 @@ public class character implements cordinate, entity, picture {
             }
             if (getGemstone() == null) {
                 handler.getDiealoguecontainer().add(new dialogue(this, "Hit " + them.getName()));
-                them.takeDmg(getLevel()*2+5);
+                them.hitBy(this, () -> them.takeDmg(getLevel()*2+5));
             }
         }
     }

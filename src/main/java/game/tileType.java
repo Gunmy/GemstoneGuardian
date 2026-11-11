@@ -3,6 +3,7 @@ package game;
 import java.util.function.Consumer;
 
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.image.Image;
 
 public class tileType implements picture {
 
@@ -66,6 +67,21 @@ public class tileType implements picture {
 
     public int getId () {return this.id;}
 
+    //Tiles of a type that is a teleport target (the healing pads) are listed in the teleports menu
+    private boolean teleportTarget = false;
+    public void setTeleportTarget (boolean teleportTarget) {this.teleportTarget = teleportTarget;}
+    public boolean isTeleportTarget () {return this.teleportTarget;}
+
+    //Every tile of a container type is a chest that opens when clicked (see chest)
+    private boolean container = false;
+    public void setContainer (boolean container) {this.container = container;}
+    public boolean isContainer () {return this.container;}
+
+    //The tile flat and still in a small map (the teleports menu): its cell from the sheet in the given rectangle
+    public void drawMini (GraphicsContext gc, Image sheet, double x, double y, double width, double height) {
+        gc.drawImage(sheet, this.x+1, this.y+1, this.width-2, this.height-2, x, y, width, height);
+    }
+
     protected boolean insideScreen (gameHandler handler, double x, double y) {
         return -handler.getUnitWidth()/handler.getTileCount() <= x
         && x <= handler.getWIDTH()
@@ -111,6 +127,10 @@ public class tileType implements picture {
             dialogues.setSource(this);
             pressurePlate.accept(character);
             dialogues.clearSource();
+        }
+        if (teleportTarget) {
+            character.visitTeleport(character.getStandingTile());
+            character.getHandler().teleportTargetVisited(character, character.getStandingTile());
         }
     }
 

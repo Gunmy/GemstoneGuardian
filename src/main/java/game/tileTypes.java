@@ -14,7 +14,7 @@ public class tileTypes {
     private double treeHeight = 1.4;
     //How far (in tiles) a tree can stand from the middle of its tile, so that a forest does not look like a grid.
     //A tree is 0.7 tiles wide, so above 0.15 the trees next to each other start to overlap
-    private double treeScatter = 0.12;
+    private double treeScatter = 0.06;
     public tileTypes (GraphicsContext gc) {
         shader = new shader(gc);
         addType("Window", 0, 0, 100, 100, true, null); //0 window
@@ -72,8 +72,8 @@ public class tileTypes {
         addWaveType("CarpetLeft", 0, 800, 100, 100, false, null, types.get(15), false); //52 carpetleft
         addWaveType("CarpetRight", 100, 800, 100, 100, false, null, types.get(15), false); //53 carpetright
         addType("DirtTile", 400, 800, 100, 100, false, null); //54 dirttile
-        addWaveType("Flower1", 300, 1000, 100, 100, false, null, types.get(1), true); //55 flower1
-        addWaveType("Flower2", 300, 1100, 100, 100, false, null, types.get(1), true); //56 flower2
+        addWaveType("Flower1", 300, 1000, 100, 100, false, null, types.get(1), true); sway(); //55 flower1
+        addWaveType("Flower2", 300, 1100, 100, 100, false, null, types.get(1), true); sway(); //56 flower2
         addFluidType("Water", 800, 1000, 100, 100, true, null, 0.5, 0.33, 0.75, 1, false); //57 water
         addType("Brick", 900, 500, 100, 100, false, null); //58 brick
         addWaveType("Flowerpot", 800, 600, 100, 100, true, null, types.get(15), false); //59 flowerpot
@@ -98,17 +98,17 @@ public class tileTypes {
         addType("Wheelchairtop", 400, 500, 100, 100, true, null); //78 wheelchairtop
         addWaveType("Wheelchairbottom", 400, 600, 100, 100, true, null, types.get(15), false); //79 wheelchairbottom
         addWaveType("Sign", 200, 100, 100, 100, true, null, types.get(1), false, 1, 1, 0); solidFrom(0, 0, 0, 1); solidTo(0, 0, 0, 1); //80 sign, can be walked behind
-        addWaveType("Chest", 800, 700, 100, 100, true, null, types.get(15), true); //81 chest
+        addWaveType("Chest", 800, 700, 100, 100, true, null, types.get(15), true); container(); //81 chest
         addFluidType("Lava", 1000, 1000, 100, 100, true, null, 0.3, 0, 0.4, 1, true); //82 lava
         addWaveType("Cracked", 1100, 400, 100, 100, false, null, types.get(82), false); //83 cracked
         addWaveType("Pillarbottom", 1000, 400, 100, 100, false, null, types.get(25), false); //84 pillarbottom
         addWaveType("Pillartop", 1000, 300, 100, 100, true, null, types.get(82), false); //85 pillartop
         addWaveType("BluebrickTopWater", 1000, 600, 100, 100, true, null, types.get(57), false); //86 bluebricktopwater
-        addWaveType("ChestLava", 800, 700, 100, 100, true, null, types.get(58), true); //87 chest2
+        addWaveType("ChestLava", 800, 700, 100, 100, true, null, types.get(58), true); container(); //87 chest2
         addFluidType("Crystaltexture", 700, 800, 100, 100, false, null, 0.3, 0.66, 1, 0.8, false); //88 crystal texture
         addWaveType("Crystal", 600, 900, 100, 100, true, null, types.get(88), false); //89 crystal
         addWaveType("Lilypad", 400, 700, 100, 100, false, null, types.get(57), false); //90 lilypad
-        addWaveType("Healing", 600, 800, 100, 100, false, c -> {c.restore(); c.setSpawn();}, types.get(88), false); //91 healingpad
+        addWaveType("Healing", 600, 800, 100, 100, false, c -> {c.restore(); c.setSpawn();}, types.get(88), false); teleportTarget(); //91 healingpad
         addWaveType("Pillarbottom", 1000, 400, 100, 100, false, null, types.get(58), false); //92 pillarbottombrick
         addWaveType("Pillartop", 1000, 300, 100, 100, true, null, types.get(60), false); //93 pillartopbluebrick
         addType("Carpet1", 1200, 1200, 100, 100, false, null); //94 carpet TL
@@ -167,6 +167,7 @@ public class tileTypes {
         addWaveType("FloorHome", 200, 300, 100, 100, false, c -> c.setWorld(0), types.get(110), false); //143 floorhome
         addWaveType("Oven bottom snow", 700, 1400, 100, 100, true, null, types.get(82), false); //144 oven bottom snow
         addWaveType("Oven top snow", 1100, 1300, 100, 100, true, null, types.get(135), true); //145 oven top snow
+        addWaveType("ChestSnow", 800, 700, 100, 100, true, null, types.get(110), true); container(); //146 chest on snow
 
 
     }
@@ -192,6 +193,22 @@ public class tileTypes {
 
     private void addTreeType (String name, int xOverlay, int yOverlay, tileType underlay) {
         addWaveType(name, xOverlay, yOverlay, 100, 100, true, null, underlay, true, 1, treeHeight, treeScatter);
+        sway();
+    }
+
+    //Makes the type that was just added show up in the teleports menu (in the hidden secrets settings)
+    private void teleportTarget () {
+        types.get(getLength()-1).setTeleportTarget(true);
+    }
+
+    //Makes the type that was just added a chest (see chest)
+    private void container () {
+        types.get(getLength()-1).setContainer(true);
+    }
+
+    //Makes the wave type that was just added a plant: it sways in the wind instead of bobbing
+    private void sway () {
+        ((waveType) types.get(getLength()-1)).setSway(true);
     }
 
     //Makes the type that was just added solid only from the given sides (1 solid, 0 open). The side is the one you come from,

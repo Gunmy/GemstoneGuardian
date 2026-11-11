@@ -6,6 +6,7 @@ import java.util.Comparator;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
+import java.util.function.Predicate;
 import java.util.stream.IntStream;
 
 public class chunks {
@@ -15,11 +16,14 @@ public class chunks {
     private int standardTile;
     private double renderDistance;
     private String backgroundColor;
+    //Shown to the player, for example in the teleports menu
+    private String name;
 
     private double widthSize;
     private double heightSize;
 
-    public chunks (int standardTile, gameHandler handler, double renderDistance, String backgroundColor, double width, double height) {
+    public chunks (String name, int standardTile, gameHandler handler, double renderDistance, String backgroundColor, double width, double height) {
+        this.name = name;
         this.handler = handler;
         this.standardTile = standardTile;
         this.renderDistance = renderDistance;
@@ -32,7 +36,21 @@ public class chunks {
         return Arrays.asList(widthSize, heightSize);
     }
 
+    public String getName () {return this.name;}
     public double getRenderDistance() {return this.renderDistance;}
+
+    //Every tile in the chunks made so far whose type matches, top to bottom and then left to right.
+    //Everything from the map file is made at start, so this finds all the tiles placed by hand
+    public List<tile> findTiles (Predicate<tileType> matches) {
+        List<tile> found = new ArrayList<tile>();
+        for (chunk c : new ArrayList<chunk>(chunks.values())) {
+            for (tile t : c.getTiles()) {
+                if (matches.test(t.getTileType())) found.add(t);
+            }
+        }
+        found.sort(Comparator.comparingDouble(tile::getRealY).thenComparingDouble(tile::getRealX));
+        return found;
+    }
     public String getBackground () {return this.backgroundColor;}
 
     public chunk getChunk (int x, int y) {

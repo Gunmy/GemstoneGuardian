@@ -39,6 +39,10 @@ public class tile {
 
     public tileType getTileType() {return this.tileType;}
 
+    //Where the tile is in the world, in chunks (the same coordinates characters use)
+    public double getRealX () {return this.realx;}
+    public double getRealY () {return this.realy;}
+
     private double getRenderVal (double realx, double realy) {
         double rendx = realx+0.5*handler.getUnitWidth()/handler.getTileCount();
         double rendy = realy+0.5*handler.getUnitHeight()/handler.getTileCount();
@@ -67,6 +71,16 @@ public class tile {
 
             Random gen = new Random();
             double rdm = (gen).nextDouble();
+
+            //Chests that will heal you when closed give off small green sparks, like the yellow ones events give off
+            if (tileType.isContainer() && rdm < 0.2) {
+                chest c = handler.chestOn(this);
+                if (c != null && c.willHeal()) {
+                    handler.addFrontParticle(
+                        new coloredParticle(this.realx+0.055, this.realy+0.055, handler.getCurrentWorld(), 1, 1, 0.005, 0.005, 1, handler, (gen.nextDouble()-0.5)/3, (gen.nextDouble()-0.5)/3, "#21FF2C")
+                    );
+                }
+            }
 
             switch(tileType.getId()) {
                 case 45:

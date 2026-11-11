@@ -16,9 +16,17 @@ public class characterContainer {
         return this.characters.stream().collect(Collectors.toList());
     }
 
+    //The character with this name, or null. Unlike get this compares the text, so names read from a file work too
+    public character find (String name) {
+        for (character character : characters) {
+            if (character.getId().equals(name)) return character;
+        }
+        return null;
+    }
+
     public character get (String name) {
         for (character character : characters) {
-            if (character.getName() == name) {
+            if (character.getId() == name) {
                 return character;
             }
         }

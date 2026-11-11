@@ -26,6 +26,8 @@ public class chunk {
         });
     }
 
+    public java.util.Collection<tile> getTiles () {return tiles.values();}
+
     public tile getTile (int x, int y) {
         return tiles.get(Arrays.asList(x, y));
     }

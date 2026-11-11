@@ -23,6 +23,13 @@ public class battleEvent implements event {
         this.world = world;
     }
 
+    public character getThem () {return this.them;}
+
+    //A new listener that starts this fight again, without the talk before it. Used after the player loses
+    public eventListener rearm (gameHandler handler) {
+        return new eventListener(handler, x, y, r, world, this);
+    }
+
     @Override
     public void trigger() {
         battleHandler.newBattle(you, them, youWin, theyWin, x, y, r, world);
