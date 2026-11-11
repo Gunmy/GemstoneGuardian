@@ -14,6 +14,21 @@ import javafx.scene.text.TextAlignment;
 //Mouse events come in here first and only reach the game when no element wanted them
 public class gui {
 
+    //Clips everything drawn after it to the rectangle (until the gc.restore() that matches the gc.save() before it).
+    //Always clip with this, never with gc.clip() straight: JavaFX's canvas has a bug where a clip made right after the
+    //opacity was changed (any setGlobalAlpha, even one set back to 1 or undone by restore) draws everything inside it
+    //with the old opacity. The battle's popups came out see-through like that (0.7, from the empty slot hints on the
+    //More button). Drawing anything first makes the canvas take up the real opacity, so a see-through dot goes first
+    public static void clipTo (GraphicsContext gc, double x, double y, double w, double h) {
+        javafx.scene.paint.Paint fill = gc.getFill();
+        gc.setFill(Color.TRANSPARENT);
+        gc.fillRect(x, y, 1, 1);
+        gc.setFill(fill);
+        gc.beginPath();
+        gc.rect(x, y, w, h);
+        gc.clip();
+    }
+
     private gameHandler handler;
     private guiSkin skin;
     private Random rdm = new Random();
@@ -366,6 +381,9 @@ public class gui {
         lightning.forEach(l -> l.draw(gc));
         pulses.forEach(p -> p.draw(gc));
 
+        //The battle's popups over all of that
+        if (battleScreen.isDrawn()) battleScreen.drawPopups(gc);
+
         if (cursor == null && tooltipBoxes != null && !tooltipBoxes.isEmpty()) {
             //Above the mouse, kept on the screen
             double w = 260*s, gap = 4*s;
@@ -409,7 +427,8 @@ public class gui {
 
     public boolean scroll (double mx, double my, double delta) {
         //An open menu takes all scrolling, so the world does not zoom behind it
-        if (settingsOpen() || teleportsOpen() || handler.inMenu()) return true;
+        if (settingsOpen() || teleportsOpen()) return true;
+        if (handler.inMenu()) return mainMenu.scroll(mx, my, delta);
         if (inventoryOpen()) return inventoryScreen.scroll(mx, my, delta);
 
         for (int i = elements.size()-1; i >= 0; i--) {

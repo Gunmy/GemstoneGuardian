@@ -59,7 +59,8 @@ public class guiMainMenu extends guiElement {
         mainButtons.add(editMapButton);
         mainButtons.add(new guiButton(gui, "Quit game", () -> javafx.application.Platform.exit()));
 
-        saves = new mapGrid(gui);
+        //At most three campaigns side by side
+        saves = new mapGrid(gui).maxColumns(3).scrollable();
         newCampaignButton = new guiButton(gui, "Start new campaign", () -> openNew());
         loadBackButton = new guiButton(gui, "Back", () -> current = page.MAIN);
 
@@ -268,7 +269,11 @@ public class guiMainMenu extends guiElement {
     }
 
     @Override
-    public boolean scroll (double mx, double my, double delta) {return true;}
+    public boolean scroll (double mx, double my, double delta) {
+        //The savefile list scrolls; the rest of the menu takes the wheel too, so nothing behind it zooms
+        if (current == page.LOAD && saves.scroll(mx, my, delta)) saves.hover(mx, my);
+        return true;
+    }
 
     @Override
     public void hover (double mx, double my) {

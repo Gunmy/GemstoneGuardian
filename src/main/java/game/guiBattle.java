@@ -35,8 +35,6 @@ public class guiBattle extends guiElement {
     //always in the same spot: centred on top of the action panel. It is one popup: moving from slot to slot while it
     //is up only changes what it shows
     public static final double POPUP_TIME = 0.25;
-    //How opaque the popups are drawn (1 is solid), so the fight stays visible through them
-    public static final double POPUP_OPACITY = 0.8;
     private double[] popup = new double[3];
     private int hoveredMove = -1;
     private double[] slotPopup = new double[1];
@@ -172,7 +170,6 @@ public class guiBattle extends guiElement {
         slide(popup, movesShown ? hoveredMove : -1, dt);
         slide(slotPopup, battle.inMoreView() && hoveredItem != null ? 0 : -1, dt);
 
-        drawSlotPopups(gc);
         gui.getSkin().drawPanel(gc, panelX, panelY, panelWidth, panelHeight);
 
         if (battle.inMoreView()) {
@@ -184,7 +181,14 @@ public class guiBattle extends guiElement {
         for (guiButton button : buttons) {
             if (button.isVisible()) button.draw(gc);
         }
-        if (movesShown) drawMovePopups(gc);
+    }
+
+    //The popups (a move's box, a rock's or item's info) are drawn by gui after everything else, glows, particles and
+    //lightning included, so nothing is ever drawn over them. Each is still cut off at the edge it slides out of
+    public void drawPopups (GraphicsContext gc) {
+        if (!battle.isActive() || !panelShown()) return;
+        if (!battle.inMoreView() && battle.getYou().getGemstone() != null) drawMovePopups(gc);
+        drawSlotPopups(gc);
     }
 
     //Moves every popup towards up (the hovered one) or down by dt seconds' worth
@@ -250,10 +254,7 @@ public class guiBattle extends guiElement {
             double h = moves.get(i).draw(gc, gui, 0, 0, button.width, false);
             double y = button.y - h*eased(popup[i]);
             gc.save();
-            gc.setGlobalAlpha(POPUP_OPACITY);
-            gc.beginPath();
-            gc.rect(0, 0, width, button.y);
-            gc.clip();
+            gui.clipTo(gc, 0, 0, width, button.y);
             moves.get(i).draw(gc, gui, button.x, Math.round(y), button.width, true);
             gc.restore();
         }
@@ -269,10 +270,7 @@ public class guiBattle extends guiElement {
         double x = Math.round(panelX + (panelWidth - w)/2);
         double y = Math.round(panelY - h*eased(slotPopup[0]));
         gc.save();
-        gc.setGlobalAlpha(POPUP_OPACITY);
-        gc.beginPath();
-        gc.rect(0, 0, width, panelY);
-        gc.clip();
+        gui.clipTo(gc, 0, 0, width, panelY);
         gui.getSkin().drawPanel(gc, x, y, w, h);
         guiInventory.drawItemDetails(gc, gui, slotPopupItem, x + pad, y + pad, w - 2*pad, true);
         gc.restore();
