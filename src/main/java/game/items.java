@@ -76,6 +76,15 @@ public class items {
         return t;
     }
 
+    //Worn over the eyes: see 2 tiles further in the dark caves, and give off a soft light. Its icon is a draft at (900, 1800)
+    public trinket goggles () {
+        trinket t = new trinket("Goggles", trinket.place.EYES, handler).sight(2).lightsWearer();
+        t.look(900, 1800, null).glowColor("#FFF0B0").restingGlow(0.3)
+            .lore("Miner's goggles with a little lamp between the lenses. The dark is not so dark any more.")
+            .details("In dark places you see 2 tiles further in every direction, and you give off a soft light");
+        return t;
+    }
+
     public item woolBandage () {
         return new item("Wool Bandage", (c1, c2) -> {c1.heal(c1.getMaxHealth()*0.15);}, true, handler)
             .look(guiSkin.BANDAGE_X, guiSkin.GUI_Y, null)

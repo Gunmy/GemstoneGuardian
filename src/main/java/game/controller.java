@@ -45,6 +45,7 @@ public class controller implements gameLauncher {
         else if (e.getCode() == KeyCode.M) {handler.Mpress();}
         else if (e.getCode() == KeyCode.N) {handler.Npress();}
         else if (e.getCode() == KeyCode.C) {handler.Cpress();}
+        else if (e.getCode() == KeyCode.H) {handler.Hpress();}
     }
 
 

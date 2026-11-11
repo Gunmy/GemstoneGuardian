@@ -40,8 +40,12 @@ public class camera {
 
     
 
+    //How far is lit around what the camera follows, in chunks. In a dark world a character's goggles see further
     public double getRenderDistance () {
-        return handler.getWorld(getBound().getWorld()).getRenderDistance();
+        chunks world = handler.getWorld(getBound().getWorld());
+        double distance = world.getRenderDistance();
+        if (world.isDark() && getBound() instanceof character) distance += ((character) getBound()).getSightBonus()/(double) handler.getTileCount();
+        return distance;
     }
 
     public double inRendered (double rendx, double rendy) {

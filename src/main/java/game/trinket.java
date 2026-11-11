@@ -8,7 +8,7 @@ import java.util.List;
 //through the inventory, others with character.wear in the gameHandler constructor. Not usable in battle
 public class trinket extends item {
 
-    public enum place {HEAD, CHEST, SHOULDER}
+    public enum place {HEAD, CHEST, SHOULDER, EYES}
 
     private place wornAt;
     private double speed = 1, health = 1, damage = 1;
@@ -39,6 +39,16 @@ public class trinket extends item {
     public trinket wornScale (double wornScale) {this.wornScale = wornScale; return this;}
     public double getWornScale () {return this.wornScale;}
 
+    //How many tiles further the wearer sees in the dark (in every direction)
+    private int sight = 0;
+    public trinket sight (int tiles) {this.sight = tiles; return this;}
+    public int getSight () {return this.sight;}
+
+    //The wearer gives off a soft light (drawn round it in the world)
+    private boolean lightsWearer = false;
+    public trinket lightsWearer () {this.lightsWearer = true; return this;}
+    public boolean doesLightWearer () {return this.lightsWearer;}
+
     //Beats like a heart: the icon grows and shrinks twice quickly (lub-dub), then rests, wherever it is drawn
     public trinket beats () {this.beats = true; return this;}
 
@@ -64,6 +74,7 @@ public class trinket extends item {
         switch (wornAt) {
             case HEAD:  where = "on the head"; break;
             case CHEST: where = "on the chest"; break;
+            case EYES:  where = "over the eyes"; break;
             default:    where = "on the shoulder"; break;
         }
         boxes.add(0, new infoBox(null, "Trinket", "Worn " + where, "Put it in one of the two trinket slots left of the inventory to wear it"));

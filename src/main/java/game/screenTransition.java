@@ -99,7 +99,12 @@ public class screenTransition {
         enter(phase.BLACK);
     }
 
-    private void makeStars () {
+    //The stars for this screen size, made again when the window size changes
+    private static void ensureStars (gameHandler handler) {
+        if (handler.getWIDTH() > 0 && (handler.getWIDTH() != starsWidth || handler.getHEIGHT() != starsHeight)) makeStars(handler);
+    }
+
+    private static void makeStars (gameHandler handler) {
         stars.clear();
         starsWidth = handler.getWIDTH();
         starsHeight = handler.getHEIGHT();
@@ -185,11 +190,44 @@ public class screenTransition {
         return t*t*(3 - 2*t);
     }
 
+    //The stars that fall inside the screen box (x, y, w, h), twinkling, at alpha times their brightness. The stars are
+    //fixed to the screen, the same ones as in the transition: portals (portalType) show them through their tiles
+    public static void drawStars (gameHandler handler, javafx.scene.canvas.GraphicsContext gc, double x, double y, double w, double h, double alpha) {
+        ensureStars(handler);
+        double time = System.nanoTime()/1e9;
+        for (star s : stars) {
+            double sx = s.u*handler.getWIDTH(), sy = s.v*handler.getHEIGHT();
+            if (sx < x || sx >= x + w || sy < y || sy >= y + h) continue;
+            drawStar(gc, s, sx, sy, time, alpha);
+        }
+    }
+
+    private static void drawStar (javafx.scene.canvas.GraphicsContext gc, star s, double sx, double sy, double time, double alpha) {
+        //Brightness goes up and down, and now and then drops to almost nothing
+        double twinkle = 0.5 + 0.5*Math.sin(time*s.speed + s.phase);
+        double brightness = 0.15 + 0.85*twinkle*twinkle;
+        //Whole screen pixels, never more than 5x5: a dot of 1 to 3 pixels, and sparkling ones
+        //(always 1 pixel) grow 1 pixel arms, then 2, when they shine the most
+        int size = (int) s.size;
+        double left = Math.floor(sx) - (size - 1)/2, top = Math.floor(sy) - (size - 1)/2;
+        gc.setGlobalAlpha(alpha*brightness);
+        gc.setFill(s.color);
+        gc.fillRect(left, top, size, size);
+        if (s.sparkle && twinkle > 0.75) {
+            int arm = twinkle > 0.92 ? 2 : 1;
+            gc.setGlobalAlpha(alpha*brightness*0.6);
+            gc.fillRect(left - arm, top, arm, 1);
+            gc.fillRect(left + 1, top, arm, 1);
+            gc.fillRect(left, top - arm, 1, arm);
+            gc.fillRect(left, top + 1, 1, arm);
+        }
+    }
+
     //Draws the black tiles over the world, lined up with the world's tiles
     public void draw () {
         if (!isActive()) return;
         //Made here, not when started, since a game started before its first frame may not know the screen size yet
-        if (handler.getWIDTH() > 0 && (handler.getWIDTH() != starsWidth || handler.getHEIGHT() != starsHeight)) makeStars();
+        ensureStars(handler);
 
         int tC = handler.getTileCount();
         double unitW = handler.getUnitWidth(), unitH = handler.getUnitHeight();
@@ -240,26 +278,7 @@ public class screenTransition {
             int tx = (int) Math.floor((camX + (sx - midW)/unitW)*tC);
             int ty = (int) Math.floor((camY + (sy - midH)/unitH)*tC);
             if (!isBlack(tx, ty, px, py, diamond, threshold)) continue;
-
-            //Brightness goes up and down, and now and then drops to almost nothing
-            double twinkle = 0.5 + 0.5*Math.sin(time*s.speed + s.phase);
-            double brightness = 0.15 + 0.85*twinkle*twinkle;
-            //Whole screen pixels, never more than 5x5: a dot of 1 to 3 pixels, and sparkling ones
-            //(always 1 pixel) grow 1 pixel arms, then 2, when they shine the most
-            int size = (int) s.size;
-            double left = Math.floor(sx) - (size - 1)/2, top = Math.floor(sy) - (size - 1)/2;
-            handler.getTempGc().setGlobalAlpha(brightness);
-            handler.getTempGc().setFill(s.color);
-            handler.getTempGc().fillRect(left, top, size, size);
-
-            if (s.sparkle && twinkle > 0.75) {
-                int arm = twinkle > 0.92 ? 2 : 1;
-                handler.getTempGc().setGlobalAlpha(brightness*0.6);
-                handler.getTempGc().fillRect(left - arm, top, arm, 1);
-                handler.getTempGc().fillRect(left + 1, top, arm, 1);
-                handler.getTempGc().fillRect(left, top - arm, 1, arm);
-                handler.getTempGc().fillRect(left, top + 1, 1, arm);
-            }
+            drawStar(handler.getTempGc(), s, sx, sy, time, 1);
         }
         handler.getTempGc().setGlobalAlpha(1);
     }

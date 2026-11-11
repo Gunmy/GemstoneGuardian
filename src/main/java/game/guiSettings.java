@@ -18,7 +18,7 @@ public class guiSettings extends guiElement {
     private List<guiButton> secretButtons = new ArrayList<guiButton>();
     private List<guiButton> visualButtons = new ArrayList<guiButton>();
 
-    private guiButton collidersButton, bordersButton, sizeButton, fluidsButton;
+    private guiButton collidersButton, bordersButton, darknessButton, sizeButton, fluidsButton;
     //The player's level with a - and a + on each side of it
     private guiButton levelButton, levelDown, levelUp;
     //Small square buttons drawn at the left and right end of a button's row (the button itself gets narrower)
@@ -47,6 +47,8 @@ public class guiSettings extends guiElement {
         bordersButton = new guiButton(gui, "", () -> handler.Mpress());
         secretButtons.add(collidersButton);
         secretButtons.add(bordersButton);
+        darknessButton = new guiButton(gui, "", () -> handler.Hpress());
+        secretButtons.add(darknessButton);
         secretButtons.add(new guiButton(gui, "Teleports", () -> {
             gui.closeSettings();
             gui.openTeleports(handler.getAllTeleportTargets(), "Teleports", () -> gui.openSecrets());
@@ -156,6 +158,7 @@ public class guiSettings extends guiElement {
         gameHandler handler = gui.getHandler();
         collidersButton.setText("Phase through blocks: " + (handler.collidersOn() ? "Off" : "On"));
         bordersButton.setText("Show borders: " + (handler.infoOn() ? "On" : "Off"));
+        darknessButton.setText("Darkness in caves: " + (handler.darknessOff() ? "Off" : "On"));
         sizeButton.setText("GUI size: " + handler.getSettings().getGuiSize().label);
         fluidsButton.setText("Fluids: " + (handler.getSettings().simpleFluids() ? "Simple" : "Shader"));
         int level = handler.getMainCharacter().getLevel();
