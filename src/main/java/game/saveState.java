@@ -118,6 +118,7 @@ public class saveState {
             if (fight != null) active.add(fight.rearm(handler));
         }
         handler.setActiveListeners(active);
+        handler.afterLoad();
 
         //What was held on the mouse goes back into the player's inventory
         if (save.has("cursor.item")) {

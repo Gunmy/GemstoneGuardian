@@ -1,5 +1,7 @@
 package game;
 
+import javafx.scene.canvas.GraphicsContext;
+
 import java.util.Random;
 
 public class tile {
@@ -29,6 +31,7 @@ public class tile {
         if (getTileType().isBlocked(xChange, yChange)) {return true;}
 
         for (character character : handler.getCharacters()) {
+            if (character.isGone() || character.getLeader() != null) continue;
             if (character.getStandingTile() == this) {return true;}
             if (character.getTargetTile() == this)   {return true;}
 
@@ -57,9 +60,36 @@ public class tile {
         double renderVal = getRenderVal(realx, realy);
         if (renderVal > 0.01) {
             handler.getTempGc().setGlobalAlpha(renderVal);
+            boolean flip = flipStart(realx);
             tileType.drawLayer(handler, realx, realy, x, y, z);
+            if (flip) flipEnd();
             handler.getTempGc().setGlobalAlpha(1);
         }
+    }
+
+    //In a mirror world every tile is drawn flipped left to right round its own middle, and from the cold copy of the
+    //sheet (imgDict.setCold). True when it is (the caller ends it with flipEnd after drawing the tile).
+    //The middle is that of the whole pixels the tile types draw into: from (int) realx, one pixel wider than a tile so
+    //it overlaps its neighbour on the right and no seam shows. Flipped round exactly that box it lands on itself, so the
+    //overlap stays (flipped round the tile's own middle it moved left, and thin lines showed between the tiles)
+    private boolean flipStart (double realx) {
+        chunks world = handler.getWorld(handler.getCurrentWorld());
+        if (world == null || !world.isMirror()) return false;
+        GraphicsContext gc = handler.getTempGc();
+        int left = (int) realx, width = (int) (handler.getUnitWidth()/handler.getTileCount() + 1);
+        double middle = left + width/2.0;
+        gc.save();
+        gc.translate(middle, 0);
+        gc.scale(-1, 1);
+        gc.translate(-middle, 0);
+        //Drawn from the cold copy of the sheet; the characters on it are not
+        handler.getImages().setCold(true);
+        return true;
+    }
+
+    private void flipEnd () {
+        handler.getImages().setCold(false);
+        handler.getTempGc().restore();
     }
 
     public void drawGround (double realx, double realy) {
@@ -67,7 +97,11 @@ public class tile {
         double renderVal = getRenderVal(realx, realy);
         if (renderVal > 0.01) {
             handler.getTempGc().setGlobalAlpha(renderVal);
+            boolean flip = flipStart(realx);
             tileType.drawLayer(handler, realx, realy, x, y, 0);
+            if (flip) flipEnd();
+            //The particles this tile gives off are mirrored round its middle too (gameHandler.add*Particle)
+            if (flip) handler.mirrorParticlesAround(this.realx + 0.5/handler.getTileCount());
 
             Random gen = new Random();
             double rdm = (gen).nextDouble();
@@ -122,6 +156,48 @@ public class tile {
                     );
                 }
                 break;
+
+                //Volcano vent: smoke rising, and now and then an ember
+                case 149:
+                    if (rdm < 0.04) {
+                        handler.addFrontParticle(
+                            new coloredParticle(this.realx+0.055, this.realy+0.04, handler.getCurrentWorld(), 2.5, 1, 0.02, 0.02, 3, handler, 0, -0.15, "#6E6E6E")
+                        );
+                    } else if (rdm < 0.05) {
+                        handler.addFrontParticle(
+                            new coloredParticle(this.realx+0.045+gen.nextDouble()*0.02, this.realy+0.05, handler.getCurrentWorld(), 1.2, 0, 0.012, 0.012, 0, handler, (gen.nextDouble()-0.5)*0.05, -0.12, "#FC9F00")
+                        );
+                    }
+                    break;
+
+                //Sky portals: white and pale blue motes rising off them, plenty of them (only once lit)
+                case 185: case 186: case 187:
+                    if (rdm < 0.14 && (!(tileType instanceof skyPortalType) || ((skyPortalType) tileType).isLit())) {
+                        String[] colors = {"#FFFFFF", "#F0F0F4", "#D8F4FF", "#8EDCF2"};
+                        handler.addFrontParticle(
+                            new coloredParticle(this.realx+gen.nextDouble()*0.11, this.realy+0.02+gen.nextDouble()*0.09, handler.getCurrentWorld(), 1.4 + gen.nextDouble(), 1, 0.013, 0.013, -0.5, handler, (gen.nextDouble()-0.5)*0.04, -0.13, colors[gen.nextInt(colors.length)])
+                        );
+                    }
+                    break;
+
+                //Portals: purple sparks rising off them. The one in the girl's room only once she is beaten
+                case 172: case 173: case 174: case 175: case 176: case 177: case 178: case 179: case 201: case 202: case 203:
+                    if (rdm < 0.06 && (tileType.getId() != 172 || handler.portalLit())) {
+                        String[] colors = {"#857BEF", "#887BFE", "#8EDCF2", "#FFFFFF"};
+                        handler.addFrontParticle(
+                            new coloredParticle(this.realx+gen.nextDouble()*0.11, this.realy+0.02+gen.nextDouble()*0.09, handler.getCurrentWorld(), 1.2 + gen.nextDouble(), 1, 0.012, 0.012, -0.6, handler, (gen.nextDouble()-0.5)*0.03, -0.12, colors[gen.nextInt(colors.length)])
+                        );
+                    }
+                    break;
+
+                //Crystal floor: a rare blue glint
+                case 160:
+                    if (rdm < 0.002) {
+                        handler.addFrontParticle(
+                            new coloredParticle(this.realx+gen.nextDouble()*0.11, this.realy+gen.nextDouble()*0.11, handler.getCurrentWorld(), 1, 1, 0.012, 0.012, -0.5, handler, 0, -0.02, "#8EDCF2")
+                        );
+                    }
+                    break;
 
                 case 91:
                     if (rdm < 0.01) {
@@ -191,6 +267,7 @@ public class tile {
                 default:
                     break;
             }
+            handler.mirrorParticlesAround(Double.NaN);
             handler.getTempGc().setGlobalAlpha(1);
         }
     }

@@ -100,6 +100,48 @@ Source: `gameHandler` constructor (characters, battles, `chestAt(...).put(...)`)
 
 ---
 
+## After the final boss
+
+Beating the girl still records the highscore. Then the portal behind her opens: the volcano caves, up to the desert, through a sky portal to the sky ruins, through another down into the crystal caverns. Each area has a healing pad.
+You have everything from the main game: Rock (or Lava), Obsidian, Boltstone, Copper, Giant Bolder, Uranium, Saltstone, Pebble, Discombobulate Shard, Sandstone (or Glass), Meteorite, Ice (or Water, or Salt Water), Healite, Magma, Coal. No new gems.
+
+- **Ember Wraith** (volcano depths, XP fight) — level 17 (440 HP) — uses: Magma, Obsidian
+  - In a side pocket of the caves: chest with a Healing Potion and a Cleansing Potion
+  - Should be level \_\_\_ by meeting him
+
+- **Ash Golem** (volcano gate) — level 18 (460 HP) — uses: Giant Bolder, Lava
+  - Should be level \_\_\_ by meeting him
+
+- **Dune Scorpion** (desert, XP fight) — level 18 (460 HP) — uses: Sandstone, Discombobulate Shard
+  - Should be level \_\_\_ by meeting him
+
+- **Desert Nomad** (desert gate) — level 19 (480 HP, wears Creatine: +10% damage) — uses: Saltstone, Glass
+  - Should be level \_\_\_ by meeting him
+
+- **Storm Harpy** (sky ruins, XP fight) — level 19 (480 HP) — uses: Boltstone, Copper
+  - Should be level \_\_\_ by meeting her
+
+- **Cloud Knight** (sky gate) — level 20 (500 HP, wears Feather of Hermes Boots) — uses: Meteorite, Healite
+  - Should be level \_\_\_ by meeting him
+
+- **Crystal Sentinel** (crystal caverns, XP fight) — level 20 (500 HP) — uses: Uranium, Ice
+  - Should be level \_\_\_ by meeting it
+
+- **Prism Warden** (crystal throne, last boss) — level 22 (594 HP with the Heart of the Warrior) — uses: Meteorite, Boltstone, Uranium, Healite
+  - Beating it gives: the chest behind it, with the Elemental Rock and a Healing Potion
+  - Should be level \_\_\_ by meeting it
+
+Next to that chest a passage leads up into the open again: the castle grounds, with the crystal boy's castle a few chunks north. There is a healing pad on the plaza in front of it, and a chest with a Healing Potion and a Cleansing Potion hidden in the trees east of the meadow.
+
+- **Crystal Boy** (castle hall, holds the girl; he kidnaps her right after she is beaten) — level 24 (580 HP) — uses: Ice, Uranium, Meteorite, Healite
+  - Beating him frees the girl (she follows you from then on); he flees through the mirror behind him into the mirror dimension
+  - In the mirror dimension, on the way to him: a **Stone Guardian** (a copy of the castle guards from the start) in the gap of the mirrored village wall, where the girl first stood — level 23 (560 HP) — uses: Giant Bolder, Meteorite, Healite; beaten, it crumbles and the way is open
+  - Should be level \_\_\_ by meeting it
+  - **Rematch** in the mirror dimension (the starting village mirrored), at the top of its path: the same Crystal Boy, healed — beating him there ends the game: you become him, and it begins again
+  - Should be level \_\_\_ by meeting him
+
+---
+
 ## Notes
 
 - The player starts at level 0 (level = cube root of xp, rounded down).

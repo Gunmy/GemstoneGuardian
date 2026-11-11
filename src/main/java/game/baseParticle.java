@@ -27,6 +27,13 @@ public abstract class baseParticle implements cordinate, entity {
 
     }
 
+    //Turned round left to right about the line x = axis: put on the other side and drifting the other way (the
+    //particles of a tile in a mirror world)
+    public void mirror (double axis) {
+        x = 2*axis - x;
+        moveX = -moveX;
+    }
+
     private double getTimeAlive () {
         return (System.nanoTime()-spawn)/1_000_000_000;
     }

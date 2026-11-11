@@ -169,11 +169,114 @@ public class tileTypes {
         addWaveType("Oven top snow", 1100, 1300, 100, 100, true, null, types.get(135), true); //145 oven top snow
         addWaveType("ChestSnow", 800, 700, 100, 100, true, null, types.get(110), true); container(); //146 chest on snow
 
+        //After the final boss: volcano depths (world 4), desert (5), sky ruins (6), crystal caverns (7).
+        //Solid things standing on a tile (spires, pillars, crystals, the cactus) do not bob: wave false, but z = 1 so they
+        //are drawn among the characters
+        //Drafts drawn by tools/art_postgame.py, rows y = 1700 and 1800
+        addType("Basalt", 0, 1700, 100, 100, true, null); //147 basalt wall
+        addType("Ash", 100, 1700, 100, 100, false, null); //148 ash floor
+        addWaveType("Vent", 200, 1700, 100, 100, false, null, types.get(148), false); //149 glowing vent on ash
+        addWaveType("Obsidian spire", 300, 1700, 100, 100, true, null, types.get(148), false, 1, 1, 0); //150 obsidian spire
+        addType("Dune", 400, 1700, 100, 100, true, null); //151 dune wall
+        addWaveType("Cactus", 500, 1700, 100, 100, true, null, types.get(63), false, 1, 1, 0); //152 cactus on sand
+        addType("Desert brick", 600, 1700, 100, 100, false, null); //153 desert brick floor
+        addWaveType("Ruin pillar", 700, 1700, 100, 100, true, null, types.get(63), false, 1, 1, 0); //154 ruin pillar on sand
+        addType("Sky", 800, 1700, 100, 100, true, null); //155 open sky
+        addType("Cloud", 900, 1700, 100, 100, false, null); //156 cloud floor
+        addType("Marble", 1000, 1700, 100, 100, false, null); //157 marble floor
+        addWaveType("Broken column", 1100, 1700, 100, 100, true, null, types.get(156), false, 1, 1, 0); //158 broken column on cloud
+        addType("Crystal wall", 1200, 1700, 100, 100, true, null); //159 crystal wall
+        addType("Crystal floor", 1300, 1700, 100, 100, false, null); //160 crystal floor
+        addWaveType("Crystal cluster", 1400, 1700, 100, 100, true, null, types.get(160), false, 1, 1, 0); //161 crystals on crystal floor
+        addWaveType("ChestAsh", 800, 700, 100, 100, true, null, types.get(148), true); container(); //162 chest on ash
+        addWaveType("ChestCrystal", 800, 700, 100, 100, true, null, types.get(160), true); container(); //163 chest on crystal floor
+        //The old one-tile gates (see the portals below, 172-179, which replaced them)
+        addWaveType("Gate to volcano", 0, 1800, 100, 100, false, sealedGate(4), types.get(58), false); //164 gate to volcano (world 2 -> 4)
+        addWaveType("Gate to castle", 0, 1800, 100, 100, false, gate(2), types.get(148), false); //165 gate back (4 -> 2)
+        addWaveType("Gate to desert", 0, 1800, 100, 100, false, gate(5), types.get(148), false); //166 gate (4 -> 5)
+        addWaveType("Gate to volcano", 0, 1800, 100, 100, false, gate(4), types.get(63), false); //167 gate back (5 -> 4)
+        addWaveType("Gate to sky", 0, 1800, 100, 100, false, gate(6), types.get(63), false); //168 gate (5 -> 6)
+        addWaveType("Gate to desert", 0, 1800, 100, 100, false, gate(5), types.get(156), false); //169 gate back (6 -> 5)
+        addWaveType("Gate to caverns", 0, 1800, 100, 100, false, gate(7), types.get(156), false); //170 gate (6 -> 7)
+        addWaveType("Gate to sky", 0, 1800, 100, 100, false, gate(6), types.get(160), false); //171 gate back (7 -> 6)
+        //164-171 are not on the map any more: the one way out of the final boss's room is a 3x3 portal (portalType: black,
+        //with the teleport's stars fixed to the screen showing through). Stepping on any of its tiles takes you to the
+        //same tile in the other world, so it has a 3x3 landing spot there, next to the 3x3 portal back
+        addPortalType("Portal to the volcano caves", 1000, 1800, gate(1)); ((portalType) types.get(getLength()-1)).offUntilLit(); //172 portal in the girl's room (2 -> 1), black and solid until it lights after she is taken
+        addPortalType("Portal to castle", 1000, 1800, gate(2)); //173 portal back (1 -> 2)
+        //174-179 were portals between areas that are now joined by caves and paths; not on the map
+        addPortalType("Portal to desert", 1000, 1800, gate(5)); //174 (unused)
+        addPortalType("Portal to volcano", 1000, 1800, gate(4)); //175 (unused)
+        addPortalType("Portal to sky", 1000, 1800, gate(6)); //176 (unused)
+        addPortalType("Portal to desert", 1000, 1800, gate(5)); //177 (unused)
+        addPortalType("Portal to caverns", 1000, 1800, gate(7)); //178 (unused)
+        addPortalType("Portal to sky", 1000, 1800, gate(6)); //179 (unused)
+        //The pillar (top and base, as in the castle and the caves) on sand and on cloud
+        addWaveType("Pillartopsand", 1000, 300, 100, 100, true, null, types.get(63), false); //180 pillar top on sand
+        addWaveType("Pillarbottomsand", 1000, 400, 100, 100, false, null, types.get(63), false); //181 pillar base on sand
+        addWaveType("Pillartopsnow", 1000, 300, 100, 100, true, null, types.get(110), false); //182 pillar top on snow (the sky ruins)
+        addWaveType("Pillarbottomsnow", 1000, 400, 100, 100, false, null, types.get(110), false); //183 pillar base on snow
+        //The sky ruins (world 4): open sky shows the sky behind (skyLayer), and sky portals lead there. A sky portal is
+        //1x1 and on the same tile in both worlds, like the cave passages
+        types.add(new openSkyType("Open sky", 800, 1700, 100, 100, getLength(), true, null)); //184 open sky (drawn as nothing)
+        types.add(new skyPortalType("Sky portal", 800, 1700, 100, 100, getLength(), false, gate(4)).offUntilLit(types.get(63))); //185 sky portal to the sky ruins (in the desert and the crystal caverns), sand until the Desert Nomad is beaten
+        types.add(new skyPortalType("Sky portal to the desert", 800, 1700, 100, 100, getLength(), false, gate(0))); //186 sky portal back to the desert (in the sky ruins)
+        types.add(new skyPortalType("Sky portal to the caverns", 800, 1700, 100, 100, getLength(), false, gate(1))); //187 sky portal down to the crystal caverns (in the sky ruins)
+        //Pillars more than one tile high: the top (93), then middles, then a bottom, then the base (92). Made from the
+        //pillar top's own shaft (tools/art_postgame.py)
+        addWaveType("Pillarmiddlebluebrick", 1200, 1900, 100, 100, true, null, types.get(60), false); //188 pillar middle on bluebrick
+        addWaveType("Pillarbottombluebrick", 1300, 1900, 100, 100, true, null, types.get(60), false); //189 pillar bottom (above the base) on bluebrick
+        addWaveType("Pillarmiddlesand", 1200, 1900, 100, 100, true, null, types.get(63), false); //190 pillar middle on sand
+        addWaveType("Pillarbottomsand", 1300, 1900, 100, 100, true, null, types.get(63), false); //191 pillar bottom on sand
+        addWaveType("Pillarmiddlesnow", 1200, 1900, 100, 100, true, null, types.get(110), false); //192 pillar middle on snow
+        addWaveType("Pillarbottomsnow", 1300, 1900, 100, 100, true, null, types.get(110), false); //193 pillar bottom on snow
+        //The mirror in the girl's room the crystal boy steps out of (gameHandler.kidnapping), a draft. It stands on the
+        //blue brick over lava (119), like the tile left of the pillar next to it, which is what is left when it is gone
+        types.add(new mirrorType("Mirror", 1300, 1800, getLength(), types.get(119))); //194 mirror on bluebrick over lava
+        //Every mirror is a way into the mirror dimension or out of it (mirrorType). The one behind the crystal boy in his
+        //hall, and the one back out in the mirror dimension (the mirrored house's front door); only the player goes
+        //through by walking in, the crystal boy and the girl are taken through by the cutscenes
+        types.add(new mirrorType("Mirror to the mirror dimension", 1300, 1800, getLength(), types.get(119),
+            c -> {if (c == c.getHandler().getMainCharacter()) c.getHandler().intoMirrorDimension();}).alwaysOpen()); //195 mirror into the mirror dimension
+        types.add(new mirrorType("Mirror out of the mirror dimension", 1300, 1800, getLength(), types.get(10),
+            c -> {if (c == c.getHandler().getMainCharacter()) c.getHandler().outOfMirrorDimension();}).alwaysOpen()); //196 mirror back to the crystal boy's hall
+        //The two mirrors that appear on each side of the crystal boy when he blows up for good (gameHandler.becoming): the
+        //girl flees into the first, and it is gone; the second is yours, and takes you back to her room, where it began
+        types.add(new mirrorType("Mirror the girl flees into", 1300, 1800, getLength(), types.get(1))); //197 mirror on grass (the girl's)
+        types.add(new mirrorType("Mirror back to where it began", 1300, 1800, getLength(), types.get(1),
+            c -> {if (c == c.getHandler().getMainCharacter()) c.getHandler().intoTheLoop();})); //198 mirror on grass (yours)
+        //Ladders between the caves and outside (the volcano depths up to the desert), with the pictures of the ladders
+        //under the house at the start (31, 32), which go one world up or down instead
+        addType("LadderUpToOutside", 300, 700, 100, 100, false, gate(0)); //199 ladder up, caves -> outside
+        addType("LadderDownToCaves", 300, 600, 100, 100, false, gate(1)); //200 ladder down, outside -> caves
+        //The ways out of the sky ruins are black portals with the teleport's stars (portalType, 3x3, like the one behind
+        //the girl); the ways up into the sky (in the desert and the crystal caverns) stay sky portals (185)
+        addPortalType("Portal to the crystal caverns", 1000, 1800, gate(1)); //201 portal in the sky ruins down to the caverns (4 -> 1)
+        addPortalType("Portal to the sky ruins", 1000, 1800, gate(4)); //202 (unused: the way up from the caverns is a sky portal)
+        addPortalType("Portal to the desert", 1000, 1800, gate(0)); //203 portal in the sky ruins back to the desert (4 -> 0)
 
+
+    }
+
+    //A gate's pressure plate: whoever steps on it goes to that world, to the same spot (the tile there is its way back)
+    private static Consumer<character> gate (int world) {
+        return c -> c.setWorld(world);
+    }
+
+    //A gate that only works once the portal behind the girl is lit (gameHandler.portalLit). Only on tile 164, which is
+    //no longer on the map; the portal itself (172) is solid until then (portalType.offUntilLit)
+    private static Consumer<character> sealedGate (int world) {
+        return c -> {
+            if (c.getHandler().portalLit()) c.setWorld(world);
+        };
     }
 
     private void addType (String name, int x, int y, int width, int height, boolean blocked, Consumer<character> pressurePlate) {
         types.add(new tileType(name, x, y, width, height, getLength(), blocked, pressurePlate));
+    }
+
+    private void addPortalType (String name, int x, int y, Consumer<character> pressurePlate) {
+        types.add(new portalType(name, x, y, 100, 100, getLength(), false, pressurePlate));
     }
 
     private void addFluidType (String name, int x, int y, int width, int height, boolean blocked, Consumer<character> pressurePlate, double speed, double redWeight, double greenWeight, double blueWeight, boolean inverse) {

@@ -37,7 +37,9 @@ public class chunks {
     }
 
     public String getName () {return this.name;}
-    public double getRenderDistance() {return this.renderDistance;}
+    //With the darkness cheat on (H, hidden secrets) dark worlds are drawn as far as the light ones
+    public double getRenderDistance() {return handler.darknessOff() ? Math.max(this.renderDistance, LIT) : this.renderDistance;}
+    public static final double LIT = 1.1;
 
     //Every tile in the chunks made so far whose type matches, top to bottom and then left to right.
     //Everything from the map file is made at start, so this finds all the tiles placed by hand
@@ -53,6 +55,18 @@ public class chunks {
     }
     public String getBackground () {return this.backgroundColor;}
 
+    //A mirror world (the mirror dimension): every tile is drawn flipped left to right and in cold glassy blues (from
+    //the cold copy of the sheet, imgDict.setCold), so a copy of a place with its columns turned round is its mirror
+    //image. The characters in it keep their own colours
+    private boolean mirror = false;
+    public chunks mirror () {this.mirror = true; return this;}
+    public boolean isMirror () {return this.mirror;}
+
+    //A sky world: the open sky with its clouds is drawn behind it (and a few in front), see skyLayer
+    private boolean sky = false;
+    public chunks sky () {this.sky = true; return this;}
+    public boolean isSky () {return this.sky;}
+
     public chunk getChunk (int x, int y) {
         if (chunks.get(Arrays.asList(x, y)) == null) {
             generateNewChunk(x, y);
@@ -61,7 +75,7 @@ public class chunks {
     }
     
     //A render distance below 1 does not reach the edge of the screen, the rest is left dark
-    public boolean isDark () {return this.renderDistance < 1;}
+    public boolean isDark () {return getRenderDistance() < 1;}
 
     //Enough chunks in each direction to cover the screen, also when zoomed out
     private int getChunkCountLoad () {
@@ -151,14 +165,16 @@ public class chunks {
         return getTile(x, y).getTileType();
     }
 
+    //The tile nearest (x, y) (characters stand on tile corners, and are between two while walking). Rounded to a whole
+    //tile first and the chunk worked out from that, so rounding up past a chunk's last row or column gives the first one
+    //of the next chunk. (It used to round within the chunk, so the last row wrapped round to the chunk's own first row:
+    //walking into the final boss's room from the south stepped on the portal in its north wall.)
     public tile getTile(double x, double y) {
-        int chunkx = (int) x;
-        int chunky = (int) y;
-
-        int tilex = (int) Math.round(x%1*handler.getTileCount())%handler.getTileCount();
-        int tiley = (int) Math.round(y%1*handler.getTileCount())%handler.getTileCount();        
-
-        return getChunk(chunkx, chunky).getTile(tilex, tiley);
+        int tC = handler.getTileCount();
+        long tx = Math.round(x*tC), ty = Math.round(y*tC);
+        int chunkx = (int) Math.floorDiv(tx, (long) tC);
+        int chunky = (int) Math.floorDiv(ty, (long) tC);
+        return getChunk(chunkx, chunky).getTile((int) Math.floorMod(tx, (long) tC), (int) Math.floorMod(ty, (long) tC));
     }
 
 }

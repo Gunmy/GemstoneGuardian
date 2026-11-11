@@ -89,6 +89,37 @@ public class character implements cordinate, entity, picture {
         this.speed = speed;
 
         setSpawn();
+        this.homeWorld = world;
+        this.homeX = x;
+        this.homeY = y;
+    }
+
+    //Where the code places the character (never changes). Saved as "home", so a save made before the character was
+    //moved in the code can tell (movedSince), and the character is not left behind at its old place
+    private int homeWorld;
+    private double homeX, homeY;
+    public int getHomeWorld () {return homeWorld;}
+    public double getHomeX () {return homeX;}
+    public double getHomeY () {return homeY;}
+    //Whether the last load put the character back at its home because the code had moved it (see movedSince)
+    private boolean movedHome = false;
+    public boolean wasMovedHome () {return movedHome;}
+
+    //Whether the save's home for this character is somewhere else than where the code places it now. Saves from before
+    //homes were saved compare the spawn instead: it is the code's place for everyone but the player (healing pads move
+    //the player's), so the player is left out of that
+    private boolean movedSince (saveFile save, String p) {
+        String key = save.has(p + "home") ? p + "home" : this == handler.getMainCharacter() ? null : p + "spawn";
+        if (key == null) return false;
+        String[] place = save.getString(key, "").split(",");
+        if (place.length != 3) return false;
+        try {
+            double half = 0.5/handler.getTileCount();
+            return Integer.parseInt(place[0]) != homeWorld
+                || Math.abs(Double.parseDouble(place[1]) - homeX) > half || Math.abs(Double.parseDouble(place[2]) - homeY) > half;
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 
     private void checkForNeg (double x, double y) {
@@ -496,6 +527,28 @@ public class character implements cordinate, entity, picture {
         return product;
     }
 
+    //How many tiles further this character sees in the dark (goggles), all worn added up
+    public int getSightBonus () {
+        int tiles = 0;
+        for (trinket t : inventory.getWorn()) tiles += t.getSight();
+        return tiles;
+    }
+
+    //Whether something worn makes the character give off light
+    public boolean isLit () {
+        for (trinket t : inventory.getWorn()) if (t.doesLightWearer()) return true;
+        return false;
+    }
+
+    //The light round a lit character in the world: a soft warm glow, brightest in the middle, behind the sprite
+    public static final double LIGHT_RADIUS = 1.6;
+    private void drawLight (GraphicsContext gc, double cx, double cy, double tile) {
+        double r = tile*LIGHT_RADIUS;
+        gc.setFill(new javafx.scene.paint.RadialGradient(0, 0, cx, cy, r, false, javafx.scene.paint.CycleMethod.NO_CYCLE,
+            new javafx.scene.paint.Stop(0, Color.web("#FFF0B0", 0.45)), new javafx.scene.paint.Stop(1, Color.web("#FFF0B0", 0))));
+        gc.fillOval(cx - r, cy - r, 2*r, 2*r);
+    }
+
     //What the instant damage of this character's moves is multiplied by
     public double getDamageMultiplier () {return wornProduct(trinket::getDamage);}
 
@@ -535,6 +588,7 @@ public class character implements cordinate, entity, picture {
         anchors.put(trinket.place.HEAD, new double[] {0.5, 0.12});
         anchors.put(trinket.place.CHEST, new double[] {0.58, 0.68});
         anchors.put(trinket.place.SHOULDER, new double[] {0.86, 0.5});
+        anchors.put(trinket.place.EYES, new double[] {0.5, 0.45});
     }
     public character setAnchor (trinket.place place, double shareX, double shareY) {
         anchors.put(place, new double[] {shareX, shareY});
@@ -606,11 +660,13 @@ public class character implements cordinate, entity, picture {
     public boolean showsInTransition () {return this.showInTransition;}
 
     public void draw () {
-        if (handler.getCurrentWorld() == world) {
+        if (handler.getCurrentWorld() == world && !gone) {
             double time = (double) System.nanoTime();
             double division = 100000000;
-            double heightOffset = Math.sin(time/division)*handler.getUnitHeight()/handler.getTileCount()*0.03;
-            double widthOffset = Math.sin(time/division)*handler.getUnitWidth()/handler.getTileCount()*0.03;
+            //Statues do not bob
+            double bob = statue ? 0 : Math.sin(time/division);
+            double heightOffset = bob*handler.getUnitHeight()/handler.getTileCount()*0.03;
+            double widthOffset = bob*handler.getUnitWidth()/handler.getTileCount()*0.03;
     
     
             camera cam = handler.getCamera();
@@ -626,6 +682,17 @@ public class character implements cordinate, entity, picture {
                 );
             }
 
+            if (isLit()) {
+                double tileW = handler.getUnitWidth()/handler.getTileCount();
+                drawLight(handler.getTempGc(), renderx + tileW/2, rendery + tileW/2, tileW);
+            }
+            if (statue) {
+                //Its own picture in stone greys (a cell sized image, drawn from (0, 0)), and nothing worn on top
+                handler.getTempGc().drawImage(handler.getImages().getTinted(imgX, imgY, STONE),
+                    0, 0, this.width, this.height, renderx, rendery,
+                    handler.getUnitWidth()/handler.getTileCount(), handler.getUnitHeight()/handler.getTileCount());
+                return;
+            }
             handler.getTempGc().drawImage(handler.getImages().getImage(0), 
             this.imgX, this.imgY, this.width, this.height, 
               renderx,   rendery, 
@@ -656,6 +723,7 @@ public class character implements cordinate, entity, picture {
 
     //Both the tile you stand on has to let you out, and the tile you go to has to let you in
     private boolean canStep (double xChange, double yChange) {
+        if (ghost) return true;
         return !getStandingTile().isBlockedOut(xChange, yChange)
         && !getStandingTile(xChange/handler.getTileCount(), yChange/handler.getTileCount()).isBlocked(xChange, yChange);
     }
@@ -680,10 +748,86 @@ public class character implements cordinate, entity, picture {
 
     //True while walking from one tile to the next
     public boolean isMoving () {return !targetSameAsCoords();}
+    //Gone from the world (a beaten villain): not drawn and not in anyone's way, but still there for savefiles
+    private boolean gone = false;
+    public boolean isGone () {return this.gone;}
+    public void setGone (boolean gone) {this.gone = gone;}
+
+    //Turned to stone (the crystal boy's beaten servants): drawn in greys, standing perfectly still, no name over it
+    public static final String STONE = "#C8C8C8";
+    private boolean statue = false;
+    public boolean isStatue () {return this.statue;}
+    public void setStatue (boolean statue) {this.statue = statue;}
+
+    //Following another character (the girl, freed, follows the player): it walks onto the tile the leader has just
+    //left, starting when the leader starts its step and at the leader's speed (getTilesPerSecond), so it is always one
+    //tile behind, and when the leader is far away or in another world (a teleport, a door) it is put right where the leader
+    //is. A follower is in no one's way (tile.isBlocked). Saved as the leader's name, put back by gameHandler.afterLoad
+    private character leader;
+    private int leaderWorld;
+    private long leaderTileX, leaderTileY;
+    public character getLeader () {return this.leader;}
+    public void follow (character leader) {
+        this.leader = leader;
+        if (leader == null) return;
+        leaderWorld = leader.world;
+        leaderTileX = Math.round(leader.xTarget*handler.getTileCount());
+        leaderTileY = Math.round(leader.yTarget*handler.getTileCount());
+    }
+    private String savedLeader;
+    public String getSavedLeader () {return this.savedLeader;}
+
+    //Called every frame by gameHandler
+    public void followStep () {
+        if (leader == null) return;
+        int tC = handler.getTileCount();
+        //The tile the leader is on or stepping onto: the follower starts its step the moment the leader starts its own,
+        //so it keeps exactly one tile behind
+        long lx = Math.round(leader.xTarget*tC), ly = Math.round(leader.yTarget*tC);
+        long fx = Math.round(x*tC), fy = Math.round(y*tC);
+        boolean far = leader.world != world || Math.abs(lx - fx) + Math.abs(ly - fy) > 3;
+        if (far) {
+            placeAt(leader.world, leader.x, leader.y);
+        } else if ((lx != leaderTileX || ly != leaderTileY) && leader.world == leaderWorld) {
+            //The leader stepped off (leaderTileX, leaderTileY): walk onto it
+            long dx = leaderTileX - fx, dy = leaderTileY - fy;
+            if (Math.abs(dx) + Math.abs(dy) == 1) {
+                setGhost(true);
+                addMovementToQueue((int) dx, (int) dy);
+            } else if (dx != 0 || dy != 0) {
+                placeAt(leader.world, leaderTileX/(double) tC, leaderTileY/(double) tC);
+            }
+        }
+        if (isStill()) setGhost(false);
+        leaderWorld = leader.world;
+        leaderTileX = lx;
+        leaderTileY = ly;
+    }
+
+    //Walks through anything (walls, lava, people) while set: a cutscene's walkThrough, like stepping out of a mirror
+    private boolean ghost = false;
+    public void setGhost (boolean ghost) {this.ghost = ghost;}
+
+    //How many tiles a second it walks: its own speed, the speed cheat and what it wears (the Feather of Hermes Boots).
+    //A follower walks exactly as fast as its leader, so it keeps one tile behind
+    public double getTilesPerSecond () {
+        if (leader != null) return leader.getTilesPerSecond();
+        return speed*speedMultiplier*wornProduct(trinket::getSpeed);
+    }
+
+    //Changes what it looks like to another cell of the sheet (the player becomes the crystal boy). Saved
+    public void setSprite (int imgX, int imgY) {
+        this.imgX = imgX;
+        this.imgY = imgY;
+    }
+    public boolean looksLike (int imgX, int imgY) {return this.imgX == imgX && this.imgY == imgY;}
+
+    //Standing on a tile with no steps left to take
+    public boolean isStill () {return !isMoving() && queuedMovement.isEmpty();}
 
     public void move (double deltaTime) {
 
-        double tPS = speed*speedMultiplier*wornProduct(trinket::getSpeed); //tilespersecond
+        double tPS = getTilesPerSecond();
         double speed = deltaTime*tPS/handler.getTileCount();
         if (Math.abs(xTarget-x) <= speed) {
             x = Math.round(xTarget*handler.getTileCount())/(double)handler.getTileCount();
@@ -745,6 +889,14 @@ public class character implements cordinate, entity, picture {
         this.y = y; this.yTarget = y;
     }
 
+    //Puts the character straight at (x, y) in the given world, standing still, without doing what the tile does
+    public void placeAt (int world, double x, double y) {
+        queuedMovement.clear();
+        setWorld(world);
+        setX(x);
+        setY(y);
+    }
+
     public void fullHeal () {
         heal(getMaxHealth()-this.health);
     }
@@ -773,6 +925,11 @@ public class character implements cordinate, entity, picture {
         save.set(p + "health", health);
         save.set(p + "xp", xp);
         save.set(p + "spawn", worldSpawn + "," + xSpawn + "," + ySpawn);
+        save.set(p + "home", homeWorld + "," + homeX + "," + homeY);
+        save.set(p + "gone", gone);
+        save.set(p + "statue", statue);
+        save.set(p + "sprite", imgX + "," + imgY);
+        save.set(p + "follows", leader == null ? "" : leader.getId());
         save.set(p + "effects", fireDamage + "," + fireDamageTimes + "," + poisonDamage + "," + poisonDamageTimes + ","
             + healing + "," + healingTimes + "," + confusion + "," + confusionTimes);
 
@@ -797,12 +954,28 @@ public class character implements cordinate, entity, picture {
     public void loadFrom (saveFile save, String p, itemRegistry registry) {
         if (!save.has(p + "x")) return;
         int savedWorld = save.getInt(p + "world", world);
-        if (handler.getWorld(savedWorld) != null) world = savedWorld;
+        //Saved in a world that has been taken out since: back to the spawn (below), or where the code put it
+        boolean lost = handler.getWorld(savedWorld) == null;
+        int codeWorld = world;
+        double codeX = x, codeY = y;
+        if (!lost) world = savedWorld;
         x = Math.max(0, save.getDouble(p + "x", x));
         y = Math.max(0, save.getDouble(p + "y", y));
         xTarget = Math.max(0, save.getDouble(p + "xTarget", x));
         yTarget = Math.max(0, save.getDouble(p + "yTarget", y));
         z = Math.max(1, save.getInt(p + "z", z));
+        gone = save.getBool(p + "gone", gone);
+        statue = save.getBool(p + "statue", statue);
+        String[] sprite = save.getString(p + "sprite", "").split(",");
+        if (sprite.length == 2) {
+            try {
+                imgX = Integer.parseInt(sprite[0]);
+                imgY = Integer.parseInt(sprite[1]);
+            } catch (NumberFormatException e) {
+                System.out.println("Ugyldig utseende for " + name);
+            }
+        }
+        savedLeader = save.getString(p + "follows", "");
         xp = Math.max(0, save.getDouble(p + "xp", xp));
         health = Math.max(0, Math.min(getMaxHealth(), save.getDouble(p + "health", health)));
         shownHealth = health;
@@ -810,12 +983,29 @@ public class character implements cordinate, entity, picture {
         String[] spawn = save.getString(p + "spawn", "").split(",");
         if (spawn.length == 3) {
             try {
-                worldSpawn = Integer.parseInt(spawn[0]);
-                xSpawn = Double.parseDouble(spawn[1]);
-                ySpawn = Double.parseDouble(spawn[2]);
+                int w = Integer.parseInt(spawn[0]);
+                if (handler.getWorld(w) != null) {
+                    worldSpawn = w;
+                    xSpawn = Double.parseDouble(spawn[1]);
+                    ySpawn = Double.parseDouble(spawn[2]);
+                }
             } catch (NumberFormatException e) {
                 System.out.println("Ugyldig spawn for " + name);
             }
+        }
+        if (lost) {
+            boolean spawnHere = handler.getWorld(worldSpawn) != null;
+            world = spawnHere ? worldSpawn : codeWorld;
+            x = xTarget = spawnHere ? xSpawn : codeX;
+            y = yTarget = spawnHere ? ySpawn : codeY;
+        }
+        //Moved in the code since the save was made: it stands where the code puts it now, not where it stood then
+        boolean moved = movedSince(save, p);
+        movedHome = moved;
+        if (moved) {
+            world = worldSpawn = homeWorld;
+            x = xTarget = xSpawn = homeX;
+            y = yTarget = ySpawn = homeY;
         }
 
         String[] effects = save.getString(p + "effects", "").split(",");
@@ -835,7 +1025,7 @@ public class character implements cordinate, entity, picture {
         }
 
         queuedMovement.clear();
-        for (String move : save.getList(p + "queue", ";")) {
+        if (!moved) for (String move : save.getList(p + "queue", ";")) {
             String[] xy = move.split(",");
             try {
                 addMovementToQueue(Integer.parseInt(xy[0]), Integer.parseInt(xy[1]));

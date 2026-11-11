@@ -25,7 +25,43 @@ public class imgDict {
 
     public Image getImage(Integer n) {
         if (n < 0 || n >= images.size()) throw new IllegalArgumentException("Item finnes ikke");
+        if (n == 0 && cold) return coldSheet();
         return images.get(n);
+    }
+
+    //While set, the sheet handed out is its cold copy: the tiles of a mirror world are drawn from it (tile.flipStart
+    //sets it around each tile), and the characters standing on them keep their own colours
+    private boolean cold = false;
+    public void setCold (boolean cold) {this.cold = cold;}
+
+    //The whole sheet washed out and laid over with a pale blue, made the first time it is needed
+    private Image coldSheet;
+    private Image coldSheet () {
+        if (coldSheet == null) {
+            Image sheet = images.get(0);
+            int w = (int) sheet.getWidth(), h = (int) sheet.getHeight();
+            WritableImage out = new WritableImage(w, h);
+            PixelReader reader = sheet.getPixelReader();
+            PixelWriter writer = out.getPixelWriter();
+            for (int y = 0; y < h; y++) {
+                for (int x = 0; x < w; x++) {
+                    Color c = reader.getColor(x, y);
+                    if (c.getOpacity() == 0) {
+                        writer.setColor(x, y, c);
+                        continue;
+                    }
+                    //Washed out (most of the way to its own grey), a little brighter, then a pale blue over it
+                    double grey = 0.3*c.getRed() + 0.59*c.getGreen() + 0.11*c.getBlue();
+                    double r = Math.min(1, (c.getRed() + (grey - c.getRed())*0.55)*1.08);
+                    double g = Math.min(1, (c.getGreen() + (grey - c.getGreen())*0.55)*1.08);
+                    double b = Math.min(1, (c.getBlue() + (grey - c.getBlue())*0.55)*1.08);
+                    double a = 0.22;
+                    writer.setColor(x, y, new Color(r + (190/255.0 - r)*a, g + (225/255.0 - g)*a, b + (1 - b)*a, c.getOpacity()));
+                }
+            }
+            coldSheet = out;
+        }
+        return coldSheet;
     }
 
     //One cell of the sheet with its grey levels turned into shades of the colour (null keeps it as it is).
@@ -48,7 +84,7 @@ public class imgDict {
         if (!tinted.containsKey(key)) {
             int size = guiSkin.CELL;
             WritableImage out = new WritableImage(size, size);
-            PixelReader reader = getImage(0).getPixelReader();
+            PixelReader reader = images.get(0).getPixelReader();
             PixelWriter writer = out.getPixelWriter();
             for (int y = 0; y < size; y++) {
                 for (int x = 0; x < size; x++) {
@@ -69,7 +105,7 @@ public class imgDict {
         if (!tinted.containsKey(key)) {
             int size = guiSkin.CELL;
             WritableImage out = new WritableImage(size, size);
-            PixelReader reader = getImage(0).getPixelReader();
+            PixelReader reader = images.get(0).getPixelReader();
             PixelWriter writer = out.getPixelWriter();
             Color color = Color.web(hex);
             boolean[] solid = new boolean[size*size];
@@ -104,7 +140,7 @@ public class imgDict {
         if (!tinted.containsKey(key)) {
             int size = guiSkin.CELL;
             WritableImage out = new WritableImage(size, size);
-            PixelReader reader = getImage(0).getPixelReader();
+            PixelReader reader = images.get(0).getPixelReader();
             PixelWriter writer = out.getPixelWriter();
             Color tint = hex == null ? null : Color.web(hex);
 
