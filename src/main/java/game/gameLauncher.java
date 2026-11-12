@@ -5,4 +5,6 @@ package game;
 public interface gameLauncher {
     void openMenu ();
     void play (saveFile save);
+    //A 1v1 against another player, once both are connected (see duel)
+    void duel (duel fight);
 }

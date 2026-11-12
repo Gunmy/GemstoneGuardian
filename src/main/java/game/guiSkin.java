@@ -60,6 +60,29 @@ public class guiSkin {
         nineSlice(gc, BUTTON_X, x, y, w, h);
     }
 
+    //A button in a colour: its own cells with their grey levels turned into shades of hex (imgDict.getTinted, lifted so
+    //it stays light), border and all
+    public void drawButton (GraphicsContext gc, double x, double y, double w, double h, String hex) {
+        if (hex == null) {
+            drawButton(gc, x, y, w, h);
+            return;
+        }
+        imgDict images = handler.getImages();
+        Image corner = images.getTinted(BUTTON_X, GUI_Y, hex, TINT_LIFT), top = images.getTinted(BUTTON_X+CELL, GUI_Y, hex, TINT_LIFT);
+        Image left = images.getTinted(BUTTON_X+2*CELL, GUI_Y, hex, TINT_LIFT), middle = images.getTinted(BUTTON_X+3*CELL, GUI_Y, hex, TINT_LIFT);
+        double b = Math.min(border, Math.min(w, h)/2);
+        drawCell(gc, middle, 0, 0, x+b, y+b, w-2*b, h-2*b, false, false);
+        drawCell(gc, top, 0, 0, x+b, y, w-2*b, b, false, false);
+        drawCell(gc, top, 0, 0, x+b, y+h-b, w-2*b, b, false, true);
+        drawCell(gc, left, 0, 0, x, y+b, b, h-2*b, false, false);
+        drawCell(gc, left, 0, 0, x+w-b, y+b, b, h-2*b, true, false);
+        drawCell(gc, corner, 0, 0, x, y, b, b, false, false);
+        drawCell(gc, corner, 0, 0, x+w-b, y, b, b, true, false);
+        drawCell(gc, corner, 0, 0, x, y+h-b, b, b, false, true);
+        drawCell(gc, corner, 0, 0, x+w-b, y+h-b, b, b, true, true);
+    }
+    private static final double TINT_LIFT = 0.35;
+
     private void nineSlice (GraphicsContext gc, int cellX, double x, double y, double w, double h) {
         Image img = handler.getImages().getImage(0);
         double b = Math.min(border, Math.min(w, h)/2);

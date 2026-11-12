@@ -35,9 +35,14 @@ public class guiButton extends guiElement {
     public void setTextSize (double size) {this.textSize = size;}
     public void setIcon (Image icon) {this.icon = icon;}
 
+    //The button drawn in a colour (its own texture tinted, see guiSkin.drawButton), so a button says what it does: green
+    //to save, red to cancel. Null for the plain button
+    private String color;
+    public void setColor (String hex) {this.color = hex;}
+
     @Override
     public void draw (GraphicsContext gc) {
-        gui.getSkin().drawButton(gc, x, y, width, height);
+        gui.getSkin().drawButton(gc, x, y, width, height, color);
 
         if (hovered && enabled) {
             gc.setFill(Color.rgb(255, 255, 255, 0.25));

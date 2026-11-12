@@ -219,10 +219,20 @@ public class gameHandler {
     //The campaign being played, or null while this game is only the world behind the main menu
     private saveFile save;
     public saveFile getSave () {return this.save;}
-    public boolean inMenu () {return this.save == null;}
+    public boolean inMenu () {return this.save == null && this.duel == null;}
 
     //save is the campaign to play (an empty one starts it from the beginning), null shows the main menu
     public gameHandler (RCanvas canvas, dialogueContainer dialogueContainer, battle battleHandler, imgDict imgDict, gameLauncher launcher, saveFile save) {
+        this(canvas, dialogueContainer, battleHandler, imgDict, launcher, save, null);
+    }
+
+    //A 1v1 (duel) is played in a game of its own, with no savefile: the world as the campaign makes it, with the two
+    //fighters put down somewhere outside (duel.start). Nothing is saved and no campaign events happen in it
+    private duel duel;
+    public duel getDuel () {return this.duel;}
+
+    public gameHandler (RCanvas canvas, dialogueContainer dialogueContainer, battle battleHandler, imgDict imgDict, gameLauncher launcher, saveFile save, duel duel) {
+        this.duel = duel;
         this.launcher = launcher;
         this.save = save;
         this.canvas = canvas;
@@ -812,6 +822,21 @@ public class gameHandler {
             unitWidth = worlds.get(0).getUnitWidthHeight().get(0);
             unitHeight = worlds.get(0).getUnitWidthHeight().get(1);
         }
+        if (duel != null) duel.start(this);
+    }
+
+    public void addCharacter (character c) {characters.add(c);}
+
+    //The game is being thrown away for another one: a 1v1's connection is closed
+    public void close () {
+        if (duel != null) duel.close();
+    }
+
+    //From the 1v1 page of the main menu, once both players are connected: the menu's teleport into the fight
+    public void duelWithEffect (duel fight) {
+        if (transition.isActive()) return;
+        transition.start(null, TRANSITION_MIN_ZOOM/zoom, () -> launcher.duel(fight));
+        transition.atBlackShare(0.5, () -> gui.menuLeaves());
     }
 
     //Beating the girl (Master) finishes the game as before (the time goes to the highscore), and then she steps aside
@@ -1085,7 +1110,7 @@ public class gameHandler {
     }
 
     //A bolt of lightning from (x, y) to (toX, toY) in a world, in the colour
-    private void strike (int world, double x, double y, double toX, double toY, String colour) {
+    public void strike (int world, double x, double y, double toX, double toY, String colour) {
         double px = (toX - x)*getUnitWidth(), py = (toY - y)*getUnitHeight();
         double tilePx = getUnitWidth()/getTileCount();
         guiLightning bolt = new guiLightning(0, 0, Math.atan2(py, px), Math.hypot(px, py), Math.max(1, Math.round(tilePx*0.05)),
@@ -1544,7 +1569,7 @@ public class gameHandler {
     //A click on the world at screen (mx, my): opens the chest there when the player stands on one of the 8 tiles
     //around it. True when the click was used
     public boolean clickWorld (double mx, double my) {
-        if (inMenu() || battleHandler.isActive() || transition.isActive() || dialogueContainer.isActive()) return false;
+        if (inMenu() || duel != null || battleHandler.isActive() || transition.isActive() || dialogueContainer.isActive()) return false;
         double wx = camera.getX() + (mx - getMidWIDTH())/getUnitWidth();
         double wy = camera.getY() + (my - getMidHEIGHT())/getUnitHeight();
         if (wx < 0 || wy < 0) return false;
@@ -1638,6 +1663,8 @@ public class gameHandler {
     //Saves first, then the first half of the teleport: sparks, the screen closing in and the black, then the menu
     public void quitToMenu () {
         if (transition.isActive()) return;
+        //Out of a 1v1 the menu opens on the 1v1 page again
+        if (duel != null) guiMainMenu.returnToDuel = true;
         saveGame();
         character player = getMainCharacter();
         burst(player.getX() + 0.5/getTileCount(), player.getY() + 0.5/getTileCount(), player.getWorld(), 90);
@@ -1851,6 +1878,11 @@ public class gameHandler {
         else if (flat) worlds.get(getCurrentWorld()).drawFlat();
         else worlds.get(getCurrentWorld()).drawGround();
 
+        //The message on screen plays its animations (a move's lightning, hearts...) for as long as it is up
+        for (character c : characters.getCharacters()) c.clearNudge();
+        camera.clearShake();
+        if (dialogueContainer.getCurrent() != null) dialogueContainer.getCurrent().playAnimations(this, deltaTime);
+
         //Remove dead
         behindParticles = behindParticles.stream().filter(e -> !e.isDead()).collect(Collectors.toList());
         frontParticles  = frontParticles.stream().filter(e -> !e.isDead()).collect(Collectors.toList());
@@ -1890,7 +1922,7 @@ public class gameHandler {
         if (infoOn()) {
             getTempGc().strokeRoundRect(getMidWIDTH()-5, getMidHEIGHT()-5, 10, 10, 10, 10);
         }
-        if (!menu) eventListeners.forEach(c -> c.draw());
+        if (!menu && duel == null) eventListeners.forEach(c -> c.draw());
 
         
 
@@ -1905,7 +1937,8 @@ public class gameHandler {
         frontParticles.forEach(c ->  c.move(deltaTime));
         effectParticles.forEach(c -> c.move(deltaTime));
 
-        if (!menu) eventListeners = eventListeners.stream().filter(c -> !c.testForTrigger()).collect(Collectors.toList());
+        if (duel != null) duel.next();
+        if (!menu && duel == null) eventListeners = eventListeners.stream().filter(c -> !c.testForTrigger()).collect(Collectors.toList());
 
         if (!menu && battleHandler.isActive()) {
             battleHandler.carryOn(this);

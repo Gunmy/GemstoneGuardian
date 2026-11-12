@@ -346,7 +346,12 @@ public class character implements cordinate, entity, picture {
         if (dialogue != "") {
             abilityType cause = fireDamageTimes > 0 ? abilityType.FIRE : poisonDamageTimes > 0 ? abilityType.POISON : abilityType.HEAL;
             handler.getDiealoguecontainer().setSource(cause);
-            handler.getDiealoguecontainer().add(new dialogue("Game", dialogue));
+            //Flames, bubbles or hearts on the character while the message is up, one for each that ticked
+            dialogue tick = new dialogue("Game", dialogue);
+            if (dialogue.contains(" is burning ")) tick.animate(effectAnimation(abilityType.FIRE));
+            if (dialogue.contains(" is being poisoned ")) tick.animate(effectAnimation(abilityType.POISON));
+            if (dialogue.contains(" is healing ")) tick.animate(effectAnimation(abilityType.HEAL));
+            handler.getDiealoguecontainer().add(tick);
             takeDmg(dmg);
             handler.getDiealoguecontainer().clearSource();
         }
@@ -354,6 +359,15 @@ public class character implements cordinate, entity, picture {
         if (confusionTimes > 0) {
             confusionTimes-=1;
         }
+    }
+
+    //A damage or healing number thrown up off this character while the message is up (see battleAnimation.number)
+    private battleAnimation.playing numberAnimation (double amount, boolean heal, picture cause) {
+        return new battleAnimation.playing(battleAnimation.forNumber(amount, heal, cause), this, this, battleAnimation.numberKey(amount, heal, cause));
+    }
+
+    private battleAnimation.playing effectAnimation (abilityType kind) {
+        return new battleAnimation.playing(battleAnimation.forEffect(kind), this, this, "E:" + kind.name());
     }
 
     public double getConfusion () {
@@ -489,8 +503,10 @@ public class character implements cordinate, entity, picture {
         }
 
         double after = this.health;
+        picture cause = handler.getDiealoguecontainer().getSource();
         handler.getDiealoguecontainer().add(new dialogue("Game", getName() + " took " + dmg + " damage!\n" + getName() + " now has " + getHealth() + " health left")
-            .highlight(dialogue.DAMAGE_BORDER, handler.getDiealoguecontainer().getSource())
+            .highlight(dialogue.DAMAGE_BORDER, cause)
+            .animate(numberAnimation(dmg, false, cause))
             .onShow(() -> shownHealth = after));
     }
 
@@ -507,9 +523,13 @@ public class character implements cordinate, entity, picture {
         }
 
         double after = this.health;
-        handler.getDiealoguecontainer().add(new dialogue("Game", getName() + " healed " + (this.health-temp) + "!\n" + getName() + " now has " + getHealth() + " health left")
-            .highlight(dialogue.DAMAGE_BORDER, handler.getDiealoguecontainer().getSource())
-            .onShow(() -> shownHealth = after));
+        picture cause = handler.getDiealoguecontainer().getSource();
+        dialogue healed = new dialogue("Game", getName() + " healed " + (this.health-temp) + "!\n" + getName() + " now has " + getHealth() + " health left")
+            .highlight(dialogue.DAMAGE_BORDER, cause)
+            .onShow(() -> shownHealth = after);
+        //Healing at full health heals nothing: no number for it
+        if (this.health - temp > 0.5) healed.animate(numberAnimation(this.health - temp, true, cause));
+        handler.getDiealoguecontainer().add(healed);
 
     }
 
@@ -675,8 +695,8 @@ public class character implements cordinate, entity, picture {
     
             camera cam = handler.getCamera();
     
-            double renderx = handler.getMidWIDTH() + widthOffset/2 + ((x-cam.getX()))*handler.getUnitWidth();
-            double rendery = handler.getMidHEIGHT() - heightOffset + ((y-cam.getY()))*handler.getUnitHeight()-handler.getUnitHeight()/(handler.getTileCount()*2);
+            double renderx = handler.getMidWIDTH() + widthOffset/2 + ((x + nudgeX - cam.getX()))*handler.getUnitWidth();
+            double rendery = handler.getMidHEIGHT() - heightOffset + ((y + nudgeY - cam.getY()))*handler.getUnitHeight()-handler.getUnitHeight()/(handler.getTileCount()*2);
         
             if (handler.infoOn()) {
                 handler.getTempGc().setFill(Color.WHITE);
@@ -731,6 +751,12 @@ public class character implements cordinate, entity, picture {
     }
 
     public boolean isDead() {return false;}
+
+    //How far the sprite is drawn off its place this frame (world units): a move's animation lunging it forward or
+    //shaking it when hit (battleAnimation). Cleared every frame before the animations play (gameHandler.next)
+    private double nudgeX, nudgeY;
+    public void nudge (double dx, double dy) {nudgeX += dx; nudgeY += dy;}
+    public void clearNudge () {nudgeX = 0; nudgeY = 0;}
 
     private boolean targetSameAsCoords () {
         int tileCount = handler.getTileCount();
@@ -837,6 +863,9 @@ public class character implements cordinate, entity, picture {
         this.imgY = imgY;
     }
     public boolean looksLike (int imgX, int imgY) {return this.imgX == imgX && this.imgY == imgY;}
+    //Its sprite's cell on the sheet (a 1v1 fighter can look like any campaign character, see duel)
+    public int getImgX () {return this.imgX;}
+    public int getImgY () {return this.imgY;}
 
     //Standing on a tile with no steps left to take
     public boolean isStill () {return !isMoving() && queuedMovement.isEmpty();}
@@ -911,6 +940,55 @@ public class character implements cordinate, entity, picture {
         setWorld(world);
         setX(x);
         setY(y);
+    }
+
+    //A fresh, empty inventory, nothing equipped (a 1v1 fighter gets its build, see duel)
+    public void resetInventory () {
+        inventory = new inventory();
+        equipped = null;
+    }
+
+    //What changes in a fight, for the 1v1 (see duel): health, effects, the inventory with each rock's uses, and which
+    //rock is equipped. The host writes it after every message and the other player puts it on its copy
+    public void writeFightState (saveFile save, String p) {
+        save.set(p + "health", health);
+        save.set(p + "effects", fireDamage + "," + fireDamageTimes + "," + poisonDamage + "," + poisonDamageTimes + ","
+            + healing + "," + healingTimes + "," + confusion + "," + confusionTimes);
+        inventory.saveTo(save, p + "inv.");
+        int equippedSlot = -1;
+        for (int i = 0; i < game.inventory.ACTIVE; i++) {
+            itemStack stack = inventory.get(game.inventory.slotKind.ROCK, i);
+            if (stack != null && stack.getItem() == equipped) equippedSlot = i;
+        }
+        save.set(p + "equipped", equippedSlot);
+    }
+
+    public void readFightState (saveFile save, String p, itemRegistry registry) {
+        inventory = new inventory();
+        inventory.loadFrom(save, p + "inv.", registry);
+        equipped = null;
+        int equippedSlot = save.getInt(p + "equipped", -1);
+        if (equippedSlot >= 0 && equippedSlot < game.inventory.ACTIVE) {
+            itemStack stack = inventory.get(game.inventory.slotKind.ROCK, equippedSlot);
+            if (stack != null && stack.getItem() instanceof gemstone) equipped = (gemstone) stack.getItem();
+        }
+        String[] effects = save.getString(p + "effects", "").split(",");
+        if (effects.length == 8) {
+            try {
+                fireDamage = Double.parseDouble(effects[0]);
+                fireDamageTimes = Integer.parseInt(effects[1]);
+                poisonDamage = Double.parseDouble(effects[2]);
+                poisonDamageTimes = Integer.parseInt(effects[3]);
+                healing = Double.parseDouble(effects[4]);
+                healingTimes = Integer.parseInt(effects[5]);
+                confusion = Double.parseDouble(effects[6]);
+                confusionTimes = Integer.parseInt(effects[7]);
+            } catch (NumberFormatException e) {
+                System.out.println("Ugyldige effekter for " + name);
+            }
+        }
+        health = Math.max(0, save.getDouble(p + "health", health));
+        shownHealth = health;
     }
 
     public void fullHeal () {

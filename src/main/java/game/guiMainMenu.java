@@ -13,20 +13,24 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
 
 //The first screen, drawn over the campaign's world drifting by (see gameHandler.inMenu). Pages:
-//- main: play, settings (the visuals page of guiSettings), edit map (not made yet), quit
+//- main: play, settings (the visuals page of guiSettings), 1v1, quit
 //- load: every savefile as a mini map of the 3x3 chunks around where the player was (a mapGrid), with an X to delete,
 //  and start new campaign under it
 //- new: three steps, one name each: the campaign, yourself, the girl (the first fight and the final boss).
 //  Next (enter) goes on and starts the campaign after the last, back (escape) goes a step back, from the first to the list
 //- delete: asks before a savefile is deleted
+//- duel: the 1v1 pages, handed to guiDuelMenu
 //Starting a game goes through the gameHandler's launcher, which builds a fresh game for it
 public class guiMainMenu extends guiElement {
 
-    private enum page {MAIN, LOAD, NEW, DELETE}
+    private enum page {MAIN, LOAD, NEW, DELETE, DUEL}
     private page current = page.MAIN;
 
     private List<guiButton> mainButtons = new ArrayList<guiButton>();
-    private guiButton editMapButton;
+
+    //The 1v1 pages. Set returnToDuel when a 1v1 ends, so the menu opens on them again (gameHandler.quitToMenu)
+    private guiDuelMenu duelMenu;
+    public static boolean returnToDuel = false;
 
     private mapGrid saves;
     private guiButton newCampaignButton, loadBackButton;
@@ -53,10 +57,8 @@ public class guiMainMenu extends guiElement {
 
         mainButtons.add(new guiButton(gui, "Play", () -> openLoad()));
         mainButtons.add(new guiButton(gui, "Settings", () -> gui.openVisuals()));
-        //Will edit the campaign file (the map and what is in it). Not made yet
-        editMapButton = new guiButton(gui, "Edit map", null);
-        editMapButton.setEnabled(false);
-        mainButtons.add(editMapButton);
+        duelMenu = new guiDuelMenu(gui, () -> current = page.MAIN);
+        mainButtons.add(new guiButton(gui, "1v1", () -> current = page.DUEL));
         mainButtons.add(new guiButton(gui, "Quit game", () -> javafx.application.Platform.exit()));
 
         //At most three campaigns side by side
@@ -80,6 +82,11 @@ public class guiMainMenu extends guiElement {
             openLoad();
         });
         cancelDeleteButton = new guiButton(gui, "Cancel", () -> openLoad());
+
+        //Back from a 1v1. Only the menu of the game behind it takes the flag down, the copy that slides down over the
+        //ending fight opens on the 1v1 page too
+        if (returnToDuel) current = page.DUEL;
+        if (handler.inMenu()) returnToDuel = false;
     }
 
     //The savefiles are read again every time the list is opened
@@ -145,6 +152,7 @@ public class guiMainMenu extends guiElement {
             case LOAD:   current = page.MAIN; break;
             case NEW:    previousStep(); break;
             case DELETE: openLoad(); break;
+            case DUEL:   duelMenu.back(); break;
             default:     break;
         }
     }
@@ -171,6 +179,11 @@ public class guiMainMenu extends guiElement {
 
     @Override
     public void layout (double screenWidth, double screenHeight) {
+        if (current == page.DUEL) {
+            duelMenu.layout(screenWidth, screenHeight);
+            setBounds(duelMenu.x, duelMenu.y, duelMenu.width, duelMenu.height);
+            return;
+        }
         double s = gui.s();
         double pad = gui.getSkin().getBorder() + 8*s;
         double buttonWidth = 320*s, buttonHeight = 40*s, gap = 8*s;
@@ -229,6 +242,10 @@ public class guiMainMenu extends guiElement {
 
     @Override
     public void draw (GraphicsContext gc) {
+        if (current == page.DUEL) {
+            duelMenu.draw(gc);
+            return;
+        }
         double s = gui.s();
         double border = gui.getSkin().getBorder();
         double pad = border + 8*s;
@@ -258,6 +275,7 @@ public class guiMainMenu extends guiElement {
 
     @Override
     public boolean click (double mx, double my, boolean rightClick) {
+        if (current == page.DUEL) return duelMenu.click(mx, my, rightClick);
         for (guiElement element : currentElements()) {
             if (element.contains(mx, my)) {
                 return element.click(mx, my, rightClick);
@@ -277,14 +295,18 @@ public class guiMainMenu extends guiElement {
 
     @Override
     public void hover (double mx, double my) {
+        if (current == page.DUEL) {
+            duelMenu.hover(mx, my);
+            return;
+        }
         for (guiElement element : currentElements()) element.hover(mx, my);
         if (current == page.LOAD) saves.hover(mx, my);
-        if (current == page.MAIN && editMapButton.contains(mx, my)) gui.setTooltip("Coming soon");
     }
 
     //The menu has the keyboard: the name field gets the keys on its page, escape goes back
     @Override
     public boolean keyPressed (KeyCode code) {
+        if (current == page.DUEL) return duelMenu.keyPressed(code);
         if (code == KeyCode.ESCAPE) {
             back();
             return true;
@@ -297,6 +319,7 @@ public class guiMainMenu extends guiElement {
 
     @Override
     public boolean keyTyped (String typed) {
+        if (current == page.DUEL) return duelMenu.keyTyped(typed);
         if (current == page.NEW) newFields.get(step).keyTyped(typed);
         return true;
     }

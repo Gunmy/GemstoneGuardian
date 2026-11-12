@@ -9,7 +9,9 @@ import javafx.scene.text.TextAlignment;
 //The full inventory screen: the top rows (scrolling when there are more than fit) over the active row,
 //which is the 4 rock slots and the 4 item slots. Items are moved by clicking one up onto the cursor
 //and clicking it down somewhere else. Right clicking a rock equips it.
-//Opened with a chest (any slotGroup, see openWith) the chest is shown in a panel above, and items move between the two
+//Opened with a chest (any slotGroup, see openWith) the chest is shown in a panel above, and items move between the two.
+//Opened for a 1v1 build (openForBuild) the top rows and the item slots are covered over: only the rock slots and the
+//trinket slots take anything, and Cancel and Save buttons sit under the inventory
 public class guiInventory extends guiElement {
 
     private static final int VISIBLE_ROWS = 4;
@@ -19,7 +21,11 @@ public class guiInventory extends guiElement {
     private slotGrid itemGrid = new slotGrid(inventory.slotKind.ITEM, inventory.ACTIVE, 1);
     //The trinket slots, a column in a small panel of their own left of the inventory, its top in line with the inventory's
     private slotGrid trinketGrid = new slotGrid(inventory.slotKind.TRINKET, 1, inventory.TRINKETS);
-    private slotGrid[] grids = {topGrid, rockGrid, itemGrid, trinketGrid};
+    private slotGrid[] allGrids = {topGrid, rockGrid, itemGrid, trinketGrid};
+    private slotGrid[] buildGrids = {rockGrid, trinketGrid};
+    private slotGrid[] grids = allGrids;
+    //Editing a 1v1 build: the top rows and the item slots are closed
+    private boolean build = false;
     private double trinketX, trinketWidth, trinketHeight;
 
     //An elemental rock's three slots, in a small panel under the inventory while it is open (right click the rock to
@@ -57,6 +63,37 @@ public class guiInventory extends guiElement {
         visible = false;
     }
 
+    //Opens on a 1v1 build: the rock and trinket slots with the catalogue above them (see guiDuelMenu). Save (green, on
+    //the right) runs save and closes; Cancel (red, on the left) and escape close without it
+    private Runnable buildSave;
+    private guiButton saveButton, backButton;
+
+    public void openForBuild (slotGroup catalogue, String title, Runnable save) {
+        build = true;
+        grids = buildGrids;
+        buildSave = save;
+        if (saveButton == null) {
+            saveButton = new guiButton(gui, "Save", () -> {
+                Runnable saving = buildSave;
+                //What is on the cursor goes back in first, so it is saved with the rest
+                returnCursor();
+                if (saving != null) saving.run();
+                setVisible(false);
+            });
+            saveButton.setColor("#40C040");
+            backButton = new guiButton(gui, "Cancel", () -> setVisible(false));
+            backButton.setColor("#E04040");
+        }
+        openWith(catalogue, title);
+    }
+
+    private void returnCursor () {
+        if (gui.getCursor() == null) return;
+        itemStack held = gui.getCursor();
+        gui.setCursor(null);
+        for (int i = 0; i < held.getCount(); i++) getInventory().give(held.getItem());
+    }
+
     //Opens the inventory with the chest above it. Closing the inventory closes the chest too
     public void openWith (slotGroup chest, String title) {
         this.chest = chest;
@@ -83,6 +120,11 @@ public class guiInventory extends guiElement {
         slotGroup closing = visible ? null : chest;
         if (!visible) chest = null;
         if (!visible) elemental = null;
+        if (!visible) {
+            build = false;
+            grids = allGrids;
+            buildSave = null;
+        }
         //Whatever is on the cursor goes back in when the screen closes
         if (!visible && gui.getCursor() != null) {
             itemStack held = gui.getCursor();
@@ -129,6 +171,14 @@ public class guiInventory extends guiElement {
         elementalHeight = 2*pad + slotSize;
         elementalX = Math.round(x + (width - elementalWidth)/2);
         elementalY = Math.round(y + height + infoGap*s);
+        if (build) {
+            //Save and Back under the inventory, the elemental rock's slots under them
+            double buttonWidth = 140*s, buttonHeight = 36*s;
+            double buttonsY = Math.round(y + height + infoGap*s);
+            backButton.setBounds(Math.round(x + width/2 - buttonWidth - infoGap*s/2), buttonsY, buttonWidth, buttonHeight);
+            saveButton.setBounds(Math.round(x + width/2 + infoGap*s/2), buttonsY, buttonWidth, buttonHeight);
+            elementalY = Math.round(buttonsY + buttonHeight + infoGap*s);
+        }
         elementalGrid.setBounds(elementalX + pad, elementalY + pad, slotSize, gap);
 
         infoX = x + width + infoGap*s;
@@ -173,7 +223,15 @@ public class guiInventory extends guiElement {
             }
         }
         gui.getSkin().drawPanel(gc, x, y, width, height);
-        for (slotGrid grid : grids) grid.draw(gc, gui, inv, equipped, true);
+        for (slotGrid grid : allGrids) grid.draw(gc, gui, inv, equipped, true);
+        //A build has no use for the top rows and the item slots: they are covered over
+        if (build) {
+            for (slotGrid closed : new slotGrid[] {topGrid, itemGrid}) {
+                int first = closed == topGrid ? scroll*inventory.COLUMNS : 0;
+                int count = closed == topGrid ? visibleRows()*inventory.COLUMNS : inventory.ACTIVE;
+                for (int i = first; i < first + count; i++) drawClosedSlot(gc, closed.slotX(i), closed.slotY(i), closed.getSlotSize());
+            }
+        }
         //An item that does something on a right click lights up while hovered, like a button
         if (hoveredGrid != null && gui.getCursor() == null && hovered != null && hovered.hasInventoryAction()) {
             double size = hoveredGrid.getSlotSize();
@@ -181,6 +239,10 @@ public class guiInventory extends guiElement {
             gc.fillRect(hoveredGrid.slotX(hoveredIndex), hoveredGrid.slotY(hoveredIndex), size, size);
         }
         drawInfo(gc);
+        if (build) {
+            saveButton.draw(gc);
+            backButton.draw(gc);
+        }
 
         //A line between the top part and the active row
         double lineY = Math.round(activeY - divider*s/2 - 1);
@@ -300,6 +362,10 @@ public class guiInventory extends guiElement {
     @Override
     public boolean click (double mx, double my, boolean rightClick) {
         inventory inv = getInventory();
+        if (build) {
+            if (saveButton.contains(mx, my)) return saveButton.click(mx, my, rightClick);
+            if (backButton.contains(mx, my)) return backButton.click(mx, my, rightClick);
+        }
         if (chest != null) {
             int index = chestGrid.indexAt(mx, my, chest);
             if (index >= 0) {
@@ -359,6 +425,10 @@ public class guiInventory extends guiElement {
     public void hover (double mx, double my) {
         inventory inv = getInventory();
         hovered = null;
+        if (build) {
+            saveButton.hover(mx, my);
+            backButton.hover(mx, my);
+        }
         if (chest != null) {
             int index = chestGrid.indexAt(mx, my, chest);
             if (index >= 0 && chest.get(index) != null) hovered = chest.get(index).getItem();

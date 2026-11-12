@@ -68,6 +68,9 @@ public class tileType implements picture {
 
     public int getId () {return this.id;}
 
+    //Whether stepping on it does something (a door, a gate, a healing pad...)
+    public boolean hasFunction () {return pressurePlate != null || teleportTarget;}
+
     //The one colour the tile is drawn in when zoomed far out (see gameHandler.flatView, chunks.drawFlat). Worked out
     //from the texture (the colour most of its pixels have, see flatPixels) unless set by hand in tileTypes
     private Color primaryColor;

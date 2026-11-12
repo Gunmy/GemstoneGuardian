@@ -155,6 +155,15 @@ public class guiBattle extends guiElement {
         drawHealth(gc, battle.getYou(), battle.getYourBar(), 20*s, 20*s);
         drawHealth(gc, battle.getThem(), battle.getTheirBar(), width - barWidth*s - 20*s, 20*s);
 
+        if (battle.waitingForOther(gui.getHandler())) {
+            //A 1v1 waiting for the other player: a small panel where the moves would be, with the waiting sign
+            double w = 300*s, h = 64*s;
+            double px = Math.round((width - w)/2), py = Math.round(height - h - 12*s);
+            gui.getSkin().drawPanel(gc, px, py, w, h);
+            guiWaiting.draw(gc, gui, px + 34*s, py + h/2, 36*s);
+            guiText.draw(gc, "Waiting for " + battle.getDuel().getTheirName(), px + 62*s, py + h/2 - guiText.height(12*s)/2, 12*s, Color.BLACK);
+        }
+
         if (!panelShown()) {
             //Picking a move hides the panel; the popups start from hidden when it comes back
             java.util.Arrays.fill(popup, 0);

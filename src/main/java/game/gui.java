@@ -172,6 +172,12 @@ public class gui {
         else openGiveItems();
     }
 
+    //The inventory opened over the main menu to edit a 1v1 build (guiDuelMenu): with a catalogue above it, and save run
+    //when its Save button is pressed (Back and escape close it without)
+    public void openBuildInventory (slotGroup catalogue, String title, Runnable save) {
+        inventoryScreen.openForBuild(catalogue, title, save);
+    }
+
     public void closeInventory () {
         inventoryScreen.setVisible(false);
     }
@@ -211,7 +217,8 @@ public class gui {
 
     //Escape backs out of whatever is open, and opens the settings when nothing is
     public void escape () {
-        if (handler.inMenu() && settingsOpen()) closeSettings();
+        if (handler.inMenu() && inventoryOpen()) closeInventory();
+        else if (handler.inMenu() && settingsOpen()) closeSettings();
         else if (handler.inMenu()) mainMenu.back();
         else if (teleportsOpen()) teleportScreen.setVisible(false);
         else if (settingsOpen()) closeSettings();
@@ -344,7 +351,7 @@ public class gui {
         battleScreen.setVisible(!menu && handler.getBattle().isActive());
         dialogueBox.setVisible(!menu && handler.getDiealoguecontainer().isActive());
         //The visuals page opened from the main menu is shown in its place
-        mainMenu.setVisible(menu && !settingsOpen() && !menuLeaving);
+        mainMenu.setVisible(menu && !settingsOpen() && !menuLeaving && !inventoryOpen());
 
         interactions.newFrame();
         gc.setGlobalAlpha(1);
@@ -428,8 +435,8 @@ public class gui {
     public boolean scroll (double mx, double my, double delta) {
         //An open menu takes all scrolling, so the world does not zoom behind it
         if (settingsOpen() || teleportsOpen()) return true;
-        if (handler.inMenu()) return mainMenu.scroll(mx, my, delta);
         if (inventoryOpen()) return inventoryScreen.scroll(mx, my, delta);
+        if (handler.inMenu()) return mainMenu.scroll(mx, my, delta);
 
         for (int i = elements.size()-1; i >= 0; i--) {
             guiElement element = elements.get(i);

@@ -102,8 +102,14 @@ public class controller implements gameLauncher {
 
     //A whole new game: the campaign built fresh, with the save laid over it (null is the main menu)
     private void start (saveFile save) {
+        start(save, null);
+    }
+
+    private void start (saveFile save, duel fight) {
+        //The game left behind lets go of what it holds (a 1v1's connection)
+        if (handler != null) handler.close();
         dialogueContainer = new dialogueContainer();
-        handler = new gameHandler(canvas, dialogueContainer, new battle(), images, this, save);
+        handler = new gameHandler(canvas, dialogueContainer, new battle(), images, this, save, fight);
         canvas.requestFocus();
     }
 
@@ -128,8 +134,20 @@ public class controller implements gameLauncher {
         };
     }
 
+    @Override
+    public void duel (duel fight) {
+        pendingSwitch = () -> {
+            guiElement leaving = handler.getGui().getMainMenu();
+            start(null, fight);
+            handler.openFromBlack(leaving);
+        };
+    }
+
     //Called when the window is closed
     public void shutdown () {
-        if (handler != null) handler.saveGame();
+        if (handler != null) {
+            handler.saveGame();
+            handler.close();
+        }
     }
 }

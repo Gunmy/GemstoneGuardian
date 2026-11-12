@@ -31,6 +31,23 @@ public class battle {
         resetBattle();
     }
 
+    //A 1v1 against another player (see duel), null in the campaign. The host plays the other player's moves as the
+    //opponent's turn; the other player's fight only shows what the host sends and sends its moves
+    private duel duel;
+    public void setDuel (duel duel) {this.duel = duel;}
+    private boolean mirror () {return duel != null && !duel.isHost();}
+
+    //A 1v1 waiting for the other player to pick their move (its messages read): guiBattle shows the waiting sign
+    public boolean waitingForOther (gameHandler handler) {
+        if (duel == null || !activeBattle || waitingForPlayer) return false;
+        if (handler.getDiealoguecontainer().isActive() || handler.getDiealoguecontainer().hasNext()) return false;
+        return duel.isHost() ? !opponentDoneMove : !duel.isMyTurn();
+    }
+    public duel getDuel () {return this.duel;}
+
+    //The other player left: the fight stops where it is
+    public void endDuel () {resetBattle();}
+
     public character getTurnHaver () {
         if (opponentDoneMove) return you;
         return them;
@@ -92,6 +109,12 @@ public class battle {
         gemstone stone = you.getGemstone();
         if (stone == null) return;
 
+        if (mirror()) {
+            boolean left = n == 0 ? stone.ability1usesLeft() : n == 1 ? stone.ability2usesLeft() : stone.ability3usesLeft();
+            if (left) {duel.sendAction("ability", n); endTurn();}
+            return;
+        }
+
         dialogueContainer messages = you.getHandler().getDiealoguecontainer();
         if (n == 0 && stone.ability1usesLeft()) {messages.grouped(() -> stone.ability1(you, them)); endTurn();}
         if (n == 1 && stone.ability2usesLeft()) {messages.grouped(() -> stone.ability2(you, them)); endTurn();}
@@ -102,6 +125,12 @@ public class battle {
     public void useItem (item item) {
         if (!waitingForPlayer) return;
         if (item instanceof gemstone && you.getGemstone() == item) return;
+        if (mirror()) {
+            //Only rocks are in a 1v1 build: using one equips it
+            int slot = game.duel.rockSlot(you, item);
+            if (slot >= 0) {duel.sendAction("rock", slot); endTurn();}
+            return;
+        }
 
         you.getHandler().getDiealoguecontainer().grouped(() -> {
             item.use(you, them);
@@ -112,6 +141,11 @@ public class battle {
 
     public void giveUp () {
         if (!waitingForPlayer) return;
+        if (mirror()) {
+            duel.sendAction("giveup", 0);
+            endTurn();
+            return;
+        }
         you.kill();
         endTurn();
     }
@@ -131,9 +165,45 @@ public class battle {
         }
     }
 
-    private void opponentMove () {
+    //False while waiting for the other player in a 1v1
+    private boolean opponentMove () {
+        if (duel != null) {
+            String[] action = duel.takeAction();
+            if (action == null) {
+                duel.waitingForThem();
+                return false;
+            }
+            playTheirs(action);
+            duel.theirMoveDone();
+            opponentDoneMove = true;
+            return true;
+        }
         them.getHandler().getDiealoguecontainer().grouped(() -> them.autoMaticMove(you));
         opponentDoneMove = true;
+        return true;
+    }
+
+    //The other player's move in a 1v1 (ACT kind n, see duel), played for them like the player's own
+    private void playTheirs (String[] action) {
+        String kind = action[1];
+        int n;
+        try {
+            n = Integer.parseInt(action[2]);
+        } catch (NumberFormatException e) {
+            return;
+        }
+        dialogueContainer messages = them.getHandler().getDiealoguecontainer();
+        gemstone stone = them.getGemstone();
+        if (kind.equals("ability") && stone != null) {
+            if (n == 0 && stone.ability1usesLeft()) messages.grouped(() -> stone.ability1(them, you));
+            if (n == 1 && stone.ability2usesLeft()) messages.grouped(() -> stone.ability2(them, you));
+            if (n == 2 && stone.ability3usesLeft()) messages.grouped(() -> stone.ability3(them, you));
+        } else if (kind.equals("rock") && n >= 0 && n < inventory.ACTIVE) {
+            itemStack stack = them.getInventory().get(inventory.slotKind.ROCK, n);
+            if (stack != null && stack.getItem() != stone) messages.grouped(() -> stack.getItem().use(them, you));
+        } else if (kind.equals("giveup")) {
+            them.kill();
+        }
     }
 
     private void resetBattle () {
@@ -152,6 +222,14 @@ public class battle {
     }
 
     private boolean checkForDead (gameHandler handler) {
+        if (duel != null && (you.getHealth() <= 0.5 || them.getHealth() <= 0.5)) {
+            //A 1v1 ends with who won, and both go back to the menu once it is read (no xp, drops or second try)
+            String winner = you.getHealth() <= 0.5 ? them.getName() : you.getName();
+            handler.getDiealoguecontainer().add(new dialogue("Game", winner + " won the 1v1"));
+            duel.finish();
+            resetBattle();
+            return true;
+        }
         if (you.getHealth() <= 0.5 || them.getHealth() <= 0.5) {
 
             if (you.getHealth() <= 0.5) {
@@ -183,12 +261,23 @@ public class battle {
 
     public void carryOn (gameHandler handler) {
 
+        if (mirror()) {
+            //The other player's fight: the panel comes up when the host says it is our turn and its messages are read
+            if (!handler.getDiealoguecontainer().isActive() && !handler.getDiealoguecontainer().hasNext() && duel.isMyTurn()) {
+                waitingForPlayer = true;
+            }
+            if (you != null) {
+                yourBar += (you.getShownHealthPercentage()-yourBar)*0.1;
+                theirBar += (them.getShownHealthPercentage()-theirBar)*0.1;
+            }
+            return;
+        }
+
         if (!checkForDead(handler) && !handler.getDiealoguecontainer().isActive() && !waitingForPlayer) {
             if (opponentDoneMove) {
                 waitingForPlayer = true;
             } else {
-                opponentMove();
-                if (!checkForDead(handler)) {
+                if (opponentMove() && !checkForDead(handler)) {
                     //Each one's burning, poison and healing with the damage it does
                     handler.getDiealoguecontainer().grouped(() -> you.updateEffects());
                     handler.getDiealoguecontainer().grouped(() -> them.updateEffects());

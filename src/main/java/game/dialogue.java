@@ -16,6 +16,19 @@ public class dialogue {
     //Run once when the message comes on screen, so what it describes (a health bar dropping...) happens then
     private Runnable onShow;
 
+    //Played for as long as the message is on screen (a move's lightning, hearts, flames...), see battleAnimation
+    private java.util.List<battleAnimation.playing> animations = new java.util.ArrayList<battleAnimation.playing>();
+    public dialogue animate (battleAnimation.playing animation) {
+        if (animation != null) animations.add(animation);
+        return this;
+    }
+    public java.util.List<battleAnimation.playing> getAnimations () {return this.animations;}
+
+    //One frame of its animations, while it is the message on screen
+    public void playAnimations (gameHandler handler, double deltaTime) {
+        for (battleAnimation.playing a : animations) a.next(handler, deltaTime);
+    }
+
     public dialogue (character character, String text) {
         this.c = character;
         this.text = text;
@@ -52,6 +65,7 @@ public class dialogue {
             if (combined.border == null) combined.border = d.border;
             if (combined.picture == null) combined.picture = d.picture;
         }
+        for (dialogue d : parts) combined.animations.addAll(d.animations);
         java.util.List<Runnable> shows = new java.util.ArrayList<Runnable>();
         for (dialogue d : parts) if (d.onShow != null) shows.add(d.onShow);
         if (!shows.isEmpty()) combined.onShow = () -> shows.forEach(Runnable::run);

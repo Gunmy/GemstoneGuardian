@@ -1,0 +1,663 @@
+package game;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+
+//What a move looks like in battle: particles and lightning between and around the two fighters, given off for as long
+//as the move's message is on screen (gameHandler.next plays the animations of the dialogue being shown, see dialogue
+//.animate) and fading out after it is clicked away. Made of parts, each giving off so many particles a second:
+//- stream: things flying from the user to the target in an arc (rocks, shards, drops, fire), back: the other way
+//- beam: a solid ray from the user into the target, with a white hot core, a pulsing glow and sparks flying off it
+//- bolt: lightning from the user to the target, skybolt: out of the sky onto the target
+//- impact: sparks bursting out of one of them
+//- rise: things floating up off one of them (hearts, bubbles, flames, smoke)
+//- orbit: things circling one of them's head (stars when confused)
+//- rain: things falling onto one of them from above
+//- swirl: a spiral round one of them
+//- ring: a shockwave along the ground at one of them's feet
+//- toss: copies of the rock (its own tinted icon) thrown in arcs, skip: one skipping along the ground, bouncing
+//- roll: a big copy of the rock rolling along the ground into the target, kicking up dust
+//- meteor: a big copy of the rock coming down out of the sky onto the target, with a trail of fire behind it
+//- lunge: the user's sprite steps at the target now and then (a throw, a punch), shake: the target's shakes when hit
+//- quake: the camera shaking, hard at first and settling
+//- fountain: a spray of sparks shooting up off one of them and raining back down
+//- formation: a big pixel picture made of particles (a heart, a skull, a bolt...) floating up over one of them
+//- shout: a word thrown up off one of them once
+//- number: once, a damage (or healing) number thrown up off them that grows as it goes and falls back (forNumber)
+//Each move has a small chance (lucky) of its surprise version: its own extra parts if it has some (rare), and always a
+//jackpot of gold confetti, a golden star and a word ("WOW!") on top. Everything gives off RATE_SCALE times as much and
+//SIZE_SCALE times as big as written, so the whole lot can be turned up or down in one place.
+//Every gemstone move has one (gemstones, gemstone.animations), the rest fall back on their abilityType (forType).
+//Burn, poison and healing ticks have theirs (forEffect), and a failed move a puff of smoke (failed)
+public class battleAnimation {
+
+    //Everything a part gives off, times this many, times this big
+    public static final double RATE_SCALE = 1.7, SIZE_SCALE = 1.0;
+    //How often a move comes out lucky
+    public static final double LUCKY_CHANCE = 0.08;
+
+    //---- Colours (all from the game's own palette) ----
+    public static final String[] GREY = {"#9A9A9A", "#BEBEBE", "#6E6E6E", "#D0D0C0"};
+    public static final String[] PEBBLE = {"#C0C0C0", "#E0E0E0", "#9A9A9A"};
+    public static final String[] BROWN = {"#8A6A4A", "#A08860", "#6E5A48", "#B99B65"};
+    public static final String[] FIRE = {"#FF0800", "#FC9F00", "#FFFA00", "#FF6A20"};
+    public static final String[] LAVA = {"#FF6A20", "#F21C00", "#FC9F00", "#FFAF30"};
+    public static final String[] EMBER = {"#FC9F00", "#FFE500", "#FF6A20"};
+    public static final String[] SMOKE = {"#6E6E6E", "#8A8A8A", "#505050", "#3C3C3C"};
+    public static final String[] STEAM = {"#E0D8D8", "#F0F0F4", "#C8C8C8"};
+    public static final String[] YELLOW = {"#FFE500", "#FFFA00", "#FFFFFF", "#F0D040"};
+    public static final String[] HEARTS = {"#FF4060", "#FF90B0", "#FF2050", "#FFC0D0"};
+    public static final String[] POISON = {"#60D040", "#21FF2C", "#8CFF90", "#3A8A2A"};
+    public static final String[] PURPLE = {"#D060FF", "#887BFE", "#B4A8FF", "#D040D0"};
+    public static final String[] STARS = {"#FFE500", "#FFFFFF", "#FFFA00"};
+    public static final String[] ICE = {"#7CC8FF", "#D8F4FF", "#FFFFFF", "#A0D0E0"};
+    public static final String[] WATER = {"#3C8CE8", "#79BCCE", "#A0D0E0", "#4A9CF0"};
+    public static final String[] SAND = {"#FFE8A8", "#E0C080", "#C8A46E", "#B99B65"};
+    public static final String[] SALT = {"#F2EEE6", "#FFFFFF", "#D8D8D0"};
+    public static final String[] COPPER = {"#C87533", "#F0A050", "#FFE080"};
+    public static final String[] COAL = {"#3A3634", "#2E2A28", "#6E6E6E"};
+    public static final String[] RADIATION = {"#60E040", "#B0FF80", "#21FF2C", "#D8FFD8"};
+    public static final String[] COSMIC = {"#887BFE", "#B4A8FF", "#6A7A9A", "#FFFFFF"};
+    public static final String[] RAINBOW = {"#FF0800", "#FC9F00", "#FFE500", "#21FF2C", "#3888DD", "#887BFE", "#FF70FF"};
+    public static final String[] CLEAN = {"#FFFFFF", "#D8F4FF", "#8EDCF2"};
+    public static final String[] PINK = {"#FF90B0", "#FFC0D0", "#FFFFFF", "#C878FF"};
+    public static final String[] OBSIDIAN = {"#5A4A6A", "#8A6A9A", "#3C2B46"};
+    public static final String[] GLASS = {"#F6FCFF", "#D8F4FF", "#FFFFFF", "#B8C0D0"};
+    public static final String[] HURT = {"#FF0800", "#CC0D00", "#FF4060"};
+    public static final String[] GOLD = {"#FFE500", "#FFFA00", "#FC9F00", "#FFFFFF", "#E0C040"};
+    public static final String[] CONFETTI = {"#FF0800", "#FC9F00", "#FFE500", "#21FF2C", "#3888DD", "#887BFE", "#FF70FF", "#FFFFFF"};
+
+    //---- Shapes (pixel pictures, made in code) ----
+    public static final boolean[][] HEART = guiParticle.HEART;
+    public static final boolean[][] STAR = guiParticle.pixels(".X.", "XXX", ".X.");
+    public static final boolean[][] SPARK = guiParticle.pixels("X.X", ".X.", "X.X");
+    public static final boolean[][] DROP = guiParticle.pixels(".X.", ".X.", "XXX", "XXX", ".X.");
+    public static final boolean[][] SHARD = guiParticle.pixels("X..", "XX.", ".XX", "..X");
+    public static final boolean[][] BUBBLE = guiParticle.pixels(".XX.", "X..X", "X..X", ".XX.");
+    public static final boolean[][] FLAME = guiParticle.pixels(".X.", ".XX", "XXX", "XXX", ".X.");
+    public static final boolean[][] CHUNK = guiParticle.pixels(".XX.", "XXXX", "XXXX", ".XX.");
+    public static final boolean[][] SNOW = guiParticle.pixels("X.X", ".X.", "X.X");
+
+    //Big pictures for formation, a particle per X
+    public static final boolean[][] BIG_HEART = guiParticle.pixels(
+        ".XX...XX.", "XXXX.XXXX", "XXXXXXXXX", "XXXXXXXXX", ".XXXXXXX.", "..XXXXX..", "...XXX...", "....X....");
+    public static final boolean[][] BIG_STAR = guiParticle.pixels(
+        "....X....", "...XXX...", "XXXXXXXXX", ".XXXXXXX.", "..XXXXX..", ".XX...XX.", "X.......X");
+    public static final boolean[][] SKULL = guiParticle.pixels(
+        ".XXXXX.", "XXXXXXX", "X..X..X", "XXXXXXX", ".XX.XX.", ".X.X.X.");
+    public static final boolean[][] BOLT_SIGN = guiParticle.pixels(
+        "...XX", "..XX.", ".XXXX", "..XX.", ".XX..", "XX...");
+    public static final boolean[][] FIRE_SIGN = guiParticle.pixels(
+        "...X...", "..XX...", "..XXX..", ".XXXXX.", "XXXXXXX", "XXXXXXX", ".XXXXX.");
+    public static final boolean[][] SNOWFLAKE = guiParticle.pixels(
+        "X..X..X", ".X.X.X.", "..XXX..", "XXXXXXX", "..XXX..", ".X.X.X.", "X..X..X");
+    public static final boolean[][] QUESTION = guiParticle.pixels(
+        ".XXX.", "X...X", "...X.", "..X..", ".....", "..X..");
+    public static final boolean[][] CROSS = guiParticle.pixels(
+        "..X..", "..X..", "XXXXX", "..X..", "..X..");
+    public static final boolean[][] RING = guiParticle.pixels(
+        "..XXX..", ".X...X.", "X.....X", "X.....X", "X.....X", ".X...X.", "..XXX..");
+    public static final boolean[][] SMILE = guiParticle.pixels(
+        ".XXXXX.", "X.....X", "X.X.X.X", "X.....X", "X.X.X.X", "X..X..X", ".XXXXX.");
+    public static final boolean[][] RADIATION_SIGN = guiParticle.pixels(
+        ".XX.XX.", "XXX.XXX", "XX...XX", "...X...", ".......", "..XXX..", ".XXXXX.");
+
+    //One part of an animation: what it gives off each frame, between the user and the target
+    private interface part {
+        void spawn (scene at, double dt);
+    }
+
+    //Where the two fighters are this frame, for the parts
+    private static class scene {
+        gameHandler handler;
+        character user, target;
+        Random rdm;
+        double age;
+        double t;
+        int world;
+        double[] carry;
+        //Whatever a part needs to keep between frames (when it last let go of something...)
+        double[] memo;
+        int index;
+
+        //How many to give off this frame at that rate a second (the leftover share is kept for the next frame)
+        int count (double rate, double dt) {
+            carry[index] += rate*RATE_SCALE*dt;
+            int n = (int) carry[index];
+            carry[index] -= n;
+            return n;
+        }
+
+        //Exactly that rate, not scaled (rings, rolls and the like, which are one thing at a time)
+        int once (double rate, double dt) {
+            carry[index] += rate*dt;
+            int n = (int) carry[index];
+            carry[index] -= n;
+            return n;
+        }
+
+        character who (boolean onTarget) {return onTarget ? target : user;}
+        //The middle of a fighter's body (its sprite is a tile drawn half a tile up from its place)
+        double cx (character c) {return c.getX() + 0.5*t;}
+        double cy (character c) {return c.getY() + 0.05*t;}
+        double headY (character c) {return c.getY() - 0.35*t;}
+        double feetY (character c) {return c.getY() + 0.42*t;}
+
+        String pick (String[] colors) {return colors[rdm.nextInt(colors.length)];}
+
+        void add (battleParticle p) {handler.addFrontParticle(p.scale(SIZE_SCALE));}
+
+        //A rock of this colour as a picture (the sheet's rock, tinted like the rock items are)
+        javafx.scene.image.Image rock (String hex) {return handler.getImages().getTinted(guiSkin.ROCK_X, guiSkin.GUI_Y, hex);}
+    }
+
+    private List<part> parts = new ArrayList<part>();
+
+    //---- The parts. Sizes are in tiles, rates in particles (or strikes) a second ----
+
+    //Things flying from the user to the target in an arc (arc: how high above the straight line, in tiles), taking
+    //travel seconds, with a little spread. They land and fade on the target
+    public battleAnimation stream (String[] colors, double rate, double size, boolean[][] shape, double travel, double arc) {
+        return flight(false, colors, rate, size, shape, travel, arc);
+    }
+
+    //The same from the target to the user (a drain: hearts taken from them)
+    public battleAnimation back (String[] colors, double rate, double size, boolean[][] shape, double travel, double arc) {
+        return flight(true, colors, rate, size, shape, travel, arc);
+    }
+
+    private battleAnimation flight (boolean reverse, String[] colors, double rate, double size, boolean[][] shape, double travel, double arc) {
+        parts.add((at, dt) -> {
+            for (int i = at.count(rate, dt); i > 0; i--) {
+                character from = reverse ? at.target : at.user, to = reverse ? at.user : at.target;
+                double x0 = at.cx(from) + (at.rdm.nextDouble() - 0.5)*0.3*at.t, y0 = at.cy(from) + (at.rdm.nextDouble() - 0.5)*0.4*at.t;
+                double x1 = at.cx(to) + (at.rdm.nextDouble() - 0.5)*0.4*at.t, y1 = at.cy(to) + (at.rdm.nextDouble() - 0.5)*0.5*at.t;
+                double time = travel*(0.85 + at.rdm.nextDouble()*0.3);
+                //Thrown up so it comes down on the target after time seconds: y0 + vy*T + g*T*T/2 = y1
+                double g = arc > 0 ? 8*arc*at.t/(time*time) : 0;
+                double vx = (x1 - x0)/time, vy = (y1 - y0)/time - g*time/2;
+                battleParticle p = new battleParticle(at.handler, at.world, x0, y0, vx, vy, time*1.15, size*at.t*(0.8 + at.rdm.nextDouble()*0.4), at.pick(colors)).gravity(g);
+                if (shape != null) p.shape(shape);
+                else p.spin(at.rdm.nextDouble()*2 - 1);
+                at.add(p);
+            }
+        });
+        return this;
+    }
+
+    //A solid ray from the user's hand into the target: every frame it is filled in along its length with short-lived
+    //small particles, a thin white hot core in the middle and the glow (colors) round it, the glow's width pulsing
+    //(width in tiles, how far they spread). Sparks fly off it sideways now and then
+    public battleAnimation beam (String[] colors, double width) {
+        parts.add((at, dt) -> {
+            double x0 = at.cx(at.user) + Math.signum(at.target.getX() - at.user.getX())*0.3*at.t, y0 = at.cy(at.user) - 0.05*at.t;
+            double x1 = at.cx(at.target), y1 = at.cy(at.target);
+            double length = Math.hypot(x1 - x0, y1 - y0);
+            if (length <= 0) return;
+            double nx = -(y1 - y0)/length, ny = (x1 - x0)/length;
+            double pulse = 0.75 + 0.25*Math.sin(at.age*24);
+            //Enough to fill the ray this frame, the more the longer it is
+            int pieces = (int) Math.max(8, length/at.t*30*RATE_SCALE);
+            for (int i = 0; i < pieces; i++) {
+                double f = at.rdm.nextDouble(), side = (at.rdm.nextDouble() - 0.5)*width*at.t*pulse;
+                boolean core = i % 3 == 0;
+                double x = x0 + (x1 - x0)*f + nx*(core ? side*0.2 : side), y = y0 + (y1 - y0)*f + ny*(core ? side*0.2 : side);
+                //Small specks, many of them: the width only spreads them out
+                double size = (core ? 0.03 : 0.035 + at.rdm.nextDouble()*0.03)*at.t;
+                at.add(new battleParticle(at.handler, at.world, x, y, (x1 - x0)/length*0.8*at.t, (y1 - y0)/length*0.8*at.t,
+                    0.06 + at.rdm.nextDouble()*0.06, size, core ? "#FFFFFF" : at.pick(colors)));
+            }
+            for (int i = at.count(14, dt); i > 0; i--) {
+                double f = at.rdm.nextDouble(), out = (at.rdm.nextBoolean() ? 1 : -1)*(0.8 + at.rdm.nextDouble()*1.4)*at.t;
+                at.add(new battleParticle(at.handler, at.world, x0 + (x1 - x0)*f, y0 + (y1 - y0)*f, nx*out, ny*out,
+                    0.3 + at.rdm.nextDouble()*0.3, 0.04*at.t, at.pick(colors)).drag(3).grow(-0.6).shape(SPARK));
+            }
+        });
+        return this;
+    }
+
+    //Lightning from the user to the target, rate strikes a second, ending somewhere on their body
+    public battleAnimation bolt (String color, double rate) {
+        parts.add((at, dt) -> {
+            for (int i = at.count(rate, dt); i > 0; i--) {
+                at.handler.strike(at.world, at.cx(at.user), at.cy(at.user) - 0.1*at.t,
+                    at.cx(at.target) + (at.rdm.nextDouble() - 0.5)*0.5*at.t, at.cy(at.target) + (at.rdm.nextDouble() - 0.5)*0.6*at.t, color);
+            }
+        });
+        return this;
+    }
+
+    //Lightning striking down out of the sky onto the target, rate strikes a second
+    public battleAnimation skybolt (String color, double rate) {
+        parts.add((at, dt) -> {
+            for (int i = at.count(rate, dt); i > 0; i--) {
+                double x = at.cx(at.target) + (at.rdm.nextDouble() - 0.5)*0.6*at.t;
+                at.handler.strike(at.world, x + (at.rdm.nextDouble() - 0.5)*1.2*at.t, at.headY(at.target) - 3*at.t,
+                    x, at.cy(at.target) + (at.rdm.nextDouble() - 0.5)*0.4*at.t, color);
+            }
+        });
+        return this;
+    }
+
+    //Sparks bursting out of one of them in every direction, slowing down and falling a little
+    public battleAnimation impact (boolean onTarget, String[] colors, double rate, double size) {
+        parts.add((at, dt) -> {
+            character c = at.who(onTarget);
+            for (int i = at.count(rate, dt); i > 0; i--) {
+                double angle = at.rdm.nextDouble()*2*Math.PI, speed = (0.6 + at.rdm.nextDouble()*1.6)*at.t;
+                at.add(new battleParticle(at.handler, at.world, at.cx(c) + (at.rdm.nextDouble() - 0.5)*0.3*at.t, at.cy(c) + (at.rdm.nextDouble() - 0.5)*0.3*at.t,
+                    Math.cos(angle)*speed, Math.sin(angle)*speed - 0.3*at.t, 0.35 + at.rdm.nextDouble()*0.4, size*at.t*(0.6 + at.rdm.nextDouble()*0.8), at.pick(colors))
+                    .gravity(2.5*at.t).drag(2.5).spin(at.rdm.nextDouble()*2 - 1).grow(-0.6));
+            }
+        });
+        return this;
+    }
+
+    //Things floating up off one of them, swaying a little and fading at the top
+    public battleAnimation rise (boolean onTarget, String[] colors, double rate, double size, boolean[][] shape) {
+        parts.add((at, dt) -> {
+            character c = at.who(onTarget);
+            for (int i = at.count(rate, dt); i > 0; i--) {
+                double x = at.cx(c) + (at.rdm.nextDouble() - 0.5)*0.7*at.t, y = at.cy(c) + (at.rdm.nextDouble() - 0.2)*0.5*at.t;
+                battleParticle p = new battleParticle(at.handler, at.world, x, y, (at.rdm.nextDouble() - 0.5)*0.15*at.t, -(0.35 + at.rdm.nextDouble()*0.35)*at.t,
+                    0.8 + at.rdm.nextDouble()*0.6, size*at.t*(0.7 + at.rdm.nextDouble()*0.6), at.pick(colors));
+                if (shape != null) p.shape(shape);
+                else p.grow(-0.4);
+                at.add(p);
+            }
+        });
+        return this;
+    }
+
+    //Things circling one of them's head, round and round while the message is up
+    public battleAnimation orbit (boolean onTarget, String[] colors, double rate, double size, boolean[][] shape) {
+        parts.add((at, dt) -> {
+            character c = at.who(onTarget);
+            for (int i = at.count(rate, dt); i > 0; i--) {
+                //Placed on the ring where it is now and sent along it: short-lived, so one after another they go round
+                double angle = at.age*4 + at.rdm.nextDouble()*2*Math.PI, r = 0.33*at.t;
+                double x = at.cx(c) + Math.cos(angle)*r, y = at.headY(c) + Math.sin(angle)*r*0.35;
+                double speed = 4*r;
+                battleParticle p = new battleParticle(at.handler, at.world, x, y, -Math.sin(angle)*speed, Math.cos(angle)*speed*0.35,
+                    0.25 + at.rdm.nextDouble()*0.2, size*at.t, at.pick(colors));
+                if (shape != null) p.shape(shape);
+                at.add(p);
+            }
+        });
+        return this;
+    }
+
+    //Things falling onto one of them from above (meteors, lava, snow, rain)
+    public battleAnimation rain (boolean onTarget, String[] colors, double rate, double size, boolean[][] shape) {
+        parts.add((at, dt) -> {
+            character c = at.who(onTarget);
+            for (int i = at.count(rate, dt); i > 0; i--) {
+                double x = at.cx(c) + (at.rdm.nextDouble() - 0.5)*0.9*at.t, y = at.headY(c) - (0.9 + at.rdm.nextDouble()*0.5)*at.t;
+                double fall = at.feetY(c) - y, time = 0.45 + at.rdm.nextDouble()*0.2;
+                battleParticle p = new battleParticle(at.handler, at.world, x, y, (at.rdm.nextDouble() - 0.5)*0.2*at.t, fall/time*0.6,
+                    time, size*at.t*(0.7 + at.rdm.nextDouble()*0.6), at.pick(colors)).gravity(fall/(time*time)*0.8);
+                if (shape != null) p.shape(shape);
+                else p.spin(at.rdm.nextDouble()*2 - 1);
+                at.add(p);
+            }
+        });
+        return this;
+    }
+
+    //A spiral round one of them: particles set off round the body and drift up while they go round
+    public battleAnimation swirl (boolean onTarget, String[] colors, double rate, double size) {
+        parts.add((at, dt) -> {
+            character c = at.who(onTarget);
+            for (int i = at.count(rate, dt); i > 0; i--) {
+                double angle = at.age*6 + at.rdm.nextDouble()*0.8, r = (0.35 + at.rdm.nextDouble()*0.15)*at.t;
+                double x = at.cx(c) + Math.cos(angle)*r, y = at.feetY(c) - at.rdm.nextDouble()*0.8*at.t;
+                double speed = 5*r;
+                at.add(new battleParticle(at.handler, at.world, x, y, -Math.sin(angle)*speed, -0.25*at.t,
+                    0.3 + at.rdm.nextDouble()*0.25, size*at.t*(0.7 + at.rdm.nextDouble()*0.6), at.pick(colors)).drag(1.5));
+            }
+        });
+        return this;
+    }
+
+    //A shockwave along the ground at one of them's feet: now and then a ring of particles flies out flat from there
+    public battleAnimation ring (boolean onTarget, String[] colors, double ringsPerSecond, double size) {
+        parts.add((at, dt) -> {
+            character c = at.who(onTarget);
+            for (int n = at.once(ringsPerSecond, dt); n > 0; n--) {
+                int count = 24;
+                for (int i = 0; i < count; i++) {
+                    double angle = 2*Math.PI*i/count, speed = 1.4*at.t;
+                    at.add(new battleParticle(at.handler, at.world, at.cx(c), at.feetY(c), Math.cos(angle)*speed, Math.sin(angle)*speed*0.3,
+                        0.45, size*at.t, at.pick(colors)).drag(3).grow(-0.5));
+                }
+            }
+        });
+        return this;
+    }
+
+    //Copies of the rock thrown from the user's hand in arcs, spinning, onto the target
+    public battleAnimation toss (String hex, double rate, double size, double travel, double arc) {
+        parts.add((at, dt) -> {
+            for (int i = at.count(rate, dt); i > 0; i--) {
+                double x0 = at.cx(at.user) + (at.target.getX() > at.user.getX() ? 0.3 : -0.3)*at.t, y0 = at.cy(at.user) - 0.1*at.t;
+                double x1 = at.cx(at.target) + (at.rdm.nextDouble() - 0.5)*0.4*at.t, y1 = at.cy(at.target) + (at.rdm.nextDouble() - 0.5)*0.4*at.t;
+                double time = travel*(0.85 + at.rdm.nextDouble()*0.3);
+                double g = 8*arc*at.t/(time*time);
+                at.add(new battleParticle(at.handler, at.world, x0, y0, (x1 - x0)/time, (y1 - y0)/time - g*time/2, time*1.1,
+                    size*at.t*(0.8 + at.rdm.nextDouble()*0.4), hex).gravity(g).image(at.rock(hex)).spin((at.rdm.nextDouble() - 0.5)*3));
+            }
+        });
+        return this;
+    }
+
+    //A rock skipped along the ground at the target: thrown low, it bounces a few times on the way
+    public battleAnimation skip (String hex, double rate, double size) {
+        parts.add((at, dt) -> {
+            for (int i = at.count(rate, dt); i > 0; i--) {
+                double ground = at.feetY(at.user);
+                double x0 = at.cx(at.user), x1 = at.cx(at.target), time = 0.9;
+                at.add(new battleParticle(at.handler, at.world, x0, ground - 0.2*at.t, (x1 - x0)/time, -1.2*at.t, time, size*at.t, hex)
+                    .gravity(9*at.t).bounce(ground, 0.65).image(at.rock(hex)).spin(2));
+            }
+        });
+        return this;
+    }
+
+    //A big copy of the rock rolling along the ground from the user into the target, every every seconds, turning as
+    //it rolls and kicking up dust (in dust's colours) behind it
+    public battleAnimation roll (String hex, double every, double size, String[] dust) {
+        double travel = 0.7;
+        parts.add((at, dt) -> {
+            double s = size*at.t*SIZE_SCALE;
+            double x0 = at.cx(at.user), x1 = at.cx(at.target), y = at.feetY(at.user) - s/2 + 0.05*at.t;
+            if (at.once(1/every, dt) > 0) {
+                double turns = (x1 - x0)/(Math.PI*s);
+                at.handler.addFrontParticle(new battleParticle(at.handler, at.world, x0, y, (x1 - x0)/travel, 0, travel*1.15, s, hex).image(at.rock(hex)).spin(turns*1.15));
+                at.memo[at.index] = at.age;
+            }
+            //Dust from under it while it is on its way
+            double since = at.age - at.memo[at.index];
+            if (since >= 0 && since < travel) {
+                double x = x0 + (x1 - x0)*since/travel;
+                for (int i = 0; i < 3; i++) {
+                    at.add(new battleParticle(at.handler, at.world, x - Math.signum(x1 - x0)*s*0.4, y + s*0.4, -Math.signum(x1 - x0)*at.rdm.nextDouble()*0.5*at.t,
+                        -(0.2 + at.rdm.nextDouble()*0.4)*at.t, 0.4 + at.rdm.nextDouble()*0.3, 0.06*at.t, at.pick(dust)).drag(2).grow(0.8));
+                }
+            }
+        });
+        return this;
+    }
+
+    //A big copy of the rock falling out of the sky onto the target every every seconds, from high up behind the user,
+    //with a trail of fire (trail's colours) behind it
+    public battleAnimation meteor (String hex, double every, double size, String[] trail) {
+        double travel = 0.55;
+        parts.add((at, dt) -> {
+            double s = size*at.t*SIZE_SCALE;
+            double side = at.target.getX() > at.user.getX() ? -1 : 1;
+            double x0 = at.cx(at.target) + side*1.4*at.t, y0 = at.headY(at.target) - 2.2*at.t;
+            double x1 = at.cx(at.target), y1 = at.cy(at.target);
+            if (at.once(1/every, dt) > 0) {
+                at.handler.addFrontParticle(new battleParticle(at.handler, at.world, x0, y0, (x1 - x0)/travel, (y1 - y0)/travel, travel, s, hex).image(at.rock(hex)).spin(1.5));
+                at.memo[at.index] = at.age;
+            }
+            double since = at.age - at.memo[at.index];
+            if (since >= 0 && since < travel) {
+                double x = x0 + (x1 - x0)*since/travel, y = y0 + (y1 - y0)*since/travel;
+                for (int i = 0; i < 4; i++) {
+                    at.add(new battleParticle(at.handler, at.world, x + (at.rdm.nextDouble() - 0.5)*s*0.5, y + (at.rdm.nextDouble() - 0.5)*s*0.5,
+                        0, -0.1*at.t, 0.3 + at.rdm.nextDouble()*0.25, s*0.2*(0.6 + at.rdm.nextDouble()*0.6), at.pick(trail)).grow(-0.7));
+                }
+            }
+        });
+        return this;
+    }
+
+    //The user steps at the target and back every every seconds, as if throwing or hitting (far: how far, in tiles)
+    public battleAnimation lunge (double every, double far) {
+        parts.add((at, dt) -> {
+            double phase = (at.age % every)/every;
+            //A quick step forward in the first third, back over the rest
+            double step = phase < 0.3 ? Math.sin(phase/0.3*Math.PI/2) : Math.cos((phase - 0.3)/0.7*Math.PI/2);
+            double dir = Math.signum(at.target.getX() - at.user.getX());
+            at.user.nudge(dir*step*far*at.t, -Math.abs(step)*0.05*at.t);
+        });
+        return this;
+    }
+
+    //The target (or the user, onTarget false) shaking from side to side, hard tiles a time
+    public battleAnimation shake (boolean onTarget, double hard) {
+        parts.add((at, dt) -> {
+            character c = at.who(onTarget);
+            c.nudge(Math.sin(at.age*55)*hard*at.t*(0.6 + 0.4*Math.sin(at.age*7)), 0);
+        });
+        return this;
+    }
+
+    //The camera shaking, hard (tiles) at first and settling over a second or so
+    public battleAnimation quake (double hard) {
+        parts.add((at, dt) -> {
+            double amount = hard*at.t*(0.25 + 0.75*Math.exp(-at.age*2.5));
+            at.handler.getCamera().shake(Math.sin(at.age*47)*amount, Math.cos(at.age*61)*amount*0.6);
+        });
+        return this;
+    }
+
+    //A spray of sparks shooting up off one of them, spreading out and raining back down
+    public battleAnimation fountain (boolean onTarget, String[] colors, double rate, double size, boolean[][] shape) {
+        parts.add((at, dt) -> {
+            character c = at.who(onTarget);
+            for (int i = at.count(rate, dt); i > 0; i--) {
+                double spread = (at.rdm.nextDouble() - 0.5)*1.6*at.t;
+                battleParticle p = new battleParticle(at.handler, at.world, at.cx(c) + (at.rdm.nextDouble() - 0.5)*0.2*at.t, at.cy(c),
+                    spread, -(2.2 + at.rdm.nextDouble()*1.4)*at.t, 0.9 + at.rdm.nextDouble()*0.5, size*at.t*(0.7 + at.rdm.nextDouble()*0.6), at.pick(colors))
+                    .gravity(4.5*at.t).spin(at.rdm.nextDouble()*2 - 1);
+                if (shape != null) p.shape(shape);
+                at.add(p);
+            }
+        });
+        return this;
+    }
+
+    //A big pixel picture (a particle for every X of shape) over one of them every every seconds, floating up as it
+    //fades, each particle in one of the colours
+    public battleAnimation formation (boolean onTarget, boolean[][] shape, String[] colors, double every, double cell) {
+        parts.add((at, dt) -> {
+            if (at.once(1/every, dt) == 0) return;
+            character c = at.who(onTarget);
+            int rows = shape.length, cols = shape[0].length;
+            double step = cell*at.t*SIZE_SCALE;
+            double left = at.cx(c) - (cols - 1)*step/2, top = at.headY(c) - 0.4*at.t - rows*step;
+            for (int r = 0; r < rows; r++) {
+                for (int col = 0; col < cols; col++) {
+                    if (!shape[r][col]) continue;
+                    at.handler.addFrontParticle(new battleParticle(at.handler, at.world, left + col*step, top + r*step,
+                        (at.rdm.nextDouble() - 0.5)*0.05*at.t, -0.35*at.t, 1.1 + at.rdm.nextDouble()*0.2, step*0.95, at.pick(colors)));
+                }
+            }
+        });
+        return this;
+    }
+
+    //A word (LUCKY!, WOW!...) thrown up off one of them once, bigger than a damage number
+    public battleAnimation shout (boolean onTarget, String text, String hex) {
+        parts.add((at, dt) -> {
+            if (at.memo[at.index] > -50) return;
+            at.memo[at.index] = at.age;
+            character c = at.who(onTarget);
+            at.add(new battleParticle(at.handler, at.world, at.cx(c), at.headY(c) - 0.5*at.t, 0, -1.4*at.t, 1.6, 0.22*at.t, hex)
+                .text(text).gravity(1.2*at.t).grow(1.2));
+        });
+        return this;
+    }
+
+    //A number thrown up off the target once (the first frame): small at first, growing as it goes up, then falling
+    public battleAnimation number (String text, String hex) {
+        parts.add((at, dt) -> {
+            if (at.memo[at.index] > -50) return;
+            at.memo[at.index] = at.age;
+            character c = at.target;
+            double side = (at.rdm.nextDouble() - 0.5)*0.6*at.t;
+            at.add(new battleParticle(at.handler, at.world, at.cx(c) + side, at.headY(c), side*1.2, -2.0*at.t, 1.3, 0.16*at.t, hex)
+                .text(text).gravity(3.2*at.t).grow(1.6));
+        });
+        return this;
+    }
+
+    //The surprise version of this move: these parts too, when it comes out lucky (see playing.roll)
+    private battleAnimation rare;
+    public battleAnimation rare (battleAnimation extra) {
+        this.rare = extra;
+        return this;
+    }
+
+    //What every lucky move gets on top: gold confetti, a golden star and a word
+    private static final String[] WORDS = {"WOW!", "LUCKY!", "BOOM!", "NICE!", "WHOA!", "EPIC!"};
+    private static battleAnimation jackpot (Random rdm) {
+        return new battleAnimation().fountain(true, CONFETTI, 40, 0.06, null).formation(false, BIG_STAR, GOLD, 0.6, 0.07)
+            .shout(false, WORDS[rdm.nextInt(WORDS.length)], "#FFE500").impact(false, GOLD, 20, 0.05);
+    }
+
+    //---- Damage numbers ----
+    public static final String DAMAGE = "#FF4040", BURN = "#FC9F00", POISONED = "#A8E040", HEALED = "#FF90B0";
+
+    private static String numberColor (boolean heal, picture cause) {
+        return heal ? HEALED : cause == abilityType.FIRE ? BURN : cause == abilityType.POISON ? POISONED : DAMAGE;
+    }
+
+    //The number for damage done (or healing, heal true) by what caused it (the dialogue's source: burn and poison
+    //get their own colour)
+    public static battleAnimation forNumber (double amount, boolean heal, picture cause) {
+        return new battleAnimation().number((heal ? "+" : "-") + Math.round(amount), numberColor(heal, cause));
+    }
+
+    //Its key for a 1v1: N:colour:text
+    public static String numberKey (double amount, boolean heal, picture cause) {
+        return "N:" + numberColor(heal, cause) + ":" + (heal ? "+" : "-") + Math.round(amount);
+    }
+
+    //---- Playing ----
+
+    //An animation playing between two fighters, for as long as its message is on screen. key says which it is, so a
+    //1v1 can send it over (see duel): M:rock name:move (ending :R when lucky), E:effect, F (failed), N:colour:number
+    public static class playing {
+        private final battleAnimation animation;
+        private final character user, target;
+        private final String key;
+        private final double[] carry, memo;
+        private double age = 0;
+        private final Random rdm = new Random();
+
+        public playing (battleAnimation animation, character user, character target, String key) {
+            //A lucky one (key ending :R, see roll) plays its surprise too
+            if (key.endsWith(":R")) {
+                battleAnimation all = new battleAnimation();
+                all.parts.addAll(animation.parts);
+                if (animation.rare != null) all.parts.addAll(animation.rare.parts);
+                all.parts.addAll(jackpot(new Random(key.hashCode())).parts);
+                animation = all;
+            }
+            this.animation = animation;
+            this.user = user;
+            this.target = target;
+            this.key = key;
+            this.carry = new double[animation.parts.size()];
+            this.memo = new double[animation.parts.size()];
+            //Every part lets go of its first one straight away
+            java.util.Arrays.fill(carry, 0.999);
+            java.util.Arrays.fill(memo, -100);
+        }
+
+        //A move used: lucky now and then (its key then ends :R, so a 1v1 plays the same surprise on both sides)
+        public static playing roll (battleAnimation animation, character user, character target, String key, Random rdm) {
+            return new playing(animation, user, target, rdm.nextDouble() < LUCKY_CHANCE ? key + ":R" : key);
+        }
+
+        public character getUser () {return this.user;}
+        public character getTarget () {return this.target;}
+        public String getKey () {return this.key;}
+
+        public void next (gameHandler handler, double dt) {
+            if (user == null || target == null || user.getWorld() != handler.getCurrentWorld()) return;
+            age += dt;
+            scene at = new scene();
+            at.handler = handler;
+            at.user = user;
+            at.target = target;
+            at.rdm = rdm;
+            at.age = age;
+            at.t = 1.0/handler.getTileCount();
+            at.world = user.getWorld();
+            at.carry = carry;
+            at.memo = memo;
+            for (int i = 0; i < animation.parts.size(); i++) {
+                at.index = i;
+                animation.parts.get(i).spawn(at, dt);
+            }
+        }
+    }
+
+    //The animation a key names (made again on the other side of a 1v1), null if unknown
+    public static battleAnimation fromKey (String key, itemRegistry registry) {
+        if (key.equals("F")) return failed();
+        if (key.startsWith("N:")) {
+            String[] f = key.split(":", 3);
+            return f.length == 3 ? new battleAnimation().number(f[2], f[1]) : null;
+        }
+        if (key.startsWith("E:")) {
+            try {
+                return forEffect(abilityType.valueOf(key.substring(2)));
+            } catch (IllegalArgumentException e) {
+                return null;
+            }
+        }
+        if (key.startsWith("M:")) {
+            //A lucky one's :R stays on the key (playing reads it), the move is what comes before it
+            if (key.endsWith(":R")) key = key.substring(0, key.length() - 2);
+            int split = key.lastIndexOf(':');
+            if (split <= 2) return null;
+            item rock = registry.make(key.substring(2, split));
+            if (!(rock instanceof gemstone)) return null;
+            try {
+                return ((gemstone) rock).getAnimation(Integer.parseInt(key.substring(split + 1)));
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    //---- Ready-made ones ----
+
+    //A move that failed: a puff of grey smoke off the user, and a question mark over them
+    public static battleAnimation failed () {
+        return new battleAnimation().rise(false, SMOKE, 10, 0.09, null).formation(false, QUESTION, SMOKE, 1.0, 0.04);
+    }
+
+    //A burn, poison or healing tick on whoever it is on (the user and the target are the same character)
+    public static battleAnimation forEffect (abilityType kind) {
+        switch (kind) {
+            case FIRE:   return new battleAnimation().rise(false, FIRE, 22, 0.07, FLAME).rise(false, SMOKE, 5, 0.08, null).impact(false, EMBER, 6, 0.04)
+                             .fountain(false, EMBER, 8, 0.04, FLAME).formation(false, FIRE_SIGN, FIRE, 1.0, 0.05);
+            case POISON: return new battleAnimation().rise(false, POISON, 14, 0.07, BUBBLE).rise(false, POISON, 6, 0.04, null)
+                             .formation(false, SKULL, POISON, 1.0, 0.05).shake(false, 0.015);
+            default:     return new battleAnimation().rise(false, HEARTS, 10, 0.08, HEART).formation(false, BIG_HEART, HEARTS, 1.0, 0.045);
+        }
+    }
+
+    //What a move does when its rock has nothing of its own for it
+    public static battleAnimation forType (abilityType kind) {
+        switch (kind) {
+            case FIRE:      return new battleAnimation().stream(FIRE, 14, 0.06, FLAME, 0.4, 0.3).rise(true, FIRE, 14, 0.07, FLAME).impact(true, EMBER, 10, 0.04);
+            case POISON:    return new battleAnimation().stream(POISON, 8, 0.06, DROP, 0.45, 0.5).rise(true, POISON, 12, 0.07, BUBBLE);
+            case CONFUSE:   return new battleAnimation().orbit(true, STARS, 16, 0.07, STAR).swirl(true, PURPLE, 12, 0.04);
+            case LIGHTNING: return new battleAnimation().bolt("#FFE500", 6).impact(true, YELLOW, 25, 0.05);
+            case HEAL:      return new battleAnimation().rise(false, HEARTS, 12, 0.08, HEART);
+            case DRAIN:     return new battleAnimation().impact(true, HURT, 15, 0.05).back(HEARTS, 8, 0.08, HEART, 0.6, 0.4);
+            case CLEANSE:   return new battleAnimation().rise(false, CLEAN, 14, 0.06, SPARK).swirl(false, CLEAN, 12, 0.04);
+            case RESTORE:   return new battleAnimation().orbit(false, PINK, 12, 0.07, STAR).rise(false, CLEAN, 12, 0.05, SPARK);
+            default:        return new battleAnimation().stream(GREY, 5, 0.1, CHUNK, 0.35, 0.4).impact(true, GREY, 15, 0.05);
+        }
+    }
+}

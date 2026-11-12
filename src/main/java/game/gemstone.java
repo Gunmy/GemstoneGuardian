@@ -16,6 +16,31 @@ public class gemstone extends item {
     private double ability1chance, ability2chance, ability3chance;
     private Random rdm = new Random();
 
+    //What each move looks like in battle (null: the default for its type, battleAnimation.forType). Set in gemstones
+    private battleAnimation[] animations = new battleAnimation[3];
+    public gemstone animations (battleAnimation move1, battleAnimation move2, battleAnimation move3) {
+        animations[0] = move1;
+        animations[1] = move2;
+        animations[2] = move3;
+        return this;
+    }
+
+    //n is 0, 1 or 2
+    public battleAnimation getAnimation (int n) {
+        if (n < 0 || n > 2) return null;
+        if (animations[n] != null) return animations[n];
+        abilityType[] types = {ability1type, ability2type, ability3type};
+        return battleAnimation.forType(types[n]);
+    }
+
+    //The message of a move used, with its animation playing while it is up (or the puff of a failed one)
+    private dialogue used (character you, character them, String text, int n, boolean worked) {
+        battleAnimation shown = worked ? getAnimation(n) : battleAnimation.failed();
+        String key = worked ? "M:" + getName() + ":" + n : "F";
+        if (!worked) return new dialogue(you, text).animate(new battleAnimation.playing(shown, you, them, key));
+        return new dialogue(you, text).animate(battleAnimation.playing.roll(shown, you, them, key, rdm));
+    }
+
     //Every gemstone is the same grey rock texture coloured in with color, and can give off particles
     public gemstone(
         String name, String color, itemParticles particles, gameHandler handler,
@@ -61,12 +86,12 @@ public class gemstone extends item {
     public void ability1 (character you, character them) {
         if (you == them) throw new IllegalArgumentException("Kan ikke slåss mot seg selv");
         if (rdm.nextDouble() <= chances(you).get(0)) {
-            handler.getDiealoguecontainer().add(new dialogue(you, "Used " + ability1name));
+            handler.getDiealoguecontainer().add(used(you, them, "Used " + ability1name, 0, true));
             handler.getDiealoguecontainer().setSource(ability1type);
             them.hitBy(you, () -> ability1.accept(you, them));
             handler.getDiealoguecontainer().clearSource();
         } else {
-            handler.getDiealoguecontainer().add(new dialogue(you, "Failed at using " + ability1name));
+            handler.getDiealoguecontainer().add(used(you, them, "Failed at using " + ability1name, 0, false));
         }
 
         ability1uses-=1;
@@ -82,12 +107,12 @@ public class gemstone extends item {
     public void ability2 (character you, character them) {
         
         if (rdm.nextDouble() <= chances(you).get(1)) {
-            handler.getDiealoguecontainer().add(new dialogue(you, "Used " + ability2name));
+            handler.getDiealoguecontainer().add(used(you, them, "Used " + ability2name, 1, true));
             handler.getDiealoguecontainer().setSource(ability2type);
             them.hitBy(you, () -> ability2.accept(you, them));
             handler.getDiealoguecontainer().clearSource();
         } else {
-            handler.getDiealoguecontainer().add(new dialogue(you, "Failed at using " + ability2name));
+            handler.getDiealoguecontainer().add(used(you, them, "Failed at using " + ability2name, 1, false));
         }
 
         ability2uses-=1;
@@ -98,12 +123,12 @@ public class gemstone extends item {
 
     public void ability3 (character you, character them) {
         if (rdm.nextDouble() <= chances(you).get(2)) {
-            handler.getDiealoguecontainer().add(new dialogue(you, "Used " + ability3name));
+            handler.getDiealoguecontainer().add(used(you, them, "Used " + ability3name, 2, true));
             handler.getDiealoguecontainer().setSource(ability3type);
             them.hitBy(you, () -> ability3.accept(you, them));
             handler.getDiealoguecontainer().clearSource();
         } else {
-            handler.getDiealoguecontainer().add(new dialogue(you, "Failed at using " + ability3name));
+            handler.getDiealoguecontainer().add(used(you, them, "Failed at using " + ability3name, 2, false));
         }
 
         ability3uses-=1;

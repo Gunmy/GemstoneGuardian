@@ -92,6 +92,30 @@ public class saveFile {
         if (file.exists() && !file.delete()) System.out.println("Kunne ikke slette " + file.getName());
     }
 
+    //A save that is never written to disk, only turned into text and back: the 1v1 sends the fighters' state over the
+    //network with it (see duel), filled by the same saveTo methods as a real save
+    public static saveFile inMemory () {return new saveFile(null);}
+
+    public String toText () {
+        java.io.StringWriter out = new java.io.StringWriter();
+        try {
+            data.store(out, null);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return out.toString();
+    }
+
+    public static saveFile fromText (String text) {
+        saveFile save = inMemory();
+        try {
+            save.data.load(new java.io.StringReader(text));
+        } catch (IOException | IllegalArgumentException e) {
+            System.out.println("Kunne ikke lese tilstand: " + e);
+        }
+        return save;
+    }
+
     //Everything is thrown away before a new save is filled in, except the header that is not game state
     public void clearState () {
         String name = getName();

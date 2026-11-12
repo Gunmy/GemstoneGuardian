@@ -14,9 +14,15 @@ public class camera {
         this.bind = object;
     }   
 
+    //Where the camera looks, with this frame's shake on top (a big hit in battle, see battleAnimation.quake)
     public double getX () {
-        return this.x;
+        return this.x + shakeX;
     }
+
+    //Shaken this frame by so much (world units); cleared every frame before the animations play (gameHandler.next)
+    private double shakeX, shakeY;
+    public void shake (double dx, double dy) {shakeX += dx; shakeY += dy;}
+    public void clearShake () {shakeX = 0; shakeY = 0;}
 
     public void setX (double x) {
         this.x = x;
@@ -27,7 +33,7 @@ public class camera {
     }
 
     public double getY () {
-        return this.y;
+        return this.y + shakeY;
     }
 
     public void setY (double y) {
@@ -79,8 +85,9 @@ public class camera {
 
         int tc = handler.getTileCount();
 
-        double xDiff = getBound().getX()+0.5/tc-getX();
-        double yDiff = getBound().getY()+0.5/tc-getY();
+        //From where it really is, not where the shake shows it
+        double xDiff = getBound().getX()+0.5/tc-this.x;
+        double yDiff = getBound().getY()+0.5/tc-this.y;
         
         double perc = 0.1;
 

@@ -39,7 +39,16 @@ public class dialogueContainer {
 
     public void add (dialogue dialog) {
         if (groupDepth > 0) group.add(dialog);
-        else dialogues.add(dialog);
+        else queue(dialog);
+    }
+
+    //Told about every message as it is queued (a group once, joined). The 1v1 host sends them on with it (see duel)
+    private java.util.function.Consumer<dialogue> listener;
+    public void setListener (java.util.function.Consumer<dialogue> listener) {this.listener = listener;}
+
+    private void queue (dialogue dialog) {
+        dialogues.add(dialog);
+        if (listener != null) listener.accept(dialog);
     }
 
     //Everything added between beginGroup and endGroup becomes one message (see dialogue.combine), so one action
@@ -53,8 +62,9 @@ public class dialogueContainer {
         if (groupDepth == 0) return;
         groupDepth--;
         if (groupDepth > 0 || group.isEmpty()) return;
-        dialogues.add(dialogue.combine(group));
+        List<dialogue> parts = group;
         group = new ArrayList<dialogue>();
+        queue(dialogue.combine(parts));
     }
 
     //Runs action as one group
