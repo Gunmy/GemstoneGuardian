@@ -32,6 +32,43 @@ public class gameHandler {
     public static final double CHUNK_VIEW_CHUNKS = 35;
     public boolean chunkView () {return getWIDTH()/getUnitWidth() >= CHUNK_VIEW_CHUNKS;}
 
+    //Clouds over an open world when zoomed out (chunks.cloudsFromAfar, skyLayer.drawHigh): each level of them fades in
+    //at its own zoom (skyLayer.HIGH, the low ones first), and the camera rises into the solid top level (planetView).
+    //0 in other worlds
+    public double chunksAcross () {return getWIDTH()/getUnitWidth();}
+    public double highCloudAlpha () {return worlds.get(getCurrentWorld()).hasCloudsFromAfar() ? 1 : 0;}
+
+    //Zooming out of a world made with chunks.space(): from COVER_FROM_CHUNKS across the screen fades to cloud white
+    //(coverAmount, it just looks like more cloud), all white at COVER_FULL_CHUNKS. There the map stops being drawn and
+    //the planet view takes over (spaceView), starting inside the cloud over the player on the planet, so you zoom out of
+    //one real cloud and pull back to the whole planet, the moon and the sun. You can zoom out to about 500 chunks across
+    //(minZoom). Other worlds zoom out over their map as before (farView, flatView, chunkView)
+    public static final double COVER_FROM_CHUNKS = 4, COVER_FULL_CHUNKS = 8;
+    public double coverAmount () {
+        chunks w = spaceWorld();
+        if (w == null || w.getSquare() == null || chunksAcross() >= COVER_FULL_CHUNKS) return 0;
+        double t = Math.max(0, Math.min(1, (chunksAcross() - COVER_FROM_CHUNKS)/(COVER_FULL_CHUNKS - COVER_FROM_CHUNKS)));
+        return t*t*(3 - 2*t);
+    }
+    public boolean planetView () {
+        chunks w = spaceWorld();
+        return w != null && w.getSquare() != null && chunksAcross() >= COVER_FULL_CHUNKS;
+    }
+
+    //The world zoomed out of into space: the shown one when it is seen from space. While going between the menu and a
+    //game (screenTransition.startSpace) every world goes out into space: one that is not seen from space (a house, a
+    //cave) through the cloud white into the planet it belongs to, or the overworld's. Null when there is no space
+    public chunks spaceWorld () {
+        chunks w = worlds.get(getCurrentWorld());
+        if (w.isSpace()) return w;
+        if (!transition.isSpace()) return null;
+        return w.getPlanet().isSpace() ? w.getPlanet() : worlds.get(0);
+    }
+
+    //Chunks across the screen without a transition's zoom on top
+    public double baseChunksAcross () {return 1/(unitWidth*zoom);}
+    private spaceView space = new spaceView(this);
+
     //The scroll zoom, with a teleport's zoom out on top. The teleport never takes it past the furthest
     //you can zoom out yourself (see teleportWithEffect), since drawing that many more tiles makes the game lag
     private double effectiveZoom () {
@@ -41,16 +78,26 @@ public class gameHandler {
     //Zoom, on top of the size the current world is drawn in. Changed with the scrollwheel
     private double zoom = 1;
     private double zoomTarget = 1;
-    //Far out, to test how much can be drawn before the game lags (about 750 tiles across outside)
-    private double minZoom = 0.02;
+    //Far out: as far from the planet as when the planet view took over at 18 chunks across (spaceView.planetAcross
+    //grows from COVER_FULL_CHUNKS, so moving that keeps the furthest view of the planet, moon and sun the same)
+    private double minZoom = 0.0033*18/COVER_FULL_CHUNKS;
     //The furthest a teleport's zoom out takes you, kept where scrolling used to stop (drawing far more is not worth it)
     private static final double TRANSITION_MIN_ZOOM = 0.2;
     private double maxZoom = 2;
+    //The zoom in a fight (also a 1v1): a little out, so the moves' effects round the fighters fit on screen
+    public static final double BATTLE_ZOOM = 0.7;
 
     public void zoom (double scroll) {
-        if (battleHandler.isActive() || inMenu()) return;
+        if (battleHandler.isActive() || getOutcome() != null || inMenu()) return;
         //One notch on a mouse wheel is 40
-        zoomTarget = Math.max(minZoom, Math.min(maxZoom, zoomTarget*Math.pow(1.1, scroll/40)));
+        zoomTarget = Math.max(minZoom(), Math.min(maxZoom, zoomTarget*Math.pow(1.1, scroll/40)));
+    }
+
+    //Inside and underground (worlds not seen from space) the scroll zoom only goes out to ENCLOSED_MIN_ZOOM: there is
+    //nothing out there to see. Going in from far out outside, the zoom eases in to it (updateWidthHeight)
+    public static final double ENCLOSED_MIN_ZOOM = 0.2;
+    private double minZoom () {
+        return worlds.get(getCurrentWorld()).isSpace() ? minZoom : ENCLOSED_MIN_ZOOM;
     }
 
     //The size the fade to the background is measured in. In a dark world the light reaches
@@ -61,10 +108,14 @@ public class gameHandler {
     }
 
     private void updateWidthHeight () {
-        zoom += ((battleHandler.isActive() ? 1 : zoomTarget)-zoom)*0.2;
+        zoomTarget = Math.max(minZoom(), zoomTarget);
+        //The win or lose screen keeps the fight's zoom (closer in when you lose, see fightOutcome.zoom)
+        fightOutcome outcome = getOutcome();
+        double target = outcome != null ? BATTLE_ZOOM*outcome.zoom() : battleHandler.isActive() ? BATTLE_ZOOM : zoomTarget;
+        zoom += (target-zoom)*(outcome != null && !outcome.youWon && !outcome.isLeaving() ? 0.05 : 0.2);
 
         double var = 0.05;
-        if (battleHandler.isActive()) {
+        if (battleHandler.isActive() || outcome != null) {
             unitWidth += (1-unitWidth)*var;
             unitHeight += (1-unitHeight)*var;
         } else {
@@ -107,14 +158,14 @@ public class gameHandler {
     public chunks getWorld (int n) {return n >= 0 && n < worlds.size() ? this.worlds.get(n) : null;}
     public int getWorldCount () {return this.worlds.size();}
     private List<chunks> worlds = Arrays.asList(
-        new chunks("Outside", 24, this, 1.1, "#467764", 0.6, 0.6), //outside
+        new chunks("Outside", 24, this, 1.1, "#467764", 0.6, 0.6).cloudsFromAfar().space(), //outside
         new chunks("Underground", 17, this, 0.3, "#000", 1, 1), //underground
         new chunks("Inside, 1st floor", 17, this, 1.1, "#000", 0.9, 0.9), //inside, 1st floor
         new chunks("Inside, 2nd floor", 17, this, 1.1, "#000", 0.9, 0.9), //inside, 2nd floor
         //After the final boss: the sky ruins, islands of snow in the open sky, reached by sky portals
-        new chunks("Sky ruins", 184, this, 1.1, skyLayer.SKY, 0.6, 0.6).sky(), //4
+        new chunks("Sky ruins", 184, this, 1.1, skyLayer.SKY, 0.6, 0.6).sky().cloudsFromAfar(), //4
         //Behind the mirrors: the starting village mirrored (tools/maps_postgame.py), cast in cold blues
-        new chunks("Mirror dimension", 24, this, 1.1, "#C8E4F4", 0.6, 0.6).mirror() //5
+        new chunks("Mirror dimension", 24, this, 1.1, "#C8E4F4", 0.6, 0.6).mirror().cloudsFromAfar().space() //5
     ); 
 
     //The worlds from the bottom floor to the top: underground, outside, inside 1st floor, inside 2nd floor.
@@ -219,6 +270,12 @@ public class gameHandler {
     //The campaign being played, or null while this game is only the world behind the main menu
     private saveFile save;
     public saveFile getSave () {return this.save;}
+    //The win or lose screen of a fight while it is up (see fightOutcome), null otherwise
+    public fightOutcome getOutcome () {
+        dialogue current = dialogueContainer.getCurrent();
+        return current instanceof fightOutcome ? (fightOutcome) current : null;
+    }
+
     public boolean inMenu () {return this.save == null && this.duel == null;}
 
     //save is the campaign to play (an empty one starts it from the beginning), null shows the main menu
@@ -325,7 +382,10 @@ public class gameHandler {
         //crystal caverns, in the doorway of the mirror room at the top of his hall, beside her (grid row 6, column 4 of the castle hall;
         //corner chunk 10010, 9942)
         characters.add(new character("Crystal Boy", 10010 + 4*pt, 9942 + 6*pt, 240, 360, 20, 20, 2, this, 3, 24));
-        characters.get("Crystal Boy").give(gemstoneDict.ice());
+        //The first time you fight him (in his hall) he starts with a mirror shard, a piece of the mirrors he goes
+        //through: the first rock given is the one equipped. When he flees into the mirror dimension (escape) he leaves
+        //it behind and takes ice instead, so the rematch there is with ice, uranium, meteorite and healite
+        characters.get("Crystal Boy").give(gemstoneDict.mirror());
         characters.get("Crystal Boy").give(gemstoneDict.uranium());
         characters.get("Crystal Boy").give(gemstoneDict.meteorite());
         characters.get("Crystal Boy").give(gemstoneDict.healite());
@@ -435,13 +495,14 @@ public class gameHandler {
 
 
         //Main character
-        characters.add(new character("Boy",  10000.3, 10000.3, 0, 100, 20, 20, 3, this, 5).showInTransition(true));
+        characters.add(new character("Boy",  10000.3, 10000.3, 0, 100, 20, 20, 3, this, 5, 1).showInTransition(true));
 
         //What enemies leave behind when beaten
         items itemDict = new items(this);
         this.itemDict = itemDict;
         itemRegistry = new itemRegistry(gemstoneDict, itemDict);
         characters.get("Girl (Beginner)").addDrop(() -> itemDict.healingPotion(), 1, 1);
+        characters.get("Girl (Beginner)").addDrop(() -> gemstoneDict.pebble(), 1, 1);
 
         //Trinkets the bosses wear (they count in the fight), and drop a copy of when beaten
         characters.get("Guardman").wear(itemDict.creatine());
@@ -759,6 +820,12 @@ public class gameHandler {
         camera = new camera(this, getMainCharacter());
         //Generate map
         readChunks.read(this);
+        //Each world's square of land as seen from space, around the chunks of its map
+        for (chunks w : worlds) w.makeSquare();
+        //The sky ruins are over the overworld: from space they are its planet, zoomed out like it
+        worlds.get(4).space(worlds.get(0));
+        //...and so is the mirror dimension (a mirror of the starting village), seen in a mirror (spaceView.draw)
+        worlds.get(MIRROR_WORLD).space(worlds.get(0));
 
         //Chests: every chest tile, then what is in them. One item sits in the middle row; the boltstone shares its
         //chest with copper right next to it, so the player sees the two set each other off
@@ -792,7 +859,7 @@ public class gameHandler {
         chestAt(2, 10010, 9973.11).put(1, 3, gemstoneDict.meteorite()).put(1, 4, itemDict.healingPotion());
         chestAt(2, 10003.44, 9973.11).put(1, 3, gemstoneDict.discombobulateShard()).put(1, 4, gemstoneDict.sandstone());
         chestAt(1, 10013.89, 9968.89).put(1, 3, gemstoneDict.healite()).put(1, 4, itemDict.healingPotion());
-        chestAt(2, 10003.22, 9981.33).put(1, 3, gemstoneDict.pebble()).put(1, 4, itemDict.healingPotion());
+        chestAt(2, 10003.22, 9981.33).put(1, 4, itemDict.healingPotion());
         //In the small house past Citizen Peter, outside the cave, chunk (10002, 9983)
         chestAt(2, 10002 + 5.0/getTileCount(), 9983 + 3.0/getTileCount()).put(1, 3, gemstoneDict.saltstone()).put(1, 4, itemDict.healingPotion());
         //By the ice pond in the snow, chunk (10013, 9973)
@@ -802,11 +869,36 @@ public class gameHandler {
         chestAt(1, 10010 + 4.0/getTileCount(), 9949 + 1.0/getTileCount()).put(1, 3, gemstoneDict.elemental()).put(1, 4, itemDict.healingPotion());
         //Castle grounds: hidden in a pocket in the trees east of the avenue, on its own little patch of brick
         chestAt(0, 10012 + 4.0/getTileCount(), 9947 + 2.0/getTileCount()).put(1, 3, itemDict.healingPotion()).put(1, 4, itemDict.cleansingPotion());
+        //The bosses carry a few items, which they use when it is worth it (battleAI): the king and the guards, the
+        //girl at the end, the crystal boy's servants guarding the gates after her, and the crystal boy
+        String[][] bossItems = {
+            {"King", "h"}, {"Girl (Master)", "hc"}, {"Ash Golem", "h"}, {"Desert Nomad", "h"}, {"Cloud Knight", "h"},
+            {"Prism Warden", "hc"}, {"Stone Guardian", "b"}, {"Crystal Boy", "hhc"}};
+        for (String[] carrier : bossItems) {
+            character c = characters.get(carrier[0]);
+            if (c == null) continue;
+            for (char kind : carrier[1].toCharArray()) {
+                c.give(kind == 'h' ? itemDict.healingPotion() : kind == 'c' ? itemDict.cleansingPotion() : itemDict.woolBandage());
+            }
+        }
+        //The rocks of the sky: the sunstone at the top of the sky ruins' west pocket, the moonstone in the crystal
+        //caverns' north-west pocket, the singularity in the top right corner of the girl's room (after beating her),
+        //and the mirror shard on the grass by the mirror dimension's healing pad (tools/maps_postgame.py)
+        chestAt(4, 10009 + 3.0/getTileCount(), 9951 + 8.0/getTileCount()).put(1, 3, gemstoneDict.sunstone()).put(1, 4, itemDict.healingPotion());
+        chestAt(1, 10009 + 5.0/getTileCount(), 9949 + 6.0/getTileCount()).put(1, 3, gemstoneDict.moonstone()).put(1, 4, itemDict.healingPotion());
+        chestAt(2, 10010 + 7.0/getTileCount(), 9959 + 2.0/getTileCount()).put(1, 3, gemstoneDict.singularity()).put(1, 4, itemDict.healingPotion());
+        chestAt(5, 10001 + 2.0/getTileCount(), 10001 + 7.0/getTileCount()).put(1, 3, gemstoneDict.mirror()).put(1, 4, itemDict.healingPotion());
         //Looking in a chest for the first time restores you, like picking up a stone used to
         for (chest c : chests) {
             if (c.getPlace().getWorld() == 2 && Math.abs(c.getPlace().getX() - 10001.54) < 0.06 && Math.abs(c.getPlace().getY() - 10000.11) < 0.06) continue;
             c.healing().onFirstClose(() -> getMainCharacter().restore());
         }
+        //What the game hands out as it is (in chests at the start, or dropped by beaten characters): the original
+        //forms of the items. The 1v1 builds only offer these; the other forms are made by turning them (guiDuelMenu)
+        for (chest c : chests) {
+            for (int i = 0; i < c.size(); i++) if (c.get(i) != null) handedOut.add(c.get(i).getItem().getName());
+        }
+        for (character c : characters.getCharacters()) for (item dropped : c.possibleDrops()) handedOut.add(dropped.getName());
 
         //The healing pad in the castle outside, chunk (9999, 9992), gives the teleporter
         addTeleportReward(0, 9999 + 4.0/getTileCount(), 9992 + 4.0/getTileCount(), () -> itemDict.teleporter());
@@ -832,11 +924,11 @@ public class gameHandler {
         if (duel != null) duel.close();
     }
 
-    //From the 1v1 page of the main menu, once both players are connected: the menu's teleport into the fight
+    //From the 1v1 page of the main menu, once both players are connected: the menu slides away, the background world
+    //zooms out into space, and the fight's world zooms in from there, as when starting a campaign
     public void duelWithEffect (duel fight) {
         if (transition.isActive()) return;
-        transition.start(null, TRANSITION_MIN_ZOOM/zoom, () -> launcher.duel(fight));
-        transition.atBlackShare(0.5, () -> gui.menuLeaves());
+        transition.startSpace(() -> launcher.duel(fight));
     }
 
     //Beating the girl (Master) finishes the game as before (the time goes to the highscore), and then she steps aside
@@ -1039,6 +1131,16 @@ public class gameHandler {
         Runnable intoDimension = () -> {
             boy.restore();
             boy.placeAt(MIRROR_WORLD, boss[0], boss[1]);
+            //His mirror shard stays behind, and he takes ice (equipped first) for the rematch
+            for (item held : boy.getInventory().getItems()) {
+                if (held.getName().equals("Mirror Shard")) {
+                    if (boy.getGemstone() == held) boy.deEquip();
+                    boy.getInventory().consume(held);
+                    boy.deEquip();
+                    boy.give(getItemRegistry().make("Ice"));
+                    break;
+                }
+            }
         };
         return new cutscene(this)
             .say(new dialogue(boy, "Impossible... beaten by my own reflection..."),
@@ -1516,6 +1618,10 @@ public class gameHandler {
         if (!girl.getName().equals(girl.getId())) save.set(GIRL_NAME, girl.getName());
     }
 
+    //The names of the items the game hands out, see where it is filled in after the chests
+    private java.util.Set<String> handedOut = new java.util.HashSet<String>();
+    public boolean isHandedOut (String itemName) {return handedOut.contains(itemName);}
+
     //Every chest in every world, see chest
     private List<chest> chests = new ArrayList<chest>();
     public List<chest> getChests () {return new ArrayList<chest>(chests);}
@@ -1631,6 +1737,8 @@ public class gameHandler {
     //Writes the campaign to its savefile. Does nothing behind the main menu
     public void saveGame () {
         if (save == null) return;
+        //What a fight's end sets off is never left out of a savefile
+        dialogueContainer.settleOutcomes();
         //Never half a cutscene in a savefile
         if (playing != null) {
             playing.finishNow();
@@ -1640,37 +1748,45 @@ public class gameHandler {
         lastSave = System.nanoTime();
     }
 
-    //The second half of the teleport, the black opening up. For a game switched to from another one.
-    //menu is the main menu that was left (null if none): it stays on top of the black for the first half of it,
-    //so the player shows up under it before it goes away
-    public void openFromBlack (guiElement menu) {
-        transition.startFromBlack(TRANSITION_MIN_ZOOM/zoom);
-        if (menu != null) {
-            gui.setMenuOverlay(menu);
-            //Goes on sliding up from where the menu screen left it, the player is already there under it
-            gui.setMenuOverlay(null);
-        }
+    //The second half of the trip through space: a moment in space, then the zoom into this game's world. For a game
+    //switched to from the main menu or back to it. The main menu and the hotbar stay away until it is over (gui.draw),
+    //so the whole zoom is seen: the menu only slides in once the background world is reached
+    public void openFromSpace () {
+        transition.startFromSpace();
+        gui.hideMainMenu();
     }
 
-    //From the main menu: the screen closes in and goes black, then the campaign starts (and opens from the black)
+    //Between the menu and a game (zooming through space): the main menu and the hotbar are away
+    public boolean inSpaceTrip () {return transition.isSpace();}
+    //Nearly down from space (LANDED_SHARE of the zoom in): a fight going on shows its screen again from here
+    public static final double LANDED_SHARE = 0.85;
+    public boolean nearlyLanded () {return transition.spaceLandedShare(LANDED_SHARE);}
+
+    //How many chunks across the trip zooms out to: so far that the sun and the black hole (spaceView) are both in view
+    public double spaceTripAcross () {
+        //Measured on the planet that is drawn (the overworld's for the sky ruins), so both sides of a trip go out to
+        //the same view
+        chunks w = spaceWorld();
+        if (w != null) w = w.getPlanet();
+        if (w == null || w.getSquare() == null) return 250;
+        return spaceView.acrossToSeeAll(w.getSquare()[2], getWIDTH(), getHEIGHT());
+    }
+
+    //From the main menu: the menu slides away at once, the background world zooms out into space, then the campaign
+    //starts and zooms in from there
     public void playWithEffect (saveFile campaign) {
         if (transition.isActive()) return;
-        transition.start(null, TRANSITION_MIN_ZOOM/zoom, () -> launcher.play(campaign));
-        //The menu starts sliding up halfway through the black, so it is half gone when the player shows up under it
-        transition.atBlackShare(0.5, () -> gui.menuLeaves());
+        transition.startSpace(() -> launcher.play(campaign));
     }
 
-    //Saves first, then the first half of the teleport: sparks, the screen closing in and the black, then the menu
+    //Saves first, then the world zooms out into space, and the menu's background world zooms in from there, with the
+    //menu sliding in at the end
     public void quitToMenu () {
         if (transition.isActive()) return;
         //Out of a 1v1 the menu opens on the 1v1 page again
         if (duel != null) guiMainMenu.returnToDuel = true;
         saveGame();
-        character player = getMainCharacter();
-        burst(player.getX() + 0.5/getTileCount(), player.getY() + 0.5/getTileCount(), player.getWorld(), 90);
-        transition.start(null, TRANSITION_MIN_ZOOM/zoom, () -> launcher.openMenu());
-        //The menu slides down on top of the black while the player is still on it, and is in place for the switch
-        transition.atBlackShare(0, () -> gui.setMenuOverlay(gui.makeMenu()));
+        transition.startSpace(() -> launcher.openMenu());
     }
 
     //Autosave, so a crash does not lose much
@@ -1690,6 +1806,86 @@ public class gameHandler {
     public dialogueContainer getDiealoguecontainer () {return this.dialogueContainer;}
 
     private characterContainer characters = new characterContainer();
+    //---- The fight's mood (battleAnimation.mood) ----
+    //The mood the last move set, and the one drawn now, easing towards it at MOOD_RATE a second (about a second
+    //from one to the other, the whole way at once: dark goes straight into pink). Back to day when no fight is on
+    public static final double MOOD_RATE = 2.5;
+    private battleAnimation.mood moodTarget = battleAnimation.mood.DAY;
+    private double moodDark = 0, moodGlow = 0, moodTintA = 0, moodR = 0, moodG = 0, moodB = 0;
+
+    public void setBattleMood (battleAnimation.mood mood) {this.moodTarget = mood;}
+    public double getMoodGlow () {return this.moodGlow;}
+
+    private void updateMood (double deltaTime) {
+        if (!battleHandler.isActive()) moodTarget = battleAnimation.mood.DAY;
+        battleAnimation.mood target = moodTarget;
+        double k = 1 - Math.exp(-MOOD_RATE*deltaTime);
+        moodDark += (target.dark - moodDark)*k;
+        moodGlow += (target.glow - moodGlow)*k;
+        //The tint is eased as colour times strength, so a fading tint keeps its colour and one tint turns into another
+        moodR += (target.tint.getRed()*target.tintStrength - moodR)*k;
+        moodG += (target.tint.getGreen()*target.tintStrength - moodG)*k;
+        moodB += (target.tint.getBlue()*target.tintStrength - moodB)*k;
+        moodTintA += (target.tintStrength - moodTintA)*k;
+        if (moodDark < 0.002) moodDark = 0;
+        if (moodGlow < 0.002) moodGlow = 0;
+        if (moodTintA < 0.002) moodTintA = 0;
+    }
+
+    //The dark is a light map multiplied over the screen: everywhere the night's colour (NIGHT, how much of it by the
+    //mood's dark), and round every glowing particle of a move its light (battleParticle.light), the lights blended so
+    //the brightest wins rather than adding up. Lit spots show the world as bright as by day, in the light's colour.
+    //The map is made at LIGHT_SCALE of the screen's size (the lights are soft, so it is drawn up smoothly), then the
+    //tint goes over everything
+    private static final Color NIGHT = Color.web("#1E2450");
+    private static final double LIGHT_SCALE = 0.2;
+    private javafx.scene.canvas.Canvas lightCanvas;
+    private javafx.scene.image.WritableImage lightImage;
+    private final javafx.scene.SnapshotParameters lightParams = new javafx.scene.SnapshotParameters();
+
+    private void drawMood () {
+        double w = getTempCanvas().getWidth(), h = getTempCanvas().getHeight();
+        if (moodDark > 0) {
+            int lw = Math.max(1, (int) Math.ceil(w*LIGHT_SCALE)), lh = Math.max(1, (int) Math.ceil(h*LIGHT_SCALE));
+            if (lightCanvas == null || lightCanvas.getWidth() != lw || lightCanvas.getHeight() != lh) {
+                lightCanvas = new javafx.scene.canvas.Canvas(lw, lh);
+                lightImage = new javafx.scene.image.WritableImage(lw, lh);
+            }
+            GraphicsContext lights = lightCanvas.getGraphicsContext2D();
+            lights.setGlobalBlendMode(javafx.scene.effect.BlendMode.SRC_OVER);
+            lights.setGlobalAlpha(1);
+            lights.setFill(Color.WHITE.interpolate(NIGHT, Math.min(1, moodDark)));
+            lights.fillRect(0, 0, lw, lh);
+            lights.setGlobalBlendMode(javafx.scene.effect.BlendMode.LIGHTEN);
+            if (moodGlow > 0) {
+                for (baseParticle p : frontParticles) {
+                    if (p instanceof battleParticle) ((battleParticle) p).light(lights, LIGHT_SCALE, moodGlow);
+                    else if (p instanceof fxParticle) ((fxParticle) p).light(lights, LIGHT_SCALE, moodGlow);
+                }
+                //Effects on the ground (fxParticle) can light the dark too
+                for (baseParticle p : behindParticles) {
+                    if (p instanceof fxParticle) ((fxParticle) p).light(lights, LIGHT_SCALE, moodGlow);
+                }
+            }
+            //Whoever wears something that gives off light (the goggles) lights up the dark round them
+            for (character c : characters.getCharacters()) c.lightInto(lights, LIGHT_SCALE);
+            lights.setGlobalBlendMode(javafx.scene.effect.BlendMode.SRC_OVER);
+            lightCanvas.snapshot(lightParams, lightImage);
+            GraphicsContext gc = getTempGc();
+            gc.save();
+            gc.setGlobalBlendMode(javafx.scene.effect.BlendMode.MULTIPLY);
+            gc.setImageSmoothing(true);
+            gc.drawImage(lightImage, 0, 0, lw, lh, 0, 0, lw/LIGHT_SCALE, lh/LIGHT_SCALE);
+            gc.restore();
+            gc.setGlobalBlendMode(javafx.scene.effect.BlendMode.SRC_OVER);
+            gc.setImageSmoothing(false);
+        }
+        if (moodTintA > 0) {
+            getTempGc().setFill(Color.color(Math.min(1, moodR/moodTintA), Math.min(1, moodG/moodTintA), Math.min(1, moodB/moodTintA), Math.min(1, moodTintA)));
+            getTempGc().fillRect(0, 0, w, h);
+        }
+    }
+
     private List<baseParticle> frontParticles = new ArrayList<baseParticle>();
     private List<baseParticle> behindParticles = new ArrayList<baseParticle>();
 
@@ -1699,6 +1895,8 @@ public class gameHandler {
     //this, and NaN after): a chimney's smoke comes out of the other side of it and drifts the other way
     private double particleMirror = Double.NaN;
     public void mirrorParticlesAround (double axis) {this.particleMirror = axis;}
+    private static boolean isText (baseParticle p) {return p instanceof battleParticle && ((battleParticle) p).isText();}
+
     private baseParticle mirrored (baseParticle particle) {
         if (!Double.isNaN(particleMirror)) particle.mirror(particleMirror);
         return particle;
@@ -1761,7 +1959,7 @@ public class gameHandler {
             source = equipped;
         }
         for (item carried : player.getInventory().getItems()) {
-            double a = carried.getAgitation();
+            double a = carried.getCharge();
             if (carried.getLightningChance() <= 0 || a <= 0) continue;
             chance += carried.getLightningChance()*a*a*CHARGED_STRIKE_SHARE;
             source = carried;
@@ -1789,6 +1987,18 @@ public class gameHandler {
             addFrontParticle(new coloredParticle(endX, endY, player.getWorld(), 0.3 + rdm.nextDouble()*0.4, 0, size, size, -0.9, this,
                 Math.cos(sparkAngle)*reach, Math.sin(sparkAngle)*reach, colors[rdm.nextInt(colors.length)]));
         }
+    }
+
+    //The cutscenes' mirrors, for the Mirror Shard's mirrors in battle (battleAnimation.mirrorCopy), round (x, y), the
+    //mirror's middle: it appears in the flash the kidnapping's mirror appears in (mirrorFlash) with the crystal sparks
+    //the crystal boy steps out of it in (crystalBurst), and goes in the blast a mirror blows apart in (mirrorBlast)
+    public void mirrorAppears (double x, double y, int world) {
+        burst(x, y, world, 60, CRYSTAL);
+        burst(x, y, world, 70, CRYSTAL);
+    }
+    public void mirrorVanishes (double x, double y, int world) {
+        burst(x, y, world, 180, MIRROR_SHARDS);
+        burst(x, y, world, 80, CRYSTAL);
     }
 
     //Green sparks flying out in every direction from (x, y)
@@ -1842,10 +2052,9 @@ public class gameHandler {
         //The textures are pixel art, so they are scaled with nearest neighbour and never smoothed. Smoothing also
         //blended in the edge of the next cell on the sheet, which showed as thin lines along tiles and characters
         getTempGc().setImageSmoothing(false);
+        updateWidthHeight();
         getTempGc().setFill(Color.web(getWorld(getCurrentWorld()).getBackground())); //"#70C0A0"
         getTempGc().fillRect(0, 0, getWIDTH(), getHEIGHT());
-
-        updateWidthHeight();
 
         //Behind the main menu the world only looks alive: no dialogue, events, fights or walking
         boolean menu = inMenu();
@@ -1872,16 +2081,28 @@ public class gameHandler {
 
         //Set current world
         this.world = getCamera().getBound().getWorld();
-        if (worlds.get(getCurrentWorld()).isSky()) sky.drawBack(getTempGc());
+        //Zoomed out of the clouds over a world seen from space: the planet instead of the map (spaceView)
+        boolean planet = planetView();
+        if (planet) space.draw(getTempGc(), spaceWorld(), chunksAcross());
+        if (!planet && worlds.get(getCurrentWorld()).isSky()) sky.drawBack(getTempGc());
         boolean flat = flatView();
-        if (chunkView()) worlds.get(getCurrentWorld()).drawChunks();
+        if (planet) {}
+        else if (chunkView()) worlds.get(getCurrentWorld()).drawChunks();
         else if (flat) worlds.get(getCurrentWorld()).drawFlat();
         else worlds.get(getCurrentWorld()).drawGround();
 
-        //The message on screen plays its animations (a move's lightning, hearts...) for as long as it is up
+        //The message on screen plays its animations (a move's lightning, hearts...) for as long as it is up. The world
+        //runs at its time scale (the last hit of a fight in slow motion), the GUI at full speed
+        double worldDt = dialogueContainer.getCurrent() != null ? deltaTime*dialogueContainer.getCurrent().timeScale() : deltaTime;
         for (character c : characters.getCharacters()) c.clearNudge();
+        //A move's stand-in for a fighter (battleFx) keeps it hidden for as long as it lives
+        for (baseParticle p : frontParticles) {
+            if (p instanceof fxParticle && ((fxParticle) p).getVeiled() != null) ((fxParticle) p).getVeiled().veil();
+        }
+        //Whoever stands on a bouncing lily pad goes down with it
+        for (character c : characters.getCharacters()) c.nudge(0, c.springOffset());
         camera.clearShake();
-        if (dialogueContainer.getCurrent() != null) dialogueContainer.getCurrent().playAnimations(this, deltaTime);
+        if (dialogueContainer.getCurrent() != null) dialogueContainer.getCurrent().playAnimations(this, worldDt);
 
         //Remove dead
         behindParticles = behindParticles.stream().filter(e -> !e.isDead()).collect(Collectors.toList());
@@ -1889,8 +2110,9 @@ public class gameHandler {
         effectParticles = effectParticles.stream().filter(e -> !e.isDead()).collect(Collectors.toList());
 
         //Draw entities (particles + tiles and characters above the ground, one z-level at a time)
-        behindParticles.forEach(c -> c.draw());
-        if (flat) {
+        if (!planet) behindParticles.forEach(c -> c.draw());
+        if (planet) {}
+        else if (flat) {
             //The tiles are all drawn already, only the characters are left
             characters.getCharacters().forEach(character::draw);
         } else {
@@ -1899,30 +2121,48 @@ public class gameHandler {
                 worlds.get(getCurrentWorld()).drawLayer(z, characters.getCharacters());
             }
         }
-        frontParticles.forEach(c ->  c.draw());
-        if (worlds.get(getCurrentWorld()).isSky()) sky.drawFront(getTempGc());
+        //A fight's mood over the world and the fighters, under the moves' particles so they shine out of it
+        updateMood(worldDt);
+        drawMood();
+        if (!planet) {
+            //Words and numbers come last, over every effect (see below)
+            frontParticles.forEach(c -> {if (!isText(c)) c.draw();});
+            if (worlds.get(getCurrentWorld()).isSky()) sky.drawFront(getTempGc());
+            sky.drawHigh(getTempGc(), highCloudAlpha());
+        }
+        //The fade to cloud white going out over the map
+        double cover = coverAmount();
+        if (cover > 0) {
+            getTempGc().save();
+            getTempGc().setGlobalAlpha(cover);
+            getTempGc().setFill(Color.web("#F0F0F4"));
+            getTempGc().fillRect(0, 0, getWIDTH(), getHEIGHT());
+            getTempGc().restore();
+        }
 
         //Lightning out of the player, from a boltstone they carry
         if (!menu) playerLightning();
-        worldStrikes.forEach(l -> l.next(deltaTime));
+        worldStrikes.forEach(l -> l.next(worldDt));
         worldStrikes = worldStrikes.stream().filter(l -> !l.isDead()).collect(Collectors.toList());
-        worldStrikes.forEach(l -> l.draw(this));
+        if (!planet) worldStrikes.forEach(l -> l.draw(this));
 
         //A teleport's black, with its sparks on top
         transition.next();
         transition.draw();
-        if (transition.isActive()) {
+        if (transition.isActive() && !transition.isSpace()) {
             for (character c : characters.getCharacters()) {
                 if (c.showsInTransition()) c.draw();
             }
         }
-        effectParticles.forEach(c -> c.draw());
+        if (!planet) effectParticles.forEach(c -> c.draw());
+        //The words and numbers thrown off the fighters (LUCKY!, UNLUCKY..., damage), over every move's effects
+        if (!planet) frontParticles.forEach(c -> {if (isText(c)) c.draw();});
 
         //Info
         if (infoOn()) {
             getTempGc().strokeRoundRect(getMidWIDTH()-5, getMidHEIGHT()-5, 10, 10, 10, 10);
         }
-        if (!menu && duel == null) eventListeners.forEach(c -> c.draw());
+        if (!menu && duel == null && !planet) eventListeners.forEach(c -> c.draw());
 
         
 
@@ -1931,11 +2171,11 @@ public class gameHandler {
         if (!menu && playing == null && !dialogueContainer.isActive() && getCamera().bindTimeOver() && !battleHandler.isActive() && !gui.blocksMovement() && !transition.isActive()) {
             getMainCharacter().setTarget(dPressed - aPressed, sPressed - wPressed);
         }
-        getCamera().move(deltaTime);
-        behindParticles.forEach(c -> c.move(deltaTime));
-        characters.getCharacters().forEach(c ->        c.move(deltaTime));
-        frontParticles.forEach(c ->  c.move(deltaTime));
-        effectParticles.forEach(c -> c.move(deltaTime));
+        getCamera().move(worldDt);
+        behindParticles.forEach(c -> c.move(worldDt));
+        characters.getCharacters().forEach(c ->        c.move(worldDt));
+        frontParticles.forEach(c ->  c.move(worldDt));
+        effectParticles.forEach(c -> c.move(worldDt));
 
         if (duel != null) duel.next();
         if (!menu && duel == null) eventListeners = eventListeners.stream().filter(c -> !c.testForTrigger()).collect(Collectors.toList());
@@ -1944,7 +2184,7 @@ public class gameHandler {
             battleHandler.carryOn(this);
         }
 
-        if (!menu && playing == null && (System.nanoTime() - lastSave)/1e9 > AUTOSAVE_SECONDS) saveGame();
+        if (!menu && playing == null && !dialogueContainer.holdsOutcome() && (System.nanoTime() - lastSave)/1e9 > AUTOSAVE_SECONDS) saveGame();
 
         //The GUI goes on top of everything
         gui.next(deltaTime);

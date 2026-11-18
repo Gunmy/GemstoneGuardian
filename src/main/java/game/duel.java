@@ -13,11 +13,14 @@ import java.util.List;
 //both see the same fight.
 //
 //Started from the 1v1 page of the main menu (guiMainMenu), which finds challenges and does the handshake
-//(HELLO name build, then START x y whoBegins from the host). Both then build a game for it (gameLauncher.duel)
+//(HELLO name build, then START place whoBegins level from the host). Both then build a game for it (gameLauncher.duel)
 public class duel {
 
-    //Both fight at this level, whatever level the character they play as has in the campaign
-    public static final int LEVEL = 13;
+    //Both fight at the level picked on the 1v1 page (settings.getDuelLevel; over the network the host's), whatever
+    //level the character they play as has in the campaign
+    public static final int DEFAULT_LEVEL = 13, MAX_LEVEL = 25;
+    private final int level;
+    public int getLevel () {return this.level;}
 
     private final duelLink link;
     private final boolean host;
@@ -40,7 +43,8 @@ public class duel {
     private boolean myTurn = false;
 
     public duel (duelLink link, boolean host, String myName, String myLook, duelBuild myBuild,
-                 String theirName, String theirLook, duelBuild theirBuild, spot place, boolean hostBegins) {
+                 String theirName, String theirLook, duelBuild theirBuild, spot place, boolean hostBegins, int level) {
+        this.level = level;
         this.myLook = myLook;
         this.theirLook = theirLook;
         this.link = link;
@@ -51,6 +55,60 @@ public class duel {
         this.theirBuild = theirBuild;
         this.place = place;
         this.hostBegins = hostBegins;
+    }
+
+    //A 1v1 against the computer ("Battle random" on the 1v1 page): no network, the player is the host and the opponent
+    //plays its turns with battleAI like any fighter in the campaign. The player always moves first
+    public static duel againstComputer (String myName, String myLook, duelBuild myBuild,
+                                        String theirName, String theirLook, duelBuild theirBuild, spot place, int level) {
+        return new duel(null, true, myName, myLook, myBuild, theirName, theirLook, theirBuild, place, true, level);
+    }
+
+    public boolean isAgainstComputer () {return this.link == null;}
+
+    //Against a random campaign character (not the one you play as) with a random build (duelBuild.random), at a random
+    //place. Null if no place has room
+    public static duel againstRandom (gameHandler handler, String myName, String myLook, duelBuild myBuild, int level) {
+        spot place = pickSpot(handler);
+        if (place == null) return null;
+        //Who can be fought: taken from the menu's game, where nobody has been dressed up as a fighter yet (in a 1v1
+        //the player looks like someone else), and kept for the battles after it
+        if (opponents == null || handler.getDuel() == null) {
+            opponents = new java.util.ArrayList<String[]>();
+            for (character c : choices(handler)) opponents.add(new String[] {c.getId(), c.getName()});
+        }
+        List<String[]> pool = new java.util.ArrayList<String[]>(opponents);
+        if (pool.size() > 1) pool.removeIf(o -> o[0].equals(myLook));
+        String[] opponent = pool.get((int) (Math.random()*pool.size()));
+        return againstComputer(myName, myLook, myBuild, opponent[1], opponent[0], duelBuild.random(handler), place, level);
+    }
+    private static List<String[]> opponents;
+
+    //Random battles won in a row before this one. Battle again carries it on (one more after a win, 0 after a loss);
+    //going back to the menu ends it, so a battle started from the menu begins at 0
+    private int streak = 0;
+    public int getStreak () {return this.streak;}
+
+    //The end of a fight against the computer: the streak goes on or is lost (shown on the end screen), and a new best
+    //is kept with the build and look it was won with (duelBuild.library.record)
+    //A win with cheat mode on (cheated) leaves the streak where it was and is no record; a loss still ends it
+    public void countStreak (fightOutcome outcome, boolean cheated) {
+        int after = outcome.youWon ? (cheated ? streak : streak + 1) : 0;
+        boolean best = outcome.youWon && !cheated && duelBuild.library.shared().record(after, myBuild, myName, myLook);
+        outcome.streak(streak, after, best);
+        outcome.cheated = cheated;
+    }
+
+    //The end of a fight against the computer: battle again with the same build (a new random one if the random build
+    //is picked on the 1v1 page), or back to the menu
+    public void offerRematch (fightOutcome outcome) {
+        outcome.offer(() -> {
+            duelBuild build = duelBuild.library.shared().isRandom() ? duelBuild.random(handler) : myBuild;
+            duel next = againstRandom(handler, myName, myLook, build, level);
+            if (next != null) next.streak = outcome.streakAfter;
+            if (next != null) handler.duelWithEffect(next);
+            else handler.quitToMenu();
+        }, () -> handler.quitToMenu());
     }
 
     public boolean isHost () {return this.host;}
@@ -167,7 +225,7 @@ public class duel {
         fight.setDuel(this);
         fight.newBattle(me, them, null, null, place.x, place.y, 0, place.world);
         if (host) {
-            handler.getDiealoguecontainer().setListener(this::forward);
+            if (link != null) handler.getDiealoguecontainer().setListener(this::forward);
             //The fight's own turn order has the player (the host) first
             fight.resumeTurn(hostBegins);
             String first = hostBegins ? myName : theirName;
@@ -194,7 +252,7 @@ public class duel {
     }
 
     private void prepare (character c, duelBuild build) {
-        c.setLevel(LEVEL);
+        c.setLevel(level);
         build.giveTo(c, handler.getItemRegistry());
         c.clearEffects();
         c.resetHealth();
@@ -204,13 +262,14 @@ public class duel {
     //Every frame: takes what has come over the network, and leaves once the fight is over and its messages are read
     public void next () {
         String[] m;
-        while ((m = link.poll()) != null) {
+        while (link != null && (m = link.poll()) != null) {
             if (host && m[0].equals("ACT") && m.length >= 3) pendingAction = m;
             else if (!host && m[0].equals("DLG")) received(m);
             else if (!host && m[0].equals("TURN")) myTurn = true;
             else if (!host && m[0].equals("END")) ended = true;
+            else if (!host && m[0].equals("OUT") && m.length >= 3) outcome(m);
         }
-        if (!ended && link.isClosed()) {
+        if (!ended && link != null && link.isClosed()) {
             handler.getDiealoguecontainer().add(new dialogue("Game", theirName + " left the 1v1"));
             ended = true;
             handler.getBattle().endDuel();
@@ -222,12 +281,18 @@ public class duel {
         }
     }
 
-    public void close () {link.close();}
+    public void close () {if (link != null) link.close();}
 
     //---- The host's side ----
 
     //Sends a message the fight queued on, with both fighters' state as it is now
     private void forward (dialogue d) {
+        //The end of the fight: who won and the numbers, for the other player's own winner screen
+        if (d instanceof fightOutcome) {
+            fightOutcome o = (fightOutcome) d;
+            link.send("OUT", o.youWon ? "H" : "G", o.numbers.encode());
+            return;
+        }
         String speaker = d.getSpeaker() == me ? "H" : d.getSpeaker() == them ? "G" : "N";
         String picture = "";
         if (d.getOwnPicture() instanceof abilityType) picture = "A" + ((abilityType) d.getOwnPicture()).name();
@@ -256,7 +321,7 @@ public class duel {
 
     //The fight waits for the other player: tells them, once
     public void waitingForThem () {
-        if (!turnSent) link.send("TURN");
+        if (!turnSent && link != null) link.send("TURN");
         turnSent = true;
     }
 
@@ -264,7 +329,7 @@ public class duel {
 
     //The fight is over (its last message is already sent)
     public void finish () {
-        link.send("END");
+        if (link != null) link.send("END");
         ended = true;
     }
 
@@ -276,6 +341,14 @@ public class duel {
     public void sendAction (String kind, int n) {
         link.send("ACT", kind, String.valueOf(n));
         myTurn = false;
+    }
+
+    //OUT winner stats from the host: the hit that ended it in slow motion, then the screen, seen from here
+    private void outcome (String[] m) {
+        dialogue last = handler.getDiealoguecontainer().last();
+        if (last != null) last.slowMotion();
+        fightOutcome.stats numbers = fightOutcome.stats.decode(m[2]).swapped();
+        handler.getDiealoguecontainer().add(fightOutcome.duel(me, them, m[1].equals("G"), numbers));
     }
 
     private void received (String[] m) {

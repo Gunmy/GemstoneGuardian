@@ -106,10 +106,28 @@ public class slotGrid {
                 continue;
             }
             drawStack(gc, stack, cx, cy, size);
-            if (particles) stack.getItem().spawnParticles(gui, cx, cy, size, rdm, 0, 0);
+            //A catalogue (the give item menu, a 1v1 build's choices) does not take part: its items give off their
+            //particles but no lightning, which would strike and charge the rocks in the real inventory
+            if (particles) stack.getItem().spawnParticles(gui, cx, cy, size, rdm, 0, 0, group.takesPart());
             //Small previews (the rocks in a fight) take part in the items' interactions too, so copper keeps
-            //charging a boltstone in a fight; they only give off no particles
+            //charging a boltstone in a fight; they only give off no particles (their lightning still strikes)
+            else if (group.takesPart()) stack.getItem().strikeLightning(gui, cx, cy, size, rdm, 0, 0);
             if (group.takesPart()) gui.getInteractions().place(stack.getItem(), cx, cy, size, false);
+        }
+    }
+
+    //The items take part in the interactions as if drawn here, dy lower down, without drawing anything: the rocks in a
+    //fight while the action panel is down keep acting on each other (dy puts them, and their lightning, off screen)
+    public void interactOnly (gui gui, slotGroup group, double dy) {
+        if (!group.takesPart()) return;
+        Random rdm = gui.getRandom();
+        int count = Math.max(0, Math.min(rows*columns, group.size() - firstIndex));
+        for (int i = 0; i < count; i++) {
+            itemStack stack = group.get(firstIndex + i);
+            if (stack == null) continue;
+            double cx = cellX(i % columns), cy = cellY(i / columns) + dy;
+            stack.getItem().strikeLightning(gui, cx, cy, size, rdm, 0, 0);
+            gui.getInteractions().place(stack.getItem(), cx, cy, size, false);
         }
     }
 }

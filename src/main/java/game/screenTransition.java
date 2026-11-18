@@ -57,9 +57,52 @@ public class screenTransition {
     private static final double STAR_SPACING = 1800;
     private static final Color[] STAR_COLORS = {Color.WHITE, Color.WHITE, Color.web("#FFF4C0"), Color.web("#C8E0FF"), Color.web("#B8FFC0")};
 
+    //The other kind of transition, between the main menu and a game: no black, but a zoom out of the world into space
+    //(the planet, spaceView), a moment there, and a zoom into the other game's world. The phases are the same: CLOSING
+    //zooms out, BLACK is the time in space, OPENING zooms in. The zoom goes from the view's own chunks across to far out
+    //in space evenly on a log scale, eased at both ends. Out of a world that
+    //is not seen from space (a house, a cave) it fades to cloud white on the way and comes out over the overworld
+    //(gameHandler.spaceWorld). Out as far as the sun and the black hole are in view (gameHandler.spaceTripAcross)
+    private static final double SPACE_OUT_TIME = 3.0, SPACE_TIME = 0.8, SPACE_IN_TIME = 3.0;
+    private boolean space = false;
+    public boolean isSpace () {return isActive() && space;}
+    //Zooming in from space and this share (0 to 1) of the way there or further
+    public boolean spaceLandedShare (double share) {
+        return isSpace() && current == phase.OPENING && phaseTime()/SPACE_IN_TIME >= share;
+    }
+
     public screenTransition (gameHandler handler) {
         this.handler = handler;
     }
+
+    //Zooms out into space, then runs end (the switch to the other game), which starts with startFromSpace
+    public void startSpace (Runnable end) {
+        if (isActive()) return;
+        this.space = true;
+        this.middle = null;
+        this.end = end;
+        this.holding = false;
+        this.sizeCarry = 1;
+        this.blackTime = SPACE_TIME/2;
+        this.cue = null;
+        enter(phase.CLOSING);
+    }
+
+    //The second half: in space for a moment, then zooming into this game's world
+    public void startFromSpace () {
+        if (isActive()) return;
+        this.space = true;
+        this.middle = null;
+        this.end = null;
+        this.holding = false;
+        this.sizeCarry = 1;
+        this.blackTime = SPACE_TIME/2;
+        this.cue = null;
+        enter(phase.BLACK);
+    }
+
+    private double closeTime () {return space ? SPACE_OUT_TIME : CLOSE_TIME;}
+    private double openTime () {return space ? SPACE_IN_TIME : OPEN_TIME;}
 
     public boolean isActive () {return current != phase.NONE;}
 
@@ -76,6 +119,7 @@ public class screenTransition {
     //Like start, but with end the screen does not open again: end runs when the black part is over
     public void start (Runnable middle, double minZoom, Runnable end) {
         if (isActive()) return;
+        this.space = false;
         this.middle = middle;
         this.end = end;
         this.holding = false;
@@ -89,6 +133,7 @@ public class screenTransition {
     //Only the second half: all black (zoomed out), then opening around the player (the middle of the screen in the menu)
     public void startFromBlack (double minZoom) {
         if (isActive()) return;
+        this.space = false;
         this.middle = null;
         this.end = null;
         this.holding = false;
@@ -138,7 +183,7 @@ public class screenTransition {
     public void next () {
         switch (current) {
             case CLOSING:
-                if (phaseTime() >= CLOSE_TIME) {
+                if (phaseTime() >= closeTime()) {
                     enter(phase.BLACK);
                     if (middle != null) middle.run();
                     middle = null;
@@ -161,7 +206,7 @@ public class screenTransition {
                 }
                 break;
             case OPENING:
-                if (phaseTime() >= OPEN_TIME) current = phase.NONE;
+                if (phaseTime() >= openTime()) current = phase.NONE;
                 break;
             default:
                 break;
@@ -173,6 +218,17 @@ public class screenTransition {
     //level with its own size), sizeCarry makes up for it: the black part keeps the old size and the opening
     //eases from there to the new size, so nothing on screen (like the player) jumps in size
     public double zoomFactor () {
+        if (space) {
+            //The view's own chunks across (live, so the world's size easing in is kept) over SPACE_ACROSS, to the
+            //power of how far along the log scale the zoom is
+            double ratio = Math.min(1, handler.baseChunksAcross()/handler.spaceTripAcross());
+            switch (current) {
+                case CLOSING: return Math.pow(ratio, ease(phaseTime()/SPACE_OUT_TIME));
+                case BLACK:   return ratio;
+                case OPENING: return Math.pow(ratio, 1 - ease(phaseTime()/SPACE_IN_TIME));
+                default:      return 1;
+            }
+        }
         switch (current) {
             case CLOSING: return 1 - (1 - outZoom)*ease(phaseTime()/CLOSE_TIME);
             case BLACK:   return outZoom*sizeCarry;
@@ -225,7 +281,8 @@ public class screenTransition {
 
     //Draws the black tiles over the world, lined up with the world's tiles
     public void draw () {
-        if (!isActive()) return;
+        //The zoom into space has no black: the zoom is all of it
+        if (!isActive() || space) return;
         //Made here, not when started, since a game started before its first frame may not know the screen size yet
         ensureStars(handler);
 

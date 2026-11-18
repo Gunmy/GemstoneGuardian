@@ -107,7 +107,7 @@ public class tileTypes {
         addWaveType("ChestLava", 160, 140, 20, 20, true, null, types.get(58), true); container(); //87 chest2
         addFluidType("Crystaltexture", 140, 160, 20, 20, false, null, 0.3, 0.66, 1, 0.8, false); //88 crystal texture
         addWaveType("Crystal", 120, 180, 20, 20, true, null, types.get(88), false); //89 crystal
-        addWaveType("Lilypad", 80, 140, 20, 20, false, null, types.get(57), false); //90 lilypad
+        addWaveType("Lilypad", 80, 140, 20, 20, false, null, types.get(57), false); springy(); //90 lilypad, bounces when stepped on
         addWaveType("Healing", 120, 160, 20, 20, false, c -> {c.restore(); c.setSpawn();}, types.get(88), false); teleportTarget(); //91 healingpad
         addWaveType("Pillarbottom", 200, 80, 20, 20, false, null, types.get(58), false); //92 pillarbottombrick
         addWaveType("Pillartop", 200, 60, 20, 20, true, null, types.get(60), false); //93 pillartopbluebrick
@@ -254,6 +254,7 @@ public class tileTypes {
         addPortalType("Portal to the crystal caverns", 200, 360, gate(1)); //201 portal in the sky ruins down to the caverns (4 -> 1)
         addPortalType("Portal to the sky ruins", 200, 360, gate(4)); //202 (unused: the way up from the caverns is a sky portal)
         addPortalType("Portal to the desert", 200, 360, gate(0)); //203 portal in the sky ruins back to the desert (4 -> 0)
+        addWaveType("ChestGrass", 160, 140, 20, 20, true, null, types.get(1), true); container(); //204 chest on grass (the mirror dimension's)
 
     }
 
@@ -262,7 +263,17 @@ public class tileTypes {
     //its texture when nothing near it is taken, or else is moved a little lighter, darker or round in hue until it is
     //MIN_DISTANCE from every colour given before it. The ones set by hand (primary) are kept and go first
     private static final double MIN_DISTANCE = 26;
+    //What it gave last time, per tile type (null: kept its own), for the pictures it was worked out from: every game
+    //has the same tile types and shares the pictures, so a new game takes them from here
+    private static imgDict assignedFor;
+    private static javafx.scene.paint.Color[] assigned;
+
     public void assignPrimaryColors (imgDict images) {
+        if (images == assignedFor && assigned != null && assigned.length == types.size()) {
+            for (int i = 0; i < types.size(); i++) if (assigned[i] != null) types.get(i).assignPrimaryColor(assigned[i]);
+            return;
+        }
+        javafx.scene.paint.Color[] given = new javafx.scene.paint.Color[types.size()];
         List<javafx.scene.paint.Color> taken = new ArrayList<javafx.scene.paint.Color>();
         for (tileType t : types) {
             if (t.isPrimaryFixed() && t.getPrimaryColor(images) != null) taken.add(t.getPrimaryColor(images));
@@ -273,8 +284,11 @@ public class tileTypes {
             if (own == null) continue;
             javafx.scene.paint.Color unique = uniqueColor(own, taken);
             t.assignPrimaryColor(unique);
+            given[types.indexOf(t)] = unique;
             taken.add(unique);
         }
+        assignedFor = images;
+        assigned = given;
     }
 
     private static javafx.scene.paint.Color uniqueColor (javafx.scene.paint.Color own, List<javafx.scene.paint.Color> taken) {
@@ -368,6 +382,11 @@ public class tileTypes {
     }
 
     //Makes the wave type that was just added a plant: it sways in the wind instead of bobbing
+    //Makes the type that was just added give under whoever steps on it (waveType.setSpringy)
+    private void springy () {
+        ((waveType) types.get(getLength()-1)).setSpringy(true);
+    }
+
     private void sway () {
         ((waveType) types.get(getLength()-1)).setSway(true);
     }

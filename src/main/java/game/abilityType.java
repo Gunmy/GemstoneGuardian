@@ -24,6 +24,9 @@ public enum abilityType implements picture {
         this.tint = tint;
     }
 
+    public int getCellX () {return cellX;}
+    public String tint () {return tint;}
+
     public Image getIcon (imgDict images) {
         return images.getTinted(cellX, guiSkin.ICON_Y, tint);
     }

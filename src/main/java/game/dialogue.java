@@ -73,8 +73,22 @@ public class dialogue {
     }
 
     public void shown () {
+        shownAt = System.nanoTime();
         if (onShow != null) onShow.run();
     }
+
+    //Seconds since it came on screen
+    private long shownAt = 0;
+    public double age () {return shownAt == 0 ? 0 : (System.nanoTime() - shownAt)/1e9;}
+
+    //How fast the world runs while it is on screen: the fight's last hit is played slowed down (see battle.checkForDead)
+    private double timeScale = 1;
+    public static final double SLOW_MOTION = 0.35;
+    public dialogue slowMotion () {this.timeScale = SLOW_MOTION; return this;}
+    public double timeScale () {return this.timeScale;}
+
+    //Asked when space (or a click) would go on to the next message: false keeps it on screen (see fightOutcome)
+    public boolean letGo () {return true;}
 
     public String getBorder () {return this.border;}
 

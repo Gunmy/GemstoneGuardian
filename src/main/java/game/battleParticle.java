@@ -30,7 +30,22 @@ public class battleParticle extends baseParticle {
     public battleParticle drag (double drag) {this.drag = drag; return this;}
     public battleParticle shape (boolean[][] shape) {this.shape = shape; return this;}
     public battleParticle image (javafx.scene.image.Image image) {this.image = image; return this;}
+
+    //Fading in over its first moment as well as out over its second half, so it never pops into view
+    @Override
+    protected double opacity () {
+        double in = Math.min(0.06, lifeTime*0.2);
+        return Math.min(super.opacity(), in <= 0 ? 1 : getTimeAlive()/in);
+    }
+    //An item instead, drawn as a slot draws it (slotGrid.drawStack: outline, icon, glow), as wide as the particle
+    private item item;
+    public battleParticle item (item item) {this.item = item; return this;}
+    //Gives off no light in the dark (most of a beam's specks: a few lights are enough, see battleAnimation.beam)
+    private boolean noLight = false;
+    public battleParticle noLight () {this.noLight = true; return this;}
     public battleParticle text (String text) {this.text = text; return this;}
+    //Words and numbers (LUCKY!, -12) are drawn after every other effect, so a beam never covers them (gameHandler)
+    public boolean isText () {return this.text != null;}
     //Made this much bigger (battleAnimation.SIZE_SCALE); text keeps its size
     public battleParticle scale (double factor) {
         if (text == null) {
@@ -45,8 +60,57 @@ public class battleParticle extends baseParticle {
     //Grows (or shrinks, below 0) by this share of its size over its life
     public battleParticle grow (double growth) {this.growthConstant = growth; return this;}
 
+    //Its light while a move darkens the world (gameHandler.drawMood): a soft round light in its colour (mixed with
+    //white) drawn into the light map lights, which is scale times the size of the screen and blended so the brightest
+    //light wins: two lights on the same spot are no brighter than the brighter one. strength (0 to 1) is how much the
+    //mood lets the moves shine. Numbers and pictures (the thrown rocks) give off no light, their trails do
+    public static final double LIGHT_REACH = 5, LIGHT_MIN_TILES = 0.45, LIGHT_WHITE = 0.45;
+
+    public void light (javafx.scene.canvas.GraphicsContext lights, double scale, double strength) {
+        if (noLight || text != null || image != null || item != null || getWorld() != handler.getCurrentWorld()) return;
+        //Black (a black hole's core) gives off no light
+        if (color.getBrightness() < 0.1) return;
+        double a = opacity()*strength;
+        if (a <= 0.01) return;
+        double tile = handler.getUnitWidth()/handler.getTileCount();
+        double size = startWidth*getCurrentGrowth()*handler.getUnitWidth();
+        double r = Math.max(LIGHT_MIN_TILES*tile, size*LIGHT_REACH)*scale;
+        double cx = screenX()*scale, cy = screenY()*scale;
+        if (cx + r < 0 || cy + r < 0 || cx - r > lights.getCanvas().getWidth() || cy - r > lights.getCanvas().getHeight()) return;
+        Color shine = color.interpolate(Color.WHITE, LIGHT_WHITE);
+        lights.setFill(new javafx.scene.paint.RadialGradient(0, 0, cx, cy, r, false, javafx.scene.paint.CycleMethod.NO_CYCLE,
+            new javafx.scene.paint.Stop(0, Color.color(shine.getRed(), shine.getGreen(), shine.getBlue(), a)),
+            new javafx.scene.paint.Stop(1, Color.color(shine.getRed(), shine.getGreen(), shine.getBlue(), 0))));
+        lights.fillOval(cx - r, cy - r, 2*r, 2*r);
+    }
+
+    //Spiralling into a point instead of flying (a black hole's pull, battleAnimation.vortex): round (cx, cy) from
+    //radius r0 at angle a0 to the middle over its life, turning turns times, the ring squashed to flat (0 to 1) of its
+    //width so it lies on the ground
+    private boolean spiral = false;
+    private double scx, scy, r0, a0, turns, flat, age;
+    public battleParticle spiral (double cx, double cy, double r0, double a0, double turns, double flat) {
+        this.spiral = true;
+        this.scx = cx;
+        this.scy = cy;
+        this.r0 = r0;
+        this.a0 = a0;
+        this.turns = turns;
+        this.flat = flat;
+        return this;
+    }
+
     @Override
     public void move (double deltaTime) {
+        if (spiral) {
+            age += deltaTime;
+            double f = Math.min(1, age/lifeTime);
+            //Faster and faster as it falls in
+            double r = r0*(1 - f*f), a = a0 + turns*2*Math.PI*f*f;
+            x = scx + Math.cos(a)*r;
+            y = scy + Math.sin(a)*r*flat;
+            return;
+        }
         double slow = Math.exp(-drag*deltaTime);
         vx *= slow;
         vy *= slow;
@@ -69,10 +133,18 @@ public class battleParticle extends baseParticle {
             double o = Math.max(1, Math.round(size*0.08));
             for (int dx = -1; dx <= 1; dx++) {
                 for (int dy = -1; dy <= 1; dy++) {
-                    if (dx != 0 || dy != 0) guiText.draw(handler.getTempGc(), text, rendX + dx*o, top + dy*o, size, outline, javafx.scene.text.TextAlignment.CENTER);
+                    if (dx != 0 || dy != 0) guiText.draw(handler.getTempGc(), text, rendX + dx*o, top + dy*o, size, outline, javafx.scene.text.TextAlignment.CENTER, true);
                 }
             }
             guiText.draw(handler.getTempGc(), text, rendX, top, size, color, javafx.scene.text.TextAlignment.CENTER);
+            return;
+        }
+        if (item != null) {
+            javafx.scene.canvas.GraphicsContext gc = handler.getTempGc();
+            double x = rendX - size/2, y = rendY - size/2;
+            item.drawGlowOutline(gc, x, y, size);
+            item.drawIcon(gc, x, y, size);
+            item.drawGlowOver(gc, x, y, size);
             return;
         }
         if (image != null) {

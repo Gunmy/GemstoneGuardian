@@ -169,6 +169,10 @@ public class cutscene {
     //Starts the next steps whose turn it is. Called every frame by gameHandler
     public void next () {
         if (handler.getBattle().isActive()) return;
+        //It begins only once every message before it has been read (the last move of a fight, who lost, the xp and the
+        //drops): nobody moves while a move is still on screen
+        dialogueContainer d = handler.getDiealoguecontainer();
+        if (current < 0 && (d.isActive() || d.hasNext())) return;
         while (!isOver() && (current < 0 || steps.get(current).done())) {
             current++;
             stepStart = System.nanoTime();

@@ -60,6 +60,13 @@ public class character implements cordinate, entity, picture {
         drops.add(new drop(item, chance, rolls));
     }
 
+    //One of each item it can drop, whatever the chance
+    public List<item> possibleDrops () {
+        List<item> all = new ArrayList<item>();
+        for (drop drop : drops) all.add(drop.item.get());
+        return all;
+    }
+
     //Rolls every drop and returns the items won this time
     public List<item> rollDrops () {
         Random rdm = new Random();
@@ -183,24 +190,56 @@ public class character implements cordinate, entity, picture {
         setWorld(worldSpawn);
     }
 
+    //Xp given with no message: the win screen (fightOutcome) shows it
+    public void addXp (double xp) {
+        if (xp < 0) throw new IllegalArgumentException("xp kan ikke være under 0");
+        this.xp += xp;
+    }
+    public double getXp () {return this.xp;}
+
+    //The level a total of xp is, and the xp a level starts at
+    public static int levelOf (double xp) {return (int) Math.floor(Math.cbrt(xp));}
+    public static double xpOfLevel (int lvl) {return Math.pow(lvl, 3);}
+
     public void giveXp (double xp) {
         if (xp < 0) throw new IllegalArgumentException("xp kan ikke være under 0");
-        String msg = getName() + " got " + xp + " xp!\n";
+        String msg = getName() + " got " + guiText.num(xp) + " {lvl} xp!\n";
 
         if (getLevel() + 1 <= xpToLvl(this.xp+xp)) {
             msg += getName() + " leveled up to level " + xpToLvl(this.xp+xp) + "!";
         } else {
-            msg += getName() + " need " + (LvlToxp(getLevel()+1)-(this.xp+xp)) + " more xp to level up!";
+            msg += getName() + " need " + guiText.num(LvlToxp(getLevel()+1)-(this.xp+xp)) + " more xp to level up!";
         }
 
         
 
         boolean leveledUp = getLevel() + 1 <= xpToLvl(this.xp+xp);
+        int before = getLevel();
         this.xp += xp;
 
         dialogue message = new dialogue("Game", msg);
         if (leveledUp) message.highlight(dialogue.LEVEL_BORDER, picture.of(handler.getImages().getTinted(guiSkin.LEVEL_UP_X, guiSkin.ICON_Y, "#60E060")));
         handler.getDiealoguecontainer().add(message);
+        announceMilestones(before, getLevel());
+    }
+
+    //For the player: a message for every move of a rock it carries (the ones inside an elemental rock too) that has a
+    //level milestone (moveEffects.from) above before and at most after
+    public void announceMilestones (int before, int after) {
+        if (after <= before || this != handler.getMainCharacter()) return;
+        List<gemstone> rocks = new ArrayList<gemstone>();
+        for (item held : inventory.getItems()) {
+            if (held instanceof elementalRock) {
+                for (gemstone in : ((elementalRock) held).getInsideList()) if (!rocks.contains(in)) rocks.add(in);
+            } else if (held instanceof gemstone && !rocks.contains(held)) rocks.add((gemstone) held);
+        }
+        for (gemstone g : rocks) {
+            String[] names = {g.getAbility1name(), g.getAbility2name(), g.getAbility3name()};
+            for (int n = 0; n < 3; n++) {
+                moveEffects fx = g.effectsOf(n);
+                if (fx != null && fx.hasMilestone(before, after)) handler.getDiealoguecontainer().add(new dialogue("Game", g.getName() + "'s " + names[n] + " got stronger!"));
+            }
+        }
     }
 
     //Effects, kunne blitt gjort en del kortere
@@ -233,10 +272,10 @@ public class character implements cordinate, entity, picture {
         picture levelIcon = picture.of(handler.getImages().getTinted(guiSkin.LEVEL_UP_X, guiSkin.ICON_Y, "#60E060"));
         //The bar and count are the xp into this level, out of what this level takes
         double from = LvlToxp(lvl), to = LvlToxp(lvl+1);
-        boxes.add(new infoBox(levelIcon, "Level " + lvl, Math.round(xp) + " xp in all", "")
-            .bar((xp - from)/(to - from), Color.web("#60E060"), Math.round(xp - from) + " / " + Math.round(to - from) + " xp"));
+        boxes.add(new infoBox(levelIcon, "Level " + lvl, guiText.num(xp) + " xp in all", "")
+            .bar((xp - from)/(to - from), Color.web("#60E060"), guiText.num(xp - from) + " / " + guiText.num(to - from) + " xp"));
         boxes.add(new infoBox(abilityType.HEAL, "Health", "", "")
-            .bar(getHealth()/getMaxHealth(), Color.RED, Math.round(getHealth()) + " / " + Math.round(getMaxHealth())));
+            .bar(getHealth()/getMaxHealth(), Color.RED, guiText.num(getHealth()) + " / " + guiText.num(getMaxHealth())));
         gemstone stone = getGemstone();
         if (stone == null) {
             boxes.add(new infoBox(stone, "Equipped rock", "", "None. Right click a rock to equip it"));
@@ -246,7 +285,7 @@ public class character implements cordinate, entity, picture {
             picture still = (gc, g, x, y, size) -> stone.drawIcon(gc, x, y, size);
             infoBox rock = new infoBox(still, "Equipped rock", stone.getName(), "");
             List<String> names = Arrays.asList(stone.getAbility1name(), stone.getAbility2name(), stone.getAbility3name());
-            List<List<Integer>> uses = Arrays.asList(stone.howManyAbility1Uses(), stone.howManyAbility2Uses(), stone.howManyAbility3Uses());
+            List<List<Integer>> uses = Arrays.asList(stone.usesOf(0, this), stone.usesOf(1, this), stone.usesOf(2, this));
             for (int i = 0; i < 3; i++) rock.row(names.get(i), uses.get(i).get(0) + " / " + uses.get(i).get(1));
             boxes.add(rock);
         }
@@ -254,19 +293,20 @@ public class character implements cordinate, entity, picture {
         return boxes;
     }
 
-    //One box per effect on the character right now: what it is (title, with its ability type as the picture), the turns
-    //left (subtitle) and how strong it is (text). Also listed under the health bars in a fight
-    //short: the wording for the one-line list under a health bar
-    public List<infoBox> getEffectBoxes () {return getEffectBoxes(false);}
-
-    public List<infoBox> getEffectBoxes (boolean short_) {
+    //One box per effect on the character right now: what it is (title, with its ability type as the picture) and one
+    //line of how strong it is per turn and the turns left, with icons (moveEffects.status). The same lines are listed
+    //under the health bars in a fight
+    public List<infoBox> getEffectBoxes () {
         List<infoBox> boxes = new ArrayList<infoBox>();
-        String dmg = short_ ? " dmg/turn" : " damage per turn";
-        if (fireDamageTimes > 0) boxes.add(new infoBox(abilityType.FIRE, "Burning", turns(fireDamageTimes), Math.round(fireDamage) + dmg));
-        if (poisonDamageTimes > 0) boxes.add(new infoBox(abilityType.POISON, "Poisoned", turns(poisonDamageTimes), Math.round(poisonDamage) + dmg));
-        if (healingTimes > 0) boxes.add(new infoBox(abilityType.HEAL, "Healing", turns(healingTimes), Math.round(healing) + (short_ ? " hp/turn" : " health per turn")));
-        if (confusionTimes > 0) boxes.add(new infoBox(abilityType.CONFUSE, "Confused", turns(confusionTimes), Math.round(confusion*100) + (short_ ? "% less hit" : "% lower hit chance")));
+        if (fireDamageTimes > 0) boxes.add(effectBox(abilityType.FIRE, "Burning", guiText.num(fireDamage), fireDamageTimes));
+        if (poisonDamageTimes > 0) boxes.add(effectBox(abilityType.POISON, "Poisoned", guiText.num(poisonDamage), poisonDamageTimes));
+        if (healingTimes > 0) boxes.add(effectBox(abilityType.HEAL, "Healing", guiText.num(healing), healingTimes));
+        if (confusionTimes > 0) boxes.add(effectBox(abilityType.CONFUSE, "Confused", guiText.num(confusion*100) + "%", confusionTimes));
         return boxes;
+    }
+
+    private static infoBox effectBox (abilityType type, String title, String amount, int turns) {
+        return new infoBox(type, title, "", "").lines(Arrays.asList(moveEffects.status(type, amount, turns)));
     }
 
     //The health the messages have shown so far (the health bar's number)
@@ -275,47 +315,73 @@ public class character implements cordinate, entity, picture {
         return this.shownHealth;
     }
 
-    private static String turns (int n) {return n == 1 ? "1 turn left" : n + " turns left";}
+
+    //An effect put on while the same effect is already on: a stronger one (more per turn) takes over, turns and all;
+    //a weaker one is ignored even if it would last longer; an equally strong one only counts if it lasts longer.
+    //When it is ignored a message says so. Returns {strength, turns}. word: how the effect is said ("burning")
+    private double[] combine (double strength, int turns, double newStrength, int newTurns, String word) {
+        if (turns <= 0) return new double[] {newStrength, newTurns};
+        if (newStrength > strength || (newStrength == strength && newTurns > turns)) return new double[] {newStrength, newTurns};
+        handler.getDiealoguecontainer().add(new dialogue("Game", getName() + " is already " + word + (newStrength < strength ? " harder" : " for longer")));
+        return new double[] {strength, turns};
+    }
+
+    //The effects on it now, for battleAI: burn, burn turns, poison, poison turns, healing, healing turns, confusion,
+    //confusion turns
+    public double[] effectState () {
+        return new double[] {fireDamage, fireDamageTimes, poisonDamage, poisonDamageTimes, healing, healingTimes, confusion, confusionTimes};
+    }
+
+    //Turns this character's harmful effects (burn, poison, confusion) onto them instead (the mirror's Reflection):
+    //each goes on them as strong and as long as it was here (by the usual rules, see combine) and comes off here.
+    //Healing over time stays
+    public void reflectOnto (character them) {
+        if (fireDamageTimes > 0) them.addFireDamage(fireDamage, fireDamageTimes);
+        if (poisonDamageTimes > 0) them.addPoisonDamage(poisonDamage, poisonDamageTimes);
+        if (confusionTimes > 0) them.addConfusion(confusion, confusionTimes);
+        fireDamage = 0;
+        fireDamageTimes = 0;
+        poisonDamage = 0;
+        poisonDamageTimes = 0;
+        confusion = 0;
+        confusionTimes = 0;
+    }
 
     public void addConfusion (double confuse, int times) {
         if (confuse < 0) throw new IllegalArgumentException("Confuse kan ikke være under 0");
         if (times < 0) throw new IllegalArgumentException("Times kan ikke være under 0");
 
-        if (confuse > confusion || (confuse == confusion && times > confusionTimes)) {
-            handler.getDiealoguecontainer().add(new dialogue("Game", getName() + " is more confused"));
-            confusion = confuse;
-            confusionTimes = times;
-        }
+        double[] now = combine(confusion, confusionTimes, confuse, times, "confused");
+        if (now[0] > confusion) handler.getDiealoguecontainer().add(new dialogue("Game", getName() + " is more confused {confuse}"));
+        confusion = now[0];
+        confusionTimes = (int) now[1];
     }
 
     public void addFireDamage (double dmg, int times) {
         if (dmg < 0) throw new IllegalArgumentException("Firedmg kan ikke være under 0");
         if (times < 0) throw new IllegalArgumentException("Times kan ikke være under 0");
 
-        if (dmg > fireDamage || (dmg == fireDamage && times > fireDamageTimes)) {
-            fireDamage = dmg;
-            fireDamageTimes = times;
-        }
+        double[] now = combine(fireDamage, fireDamageTimes, dmg, times, "burning");
+        fireDamage = now[0];
+        fireDamageTimes = (int) now[1];
     }
 
     public void addPoisonDamage (double dmg, int times) {
         if (dmg < 0) throw new IllegalArgumentException("Poisondmg kan ikke være under 0");
         if (times < 0) throw new IllegalArgumentException("Times kan ikke være under 0");
 
-        if (dmg > poisonDamage || (dmg == poisonDamage && times > poisonDamageTimes)) {
-            poisonDamage = dmg;
-            poisonDamageTimes = times;
-        }
+        double[] now = combine(poisonDamage, poisonDamageTimes, dmg, times, "poisoned");
+        poisonDamage = now[0];
+        poisonDamageTimes = (int) now[1];
     }
 
     public void addHealing (double heal, int times) {
         if (heal < 0) throw new IllegalArgumentException("Heal kan ikke være under 0");
         if (times < 0) throw new IllegalArgumentException("Times kan ikke være under 0");
 
-        if (heal > healing || (heal == healing && times > healingTimes)) {
-            healing = heal;
-            healingTimes = times;
-        }
+        double[] now = combine(healing, healingTimes, heal, times, "healing");
+        healing = now[0];
+        healingTimes = (int) now[1];
     }
 
     public void updateEffects () {
@@ -327,19 +393,19 @@ public class character implements cordinate, entity, picture {
             if ((new Random()).nextBoolean()) {
                 fireDamageTimes-=1;
             }
-            dialogue += getName() + " is burning (" + fireDamage + " dmg)\n";
+            dialogue += getName() + " is burning (" + guiText.num(fireDamage) + " {burn} dmg)\n";
             dmg += fireDamage;
         }
 
         if (poisonDamageTimes > 0) {
             poisonDamageTimes-=1;
-            dialogue += getName() + " is being poisoned (" + poisonDamage + " dmg)\n";
+            dialogue += getName() + " is being poisoned (" + guiText.num(poisonDamage) + " {poison} dmg)\n";
             dmg += poisonDamage;
         }
 
         if (healingTimes > 0) {
             healingTimes-=1;
-            dialogue += getName() + " is healing (" + healing + " health)\n";
+            dialogue += getName() + " is healing (" + guiText.num(healing) + " {heal} health)\n";
             dmg -= healing;
         }
 
@@ -458,6 +524,11 @@ public class character implements cordinate, entity, picture {
         return handler.getImages().getTinted(imgX, imgY, null);
     }
 
+    //The sprite in one colour (brightness kept, see imgDict.getTinted): the mirror's copies of a character
+    public Image getTintedIcon (String hex) {
+        return handler.getImages().getTinted(imgX, imgY, hex);
+    }
+
     //In a box the character bounces the same way it does in the world
     @Override
     public void draw (GraphicsContext gc, gui gui, double x, double y, double size) {
@@ -504,7 +575,7 @@ public class character implements cordinate, entity, picture {
 
         double after = this.health;
         picture cause = handler.getDiealoguecontainer().getSource();
-        handler.getDiealoguecontainer().add(new dialogue("Game", getName() + " took " + dmg + " damage!\n" + getName() + " now has " + getHealth() + " health left")
+        handler.getDiealoguecontainer().add(new dialogue("Game", getName() + " took " + guiText.num(dmg) + " " + textIcons.forAmount(false, cause) + " damage!\n" + getName() + " now has " + guiText.num(getHealth()) + " {hp} health left")
             .highlight(dialogue.DAMAGE_BORDER, cause)
             .animate(numberAnimation(dmg, false, cause))
             .onShow(() -> shownHealth = after));
@@ -524,7 +595,7 @@ public class character implements cordinate, entity, picture {
 
         double after = this.health;
         picture cause = handler.getDiealoguecontainer().getSource();
-        dialogue healed = new dialogue("Game", getName() + " healed " + (this.health-temp) + "!\n" + getName() + " now has " + getHealth() + " health left")
+        dialogue healed = new dialogue("Game", getName() + " healed " + guiText.num(this.health-temp) + " {heal}!\n" + getName() + " now has " + guiText.num(getHealth()) + " {hp} health left")
             .highlight(dialogue.DAMAGE_BORDER, cause)
             .onShow(() -> shownHealth = after);
         //Healing at full health heals nothing: no number for it
@@ -567,6 +638,24 @@ public class character implements cordinate, entity, picture {
         gc.setFill(new javafx.scene.paint.RadialGradient(0, 0, cx, cy, r, false, javafx.scene.paint.CycleMethod.NO_CYCLE,
             new javafx.scene.paint.Stop(0, Color.web("#FFF0B0", 0.45)), new javafx.scene.paint.Stop(1, Color.web("#FFF0B0", 0))));
         gc.fillOval(cx - r, cy - r, 2*r, 2*r);
+    }
+
+    //When a move darkens a fight (gameHandler.drawMood), a lit character's light goes into the light map too, so the
+    //goggles light up the world round the wearer like the moves' particles do: warm, as far as LIGHT_RADIUS times
+    //DARK_LIGHT_REACH, blended so the brightest light wins (lights is scale times the size of the screen)
+    public static final double DARK_LIGHT_REACH = 1.3;
+    public void lightInto (GraphicsContext lights, double scale) {
+        if (!isLit() || getWorld() != handler.getCurrentWorld()) return;
+        camera cam = handler.getCamera();
+        double tile = handler.getUnitWidth()/handler.getTileCount();
+        double cx = (handler.getMidWIDTH() + (x + nudgeX - cam.getX())*handler.getUnitWidth() + tile/2)*scale;
+        double cy = (handler.getMidHEIGHT() + (y + nudgeY - cam.getY())*handler.getUnitHeight())*scale;
+        double r = tile*LIGHT_RADIUS*DARK_LIGHT_REACH*scale;
+        Color warm = Color.web("#FFF0B0");
+        lights.setFill(new javafx.scene.paint.RadialGradient(0, 0, cx, cy, r, false, javafx.scene.paint.CycleMethod.NO_CYCLE,
+            new javafx.scene.paint.Stop(0, Color.color(warm.getRed(), warm.getGreen(), warm.getBlue(), 0.85)),
+            new javafx.scene.paint.Stop(1, Color.color(warm.getRed(), warm.getGreen(), warm.getBlue(), 0))));
+        lights.fillOval(cx - r, cy - r, 2*r, 2*r);
     }
 
     //What the instant damage of this character's moves is multiplied by
@@ -717,13 +806,25 @@ public class character implements cordinate, entity, picture {
                     handler.getUnitWidth()/handler.getTileCount(), handler.getUnitHeight()/handler.getTileCount());
                 return;
             }
-            handler.getTempGc().drawImage(handler.getImages().getImage(0), 
-            this.imgX, this.imgY, this.width, this.height, 
-              renderx,   rendery, 
-              (handler.getUnitWidth()/handler.getTileCount()-widthOffset), 
-            (handler.getUnitHeight()/handler.getTileCount()+heightOffset));
-            drawWorn(handler.getTempGc(), renderx, rendery,
-                handler.getUnitWidth()/handler.getTileCount()-widthOffset, handler.getUnitHeight()/handler.getTileCount()+heightOffset, true);
+            boolean fallen = fall != 0;
+            if (fallen) {
+                double fw = handler.getUnitWidth()/handler.getTileCount(), fh = handler.getUnitHeight()/handler.getTileCount();
+                double px = renderx + fw/2, py = rendery + fh;
+                handler.getTempGc().save();
+                handler.getTempGc().translate(px, py);
+                handler.getTempGc().rotate(90*fall);
+                handler.getTempGc().translate(-px, -py);
+            }
+            if (!veiled) {
+                handler.getTempGc().drawImage(handler.getImages().getImage(0), 
+                this.imgX, this.imgY, this.width, this.height, 
+                  renderx,   rendery, 
+                  (handler.getUnitWidth()/handler.getTileCount()-widthOffset), 
+                (handler.getUnitHeight()/handler.getTileCount()+heightOffset));
+                drawWorn(handler.getTempGc(), renderx, rendery,
+                    handler.getUnitWidth()/handler.getTileCount()-widthOffset, handler.getUnitHeight()/handler.getTileCount()+heightOffset, true);
+            }
+            if (fallen) handler.getTempGc().restore();
 
             handler.getTempGc().setFill(Color.WHITE);
             handler.getTempGc().setFont(new Font("Silkscreen", 15));
@@ -756,7 +857,18 @@ public class character implements cordinate, entity, picture {
     //shaking it when hit (battleAnimation). Cleared every frame before the animations play (gameHandler.next)
     private double nudgeX, nudgeY;
     public void nudge (double dx, double dy) {nudgeX += dx; nudgeY += dy;}
-    public void clearNudge () {nudgeX = 0; nudgeY = 0;}
+    public void clearNudge () {nudgeX = 0; nudgeY = 0; fall = 0; veiled = false;}
+    public double getNudgeX () {return nudgeX;}
+    public double getNudgeY () {return nudgeY;}
+    //Not drawn this frame (a move draws the sprite itself, stretched or crumbling: battleFx); set again every frame
+    private boolean veiled = false;
+    public void veil () {veiled = true;}
+    public boolean isVeiled () {return veiled;}
+
+    //How far the sprite has fallen over this frame (0 standing, 1 or -1 lying on its side to the right or left), turned
+    //round its feet. Set by the lose screen (fightOutcome), cleared with the nudge every frame
+    private double fall;
+    public void fallOver (double fall) {this.fall = fall;}
 
     private boolean targetSameAsCoords () {
         int tileCount = handler.getTileCount();
@@ -889,6 +1001,12 @@ public class character implements cordinate, entity, picture {
         } else {
             y += Math.signum(yTarget-y)*speed;
         }    
+        //Halfway into a new tile counts as stepping on it: a springy one (a lily pad) bounces
+        tile near = nearestTile();
+        if (near != lastNear) {
+            lastNear = near;
+            if (near != null && near.getTileType() instanceof waveType && ((waveType) near.getTileType()).isSpringy()) waveType.steppedOn(world, near);
+        }
         if (queuedMovement.size() > 0 && targetSameAsCoords()) {
             List<Integer> coords = queuedMovement.get(0);
             if (setTarget(coords.get(0), coords.get(1))) {
@@ -900,6 +1018,20 @@ public class character implements cordinate, entity, picture {
 
     public tileType getStandingTileType () {
         return handler.getWorld(this.world).getTileType(x, y);
+    }
+
+    //The tile it is mostly on (chunks.getTile rounds to the nearest tile, so it changes halfway through a step)
+    private tile lastNear;
+    private tile nearestTile () {
+        if (handler.getWorld(this.world) == null) return null;
+        return handler.getWorld(this.world).getTile(x, y);
+    }
+
+    //How far down it is pushed by the springy tile under it (a lily pad bouncing), in world units
+    public double springOffset () {
+        tile near = nearestTile();
+        if (near == null || !(near.getTileType() instanceof waveType) || !((waveType) near.getTileType()).isSpringy()) return 0;
+        return waveType.bounce(world, near.getGridX(), near.getGridY())/handler.getTileCount();
     }
 
     public tile getStandingTile () {
@@ -1159,36 +1291,11 @@ public class character implements cordinate, entity, picture {
         if (!visitedTeleports.contains(visited)) visitedTeleports.add(visited);
     }
 
+    //A turn of a fighter the game plays, picked by battleAI (moves, switching rocks, items) with the game's
+    //strength (aiStrength) and done at once. battle thinks on a thread instead (battleAI.plan) and only does it here
     public void autoMaticMove (character them) {
         if (them == this) throw new IllegalArgumentException("Kan ikke angripe seg selv");
-        if (getGemstone() != null) {
-            if (getGemstone().hasMovesLeft()) {
-                Random rdm = new Random();
-
-                List<Integer> weights = new ArrayList<Integer>();
-                if (getGemstone().ability1usesLeft()) {weights.add(1);}
-                if (getGemstone().ability2usesLeft()) {weights.add(2);}
-                if (getGemstone().ability3usesLeft()) {weights.add(3);}
-
-                int moveNr = weights.get(rdm.nextInt(weights.size()));
-                if (moveNr == 1) {getGemstone().ability1(this, them);}
-                else if (moveNr == 2) {getGemstone().ability2(this, them);}
-                else if (moveNr == 3) {getGemstone().ability3(this, them);}
-            } else {
-                getGemstone().use(this, them);
-                
-            }
-        } else {
-            for (item item : getInventory().getItems()) {
-                if (item instanceof gemstone && ((gemstone) item).hasMovesLeft()) {
-                    item.use(this, them);
-                }
-            }
-            if (getGemstone() == null) {
-                handler.getDiealoguecontainer().add(new dialogue(this, "Hit " + them.getName()));
-                them.hitBy(this, () -> them.takeDmg(getLevel()*2+5));
-            }
-        }
+        battleAI.perform(battleAI.plan(this, them, aiStrength.of(handler)).join(), this, them);
     }
     
 }

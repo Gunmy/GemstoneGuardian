@@ -11,7 +11,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Properties;
 
-//One campaign's progress on disk: a key = value file in saves/ (next to the project, git-ignored). The map is not in it,
+//One campaign's progress on disk: a key = value file in saves/ (next to the project, git-ignored; in the packaged game
+//in the player's own folder, see gameFiles). The map is not in it,
 //it always comes from the campaign file (chunks.txt), so a save is only what has changed: characters, inventories,
 //which events have happened, an ongoing fight and the dialogue on screen. saveState fills and reads it.
 //The header (name, level, play time, where the player is) is read by the savefile list without loading the game
@@ -27,7 +28,7 @@ public class saveFile {
     }
 
     public static File getFolder () {
-        return new File("saves").getAbsoluteFile();
+        return gameFiles.savesFolder();
     }
 
     //Every savefile, the one played last first. Files that can not be read are skipped
@@ -116,13 +117,16 @@ public class saveFile {
         return save;
     }
 
-    //Everything is thrown away before a new save is filled in, except the header that is not game state
+    //Everything is thrown away before a new save is filled in, except the header that is not game state and the
+    //computer's strength picked when the campaign was started (aiStrength)
     public void clearState () {
         String name = getName();
         long created = getLong("created", System.currentTimeMillis());
+        aiStrength ai = aiStrength.load(this);
         data.clear();
         set("name", name);
         set("created", created);
+        ai.saveTo(this);
     }
 
     public boolean exists () {return file.exists();}

@@ -71,13 +71,32 @@ public class settings {
     public fluidStyle getFluidStyle () {return this.fluids;}
     public void cycleFluidStyle () {fluids = fluids.next(); save();}
 
+    //How strong the computer plays in random 1v1 battles (the campaigns keep their own, see aiStrength)
+    private aiStrength duelAI = aiStrength.DEFAULT;
+    public aiStrength getDuelAI () {return this.duelAI;}
+    public void setDuelAI (aiStrength ai) {duelAI = ai; save();}
+
+    //The level both fight at in a 1v1 (the host's in one over the network), picked on the 1v1 page ("Battle level")
+    private int duelLevel = duel.DEFAULT_LEVEL;
+    public int getDuelLevel () {return this.duelLevel;}
+    public void setDuelLevel (int level) {duelLevel = Math.max(0, Math.min(duel.MAX_LEVEL, level)); save();}
+
+    //Cheat mode (a hidden secret): in a fight, hovering an action shows how good it is now (battle.getHint). Never
+    //in a 1v1 against another person, and a random battle won with it on does not count for the streak
+
+    private boolean cheatMode = false;
+    public boolean cheatMode () {return this.cheatMode;}
+    public void toggleCheatMode () {cheatMode = !cheatMode; save();}
+
     private static File getFile () {
-        return new File(new File("src/main/resources/game/reading/").getAbsolutePath(), "settings.txt");
+        return gameFiles.writable("settings.txt");
     }
 
+    //With no settings.txt yet (the first time the packaged game is started) the defaults are written, so the file is
+    //there to find
     private void load () {
         File file = getFile();
-        if (!file.exists()) return;
+        if (!file.exists()) {save(); return;}
 
         Properties saved = new Properties();
         try (FileInputStream in = new FileInputStream(file)) {
@@ -99,12 +118,28 @@ public class settings {
         } catch (IllegalArgumentException e) {
             System.out.println("Ukjent fluids i settings.txt, bruker " + fluids.name());
         }
+        try {
+            duelAI = new aiStrength(Boolean.parseBoolean(saved.getProperty("duelAITrained", String.valueOf(duelAI.trained))),
+                Integer.parseInt(saved.getProperty("duelAIDepth", String.valueOf(duelAI.depth))));
+        } catch (NumberFormatException e) {
+            System.out.println("Ukjent duelAIDepth i settings.txt, bruker " + duelAI.depth);
+        }
+        cheatMode = Boolean.parseBoolean(saved.getProperty("cheatMode", "false"));
+        try {
+            duelLevel = Math.max(0, Math.min(duel.MAX_LEVEL, Integer.parseInt(saved.getProperty("duelLevel", String.valueOf(duel.DEFAULT_LEVEL)))));
+        } catch (NumberFormatException e) {
+            System.out.println("Ukjent duelLevel i settings.txt, bruker " + duel.DEFAULT_LEVEL);
+        }
     }
 
     private void save () {
         Properties saved = new Properties();
         saved.setProperty("guiSize", size.name());
         saved.setProperty("fluids", fluids.name());
+        saved.setProperty("duelAITrained", String.valueOf(duelAI.trained));
+        saved.setProperty("duelAIDepth", String.valueOf(duelAI.depth));
+        saved.setProperty("cheatMode", String.valueOf(cheatMode));
+        saved.setProperty("duelLevel", String.valueOf(duelLevel));
 
         try (FileOutputStream out = new FileOutputStream(getFile())) {
             saved.store(out, "Gemstone Guardian settings");

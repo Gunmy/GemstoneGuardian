@@ -21,6 +21,7 @@ public class dialogueContainer {
     }
 
     public void next() {
+        if (current != null && !current.letGo()) return;
         if (hasNext()) {
             current = dialogues.remove(0);
             current.shown();
@@ -31,6 +32,24 @@ public class dialogueContainer {
 
     public boolean isActive () {
         return current != null;
+    }
+
+    //The win or lose screens up or waiting whose consequences have not run yet (fightOutcome.afterwards)
+    public boolean holdsOutcome () {
+        if (current instanceof fightOutcome && ((fightOutcome) current).hasPending()) return true;
+        for (dialogue d : dialogues) if (d instanceof fightOutcome && ((fightOutcome) d).hasPending()) return true;
+        return false;
+    }
+
+    //Runs them now (before a save)
+    public void settleOutcomes () {
+        if (current instanceof fightOutcome) ((fightOutcome) current).settle();
+        for (dialogue d : new ArrayList<dialogue>(dialogues)) if (d instanceof fightOutcome) ((fightOutcome) d).settle();
+    }
+
+    //The message queued last (or the one on screen when none are waiting), null if there is none
+    public dialogue last () {
+        return dialogues.isEmpty() ? current : dialogues.get(dialogues.size() - 1);
     }
 
     public dialogue getCurrent () {

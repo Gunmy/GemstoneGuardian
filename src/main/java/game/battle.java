@@ -1,8 +1,7 @@
 package game;
 
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 //The turn based fight. Holds the state only, the GUI (guiBattle) draws it and calls back in here
 public class battle {
@@ -39,7 +38,7 @@ public class battle {
 
     //A 1v1 waiting for the other player to pick their move (its messages read): guiBattle shows the waiting sign
     public boolean waitingForOther (gameHandler handler) {
-        if (duel == null || !activeBattle || waitingForPlayer) return false;
+        if (duel == null || duel.isAgainstComputer() || !activeBattle || waitingForPlayer) return false;
         if (handler.getDiealoguecontainer().isActive() || handler.getDiealoguecontainer().hasNext()) return false;
         return duel.isHost() ? !opponentDoneMove : !duel.isMyTurn();
     }
@@ -67,9 +66,60 @@ public class battle {
     public boolean isWaitingForPlayer () {return this.waitingForPlayer;}
     public boolean inMoreView () {return this.moreView;}
 
+    //What the computer will do on its turn: battleAI thinks on a thread of its own, and the fight waits for it
+    //(opponentMove) while the game keeps drawing
+    private CompletableFuture<battleSim.action> aiPlan;
+
+    //Cheat mode: how good each of the player's actions is this turn (getHints), worked out on a thread. cheated: it
+    //was on in this fight, so a random battle won does not count for the streak
+    private CompletableFuture<battleAI.hints> hints;
+    private boolean cheated = false;
+
+    //Cheat mode's scores for this turn: null while they are worked out, when it is off, outside the player's turn,
+    //and always in a 1v1 against another person
+    public battleAI.hints getHints (gameHandler handler) {
+        if (!activeBattle || !waitingForPlayer || you == null || !handler.getSettings().cheatMode()) return null;
+        if (duel != null && !duel.isAgainstComputer()) return null;
+        cheated = true;
+        if (hints == null) hints = battleAI.hintsFor(you, them, aiStrength.of(handler));
+        if (!hints.isDone()) return null;
+        if (hints.isCompletedExceptionally()) {
+            //Said once, then left off for this turn
+            try {
+                hints.join();
+            } catch (RuntimeException e) {
+                System.out.println("Juksemodus feilet: " + e);
+            }
+            hints = CompletableFuture.completedFuture(null);
+            return null;
+        }
+        return hints.join();
+    }
+
+    //The fight in numbers, for the win and lose screens (fightOutcome)
+    private fightOutcome.stats numbers = new fightOutcome.stats();
+
+    //Runs one side's action and counts the damage it did to the other (a hit, for the best hit)
+    private void yourAction (Runnable action) {
+        double before = them.getHealth();
+        action.run();
+        numbers.yourHit(before - them.getHealth(), true);
+        numbers.turns++;
+    }
+
+    private void theirAction (Runnable action) {
+        double before = you.getHealth();
+        action.run();
+        numbers.theirHit(before - you.getHealth(), true);
+    }
+
     public void newBattle (character you, character them, event youWin, event theyWin, double x, double y, double r, int world) {
         if (you == them) throw new IllegalArgumentException("Kan ikke slåss mot seg selv");
         activeBattle = true;
+        numbers = new fightOutcome.stats();
+        aiPlan = null;
+        hints = null;
+        cheated = false;
         this.you = you;
         this.them = them;
         this.youWin = youWin;
@@ -92,12 +142,15 @@ public class battle {
         this.opponentDoneMove = playersTurn;
         this.waitingForPlayer = false;
         this.moreView = false;
+        this.aiPlan = null;
+        this.hints = null;
     }
 
     public void showMore () {moreView = true;}
     public void showActions () {moreView = false;}
 
     private void endTurn () {
+        hints = null;
         waitingForPlayer = false;
         moreView = false;
         opponentDoneMove = false;
@@ -110,15 +163,13 @@ public class battle {
         if (stone == null) return;
 
         if (mirror()) {
-            boolean left = n == 0 ? stone.ability1usesLeft() : n == 1 ? stone.ability2usesLeft() : stone.ability3usesLeft();
+            boolean left = stone.usesLeft(n, you);
             if (left) {duel.sendAction("ability", n); endTurn();}
             return;
         }
 
         dialogueContainer messages = you.getHandler().getDiealoguecontainer();
-        if (n == 0 && stone.ability1usesLeft()) {messages.grouped(() -> stone.ability1(you, them)); endTurn();}
-        if (n == 1 && stone.ability2usesLeft()) {messages.grouped(() -> stone.ability2(you, them)); endTurn();}
-        if (n == 2 && stone.ability3usesLeft()) {messages.grouped(() -> stone.ability3(you, them)); endTurn();}
+        if (n >= 0 && n < 3 && stone.usesLeft(n, you)) {yourAction(() -> messages.grouped(() -> stone.useMove(n, you, them))); endTurn();}
     }
 
     //Using a rock equips it, using anything else does what the item does. Both take the turn
@@ -132,10 +183,10 @@ public class battle {
             return;
         }
 
-        you.getHandler().getDiealoguecontainer().grouped(() -> {
+        yourAction(() -> you.getHandler().getDiealoguecontainer().grouped(() -> {
             item.use(you, them);
             if (item.isConsumable()) you.consume(item);
-        });
+        }));
         endTurn();
     }
 
@@ -150,35 +201,32 @@ public class battle {
         endTurn();
     }
 
-    //Hands the player what the loser dropped, one message per kind of item
-    private void giveDrops (gameHandler handler) {
-        Map<String, Integer> counts = new LinkedHashMap<String, Integer>();
-        Map<String, item> examples = new HashMap<String, item>();
-        for (item drop : them.rollDrops()) {
-            you.give(drop);
-            counts.merge(drop.getName(), 1, Integer::sum);
-            examples.put(drop.getName(), drop);
-        }
-        for (String name : counts.keySet()) {
-            String text = counts.get(name) == 1 ? "You got " + name : "You got " + counts.get(name) + " x " + name;
-            handler.getDiealoguecontainer().add(new dialogue("Game", text).highlight(dialogue.ITEM_BORDER, examples.get(name)));
-        }
-    }
-
     //False while waiting for the other player in a 1v1
     private boolean opponentMove () {
-        if (duel != null) {
+        //Against the computer (or in the campaign) battleAI plays the opponent's turn
+        if (duel != null && !duel.isAgainstComputer()) {
             String[] action = duel.takeAction();
             if (action == null) {
                 duel.waitingForThem();
                 return false;
             }
-            playTheirs(action);
+            theirAction(() -> playTheirs(action));
             duel.theirMoveDone();
             opponentDoneMove = true;
             return true;
         }
-        them.getHandler().getDiealoguecontainer().grouped(() -> them.autoMaticMove(you));
+        if (aiPlan == null) aiPlan = battleAI.plan(them, you, aiStrength.of(them.getHandler()));
+        if (!aiPlan.isDone()) return false;
+        battleSim.action chosen;
+        try {
+            chosen = aiPlan.join();
+        } catch (RuntimeException e) {
+            System.out.println("battleAI feilet: " + e);
+            chosen = new battleSim.action(battleSim.PUNCH, 0);
+        }
+        aiPlan = null;
+        battleSim.action doing = chosen;
+        theirAction(() -> them.getHandler().getDiealoguecontainer().grouped(() -> battleAI.perform(doing, them, you)));
         opponentDoneMove = true;
         return true;
     }
@@ -195,9 +243,7 @@ public class battle {
         dialogueContainer messages = them.getHandler().getDiealoguecontainer();
         gemstone stone = them.getGemstone();
         if (kind.equals("ability") && stone != null) {
-            if (n == 0 && stone.ability1usesLeft()) messages.grouped(() -> stone.ability1(them, you));
-            if (n == 1 && stone.ability2usesLeft()) messages.grouped(() -> stone.ability2(them, you));
-            if (n == 2 && stone.ability3usesLeft()) messages.grouped(() -> stone.ability3(them, you));
+            if (n >= 0 && n < 3 && stone.usesLeft(n, them)) messages.grouped(() -> stone.useMove(n, them, you));
         } else if (kind.equals("rock") && n >= 0 && n < inventory.ACTIVE) {
             itemStack stack = them.getInventory().get(inventory.slotKind.ROCK, n);
             if (stack != null && stack.getItem() != stone) messages.grouped(() -> stack.getItem().use(them, you));
@@ -219,37 +265,62 @@ public class battle {
         this.r = 0;
         this.world = 0;
         opponentDoneMove = true;
+        aiPlan = null;
+        hints = null;
+    }
+
+    //The message with the hit that ended the fight is played in slow motion
+    private void finalBlow (gameHandler handler) {
+        dialogue last = handler.getDiealoguecontainer().last();
+        if (last != null) last.slowMotion();
     }
 
     private boolean checkForDead (gameHandler handler) {
         if (duel != null && (you.getHealth() <= 0.5 || them.getHealth() <= 0.5)) {
-            //A 1v1 ends with who won, and both go back to the menu once it is read (no xp, drops or second try)
-            String winner = you.getHealth() <= 0.5 ? them.getName() : you.getName();
-            handler.getDiealoguecontainer().add(new dialogue("Game", winner + " won the 1v1"));
+            //A 1v1 ends with the winner's screen, and both go back to the menu once it is read (no xp, drops or
+            //second try). The guest is sent it too (duel.forward)
+            finalBlow(handler);
+            fightOutcome outcome = fightOutcome.duel(you, them, them.getHealth() <= 0.5, numbers);
+            if (duel.isAgainstComputer()) {
+                duel.countStreak(outcome, cheated);
+                duel.offerRematch(outcome);
+            }
+            handler.getDiealoguecontainer().add(outcome);
             duel.finish();
             resetBattle();
             return true;
         }
         if (you.getHealth() <= 0.5 || them.getHealth() <= 0.5) {
 
+            finalBlow(handler);
+            //What the fight sets off waits for its screen to be gone (fightOutcome.afterwards)
+            character you = this.you, them = this.them;
+            event youWin = this.youWin, theyWin = this.theyWin;
+            double x = this.x, y = this.y, r = this.r;
+            int world = this.world;
             if (you.getHealth() <= 0.5) {
-                handler.getDiealoguecontainer().add(new dialogue("Game", you.getName() + " lost"));
+                handler.getDiealoguecontainer().add(fightOutcome.lose(you, them, numbers).afterwards(() -> {
+                    if (theyWin != null) {
+                        theyWin.trigger();
+                    }
+                    you.restore();
+                    handler.getDiealoguecontainer().add(new dialogue("Game", "Restoring winner..."));
+                    them.restore();
 
-                if (theyWin != null) {
-                    theyWin.trigger();
-                }
-                you.restore();
-                handler.getDiealoguecontainer().add(new dialogue("Game", "Restoring winner..."));
-                them.restore();
-
-                handler.addEventListener(new battleEvent(you, them, this, youWin, theyWin, x, y, r, world).rearm(handler));
+                    handler.addEventListener(new battleEvent(you, them, this, youWin, theyWin, x, y, r, world).rearm(handler));
+                }));
             } else {
-                handler.getDiealoguecontainer().add(new dialogue("Game", them.getName() + " lost"));
-                if (youWin != null) {
-                    this.youWin.trigger();
-                }
-                you.giveXp(Math.pow(them.getLevel()+1, 2));
-                giveDrops(handler);
+                //The xp and the drops are given now and shown on the win screen, before what the win sets off
+                double xpBefore = you.getXp(), xp = Math.pow(them.getLevel()+1, 2);
+                you.addXp(xp);
+                List<item> dropped = them.rollDrops();
+                for (item drop : dropped) you.give(drop);
+                handler.getDiealoguecontainer().add(fightOutcome.win(you, them, numbers, xpBefore, xp, dropped).afterwards(() -> {
+                    you.announceMilestones(character.levelOf(xpBefore), you.getLevel());
+                    if (youWin != null) {
+                        youWin.trigger();
+                    }
+                }));
 
             }
 
@@ -279,8 +350,12 @@ public class battle {
             } else {
                 if (opponentMove() && !checkForDead(handler)) {
                     //Each one's burning, poison and healing with the damage it does
+                    //Burning and poison count as damage done by the other side, but not as a hit
+                    double yourBefore = you.getHealth(), theirBefore = them.getHealth();
                     handler.getDiealoguecontainer().grouped(() -> you.updateEffects());
                     handler.getDiealoguecontainer().grouped(() -> them.updateEffects());
+                    numbers.theirHit(yourBefore - you.getHealth(), false);
+                    numbers.yourHit(theirBefore - them.getHealth(), false);
                 }
             }
         }

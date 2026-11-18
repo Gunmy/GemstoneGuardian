@@ -24,26 +24,37 @@ public class shader {
     private GraphicsContext gc;
 
 
+    //The pictures' pixels, decoded once and shared by every game started after (the shader only reads them)
+    private static final Map<String, Object[]> decoded = new HashMap<String, Object[]>();
+
     public void addImg (String name) {
-        Image temp = new Image(path + name);
-        int width = (int) temp.getWidth();
-        int height = (int) temp.getHeight();
-        byte[] buffer = new byte[width * height * 4];
+        Object[] img;
+        synchronized (decoded) {
+            img = decoded.get(name);
+            if (img == null) {
+                Image temp = new Image(path + name);
+                int width = (int) temp.getWidth();
+                int height = (int) temp.getHeight();
+                byte[] buffer = new byte[width * height * 4];
 
-        temp.getPixelReader().getPixels(
-            0,
-            0,
-            width,
-            height,
-            PixelFormat.getByteBgraInstance(),
-            buffer,
-            0,
-            width * 4
-        );
+                temp.getPixelReader().getPixels(
+                    0,
+                    0,
+                    width,
+                    height,
+                    PixelFormat.getByteBgraInstance(),
+                    buffer,
+                    0,
+                    width * 4
+                );
+                img = new Object[] {width, height, buffer};
+                decoded.put(name, img);
+            }
+        }
 
-        imagesWidth.add(width);
-        imagesHeight.add(height);
-        images.add(buffer);
+        imagesWidth.add((Integer) img[0]);
+        imagesHeight.add((Integer) img[1]);
+        images.add((byte[]) img[2]);
     }
 
     public shader (GraphicsContext gc) {

@@ -50,11 +50,12 @@ public class item implements picture {
         return this;
     }
 
-    //How much of its box the icon fills, 1 is all of it. Icons that fill their whole cell look big next to the rest
+    //How much of its box the icon fills, 1 is all of it. Icons that fill their whole cell look big next to the rest.
+    //Over 1 the icon hangs over the box's edges (the Giant Bolder, bigger than every other rock)
     protected double iconScale = 1;
 
     public item iconScale (double iconScale) {
-        if (iconScale <= 0 || iconScale > 1) throw new IllegalArgumentException("Iconscale må være mellom 0 og 1");
+        if (iconScale <= 0 || iconScale > 1.5) throw new IllegalArgumentException("Iconscale må være mellom 0 og 1.5");
         this.iconScale = iconScale;
         return this;
     }
@@ -143,6 +144,9 @@ public class item implements picture {
     public static final double RAINBOW_TIME = 3;
     public static final int RAINBOW_STEPS = 24;
     protected boolean rainbow = false;
+
+    //Its own colour (null: none)
+    public String getTint () {return tint;}
 
     public item rainbow () {
         this.rainbow = true;
@@ -313,6 +317,16 @@ public class item implements picture {
     //The item this one has become, after doing any change that is due
     public item latest () {
         if (replacement != null) return replacement.latest();
+        //An item that turns back on its own once it cools (charged copper, charged healite, rainbow uranium) but was
+        //made some other way than by its change (the give item catalogue, a chest, an old savefile) starts as hot as
+        //a freshly changed one the first time it is somewhere it takes part (latest is only asked there), so it turns
+        //back the same way unless it is charged again
+        for (change c : changes) {
+            if (!c.revert || c.heated) continue;
+            c.heated = true;
+            c.setHeat(c.dose);
+            c.lastExposed = System.nanoTime();
+        }
         change due = null;
         for (change c : changes) {
             if (c.due()) {
@@ -531,6 +545,14 @@ public class item implements picture {
         return this;
     }
 
+    //How charged it really is, 0 to 1: the agitation from shaking and from being charged by others, without the glow it
+    //always has (restingGlow). Lightning goes by this, so a rock that only glows (the singularity's black glow) does
+    //not strike all the time
+    public double getCharge () {
+        double settled = (System.nanoTime() - agitationTime)/1e9/SHAKE_SETTLE;
+        return Math.max(0, agitation - settled);
+    }
+
     //Moves the agitation towards target: up quickly, down no faster than it settles on its own
     public void shake (double target, double deltaTime) {
         double now = getAgitation();
@@ -548,7 +570,10 @@ public class item implements picture {
         double a = hasEnergy() && glows ? getAgitation() : 0;
         if (a <= 0) return;
         javafx.scene.paint.Color c = javafx.scene.paint.Color.web(getGlowColor());
-        double cx = x + size/2, cy = y + size/2, radius = size*(0.7 + 0.5*a);
+        double cx = x + size/2, cy = y + size/2;
+        //Round the icon as it is drawn (iconScale), so a small pebble gets a small ring
+        size *= iconScale;
+        double radius = size*(0.7 + 0.5*a);
         //A ring: faint over the item itself, strongest just outside its edge, fading out from there. It is drawn
         //on top of everything, so it must not hide the item
         double edge = Math.min(0.9, 0.42*size/radius);
@@ -590,6 +615,8 @@ public class item implements picture {
     public void drawGlowOver (GraphicsContext gc, double x, double y, double size) {
         double a = hasEnergy() && glows ? getAgitation() : 0;
         if (a <= 0 || iconTile != null) return;
+        //A dark glow (the singularity's black) is only the halo round it: lighting the icon up would turn it grey
+        if (javafx.scene.paint.Color.web(getGlowColor()).getBrightness() < 0.2) return;
         javafx.scene.paint.Color light = javafx.scene.paint.Color.web(getGlowColor()).interpolate(javafx.scene.paint.Color.WHITE, 0.55);
         String hex = String.format("#%02X%02X%02X", (int) Math.round(light.getRed()*255), (int) Math.round(light.getGreen()*255), (int) Math.round(light.getBlue()*255));
         double scaled = size*iconScale;
@@ -612,10 +639,15 @@ public class item implements picture {
         double a = hasEnergy() ? getAgitation() : 0;
         double counted = Math.max(0, (a - shakeThreshold)/(1 - shakeThreshold));
         particles.spawn(gui, x, y, size, rdm, idleParticles + shakeBoost*counted, flingX, flingY, counted);
+        if (lightning) strikeLightning(gui, x, y, size, rdm, flingX, flingY);
+    }
 
-        //Lightning out of the middle of it (see itemInteractions.strike for where it goes)
-        if (lightning && lightningChance > 0 && rdm.nextDouble() < lightningChance*a*a) {
-            gui.getInteractions().strike(this, x, y, size, flingX, flingY, a, rdm);
+    //Lightning out of the middle of it (see itemInteractions.strike for where it goes), by how charged it really is.
+    //Also on its own for items shown without particles (the tiny rocks in a fight), so they keep charging each other
+    public void strikeLightning (gui gui, double x, double y, double size, java.util.Random rdm, double flingX, double flingY) {
+        double charge = hasEnergy() ? getCharge() : 0;
+        if (lightningChance > 0 && rdm.nextDouble() < lightningChance*charge*charge) {
+            gui.getInteractions().strike(this, x, y, size, flingX, flingY, charge, rdm);
         }
     }
 
@@ -702,19 +734,58 @@ public class item implements picture {
         return handler.getImages().getTinted(imgX, imgY, currentTint(), tintLift);
     }
 
+    //Trembles on its own wherever it is drawn: the icon now and then jumps a sheet pixel to a side and back.
+    //amount (0 to 1) is how often it is off its place
+    private double tremble = 0;
+    public item trembles (double amount) {
+        if (amount < 0 || amount > 1) throw new IllegalArgumentException("Tremble må være mellom 0 og 1");
+        this.tremble = amount;
+        return this;
+    }
+
+    public static final double TREMBLE_RATE = 14;
+
+    //The tremble's offset right now, in sheet pixels, for x (axis 0) or y (axis 1): -1, 0 or 1. Every item has its own
+    private int trembleOffset (int axis) {
+        if (tremble <= 0) return 0;
+        long step = (long) (System.nanoTime()/1e9*TREMBLE_RATE);
+        long h = (step*31 + System.identityHashCode(this))*0x9E3779B97F4A7C15L + axis*0x632BE59BD9B4E019L;
+        h ^= h >>> 29;
+        double roll = (h & 0xFFFF)/65536.0;
+        if (roll >= tremble) return 0;
+        return ((h >>> 16) & 1) == 0 ? -1 : 1;
+    }
+
     //How much bigger the icon is drawn right now, around its middle (a beating heart, see trinket). 1 for most items
     protected double pulseScale () {return 1;}
 
+    //An outline in a colour all round the icon, wherever it is drawn: its shape one sheet pixel out on every side,
+    //behind it (the singularity's white edge). null: none
+    private String outline;
+    public item outline (String hex) {
+        this.outline = hex;
+        return this;
+    }
+
     public void drawIcon (GraphicsContext gc, double x, double y, double size) {
         double scaled = size*iconScale*pulseScale();
-        x += (size - scaled)/2;
-        y += (size - scaled)/2;
+        x += (size - scaled)/2 + trembleOffset(0)*scaled/guiSkin.CELL;
+        y += (size - scaled)/2 + trembleOffset(1)*scaled/guiSkin.CELL;
         if (iconTile != null) {
             iconTile.drawMini(gc, handler.getImages().getImage(0), Math.round(x), Math.round(y), Math.round(scaled), Math.round(scaled));
             return;
         }
         double alpha = gc.getGlobalAlpha();
         gc.setGlobalAlpha(alpha*iconAlpha);
+        if (outline != null) {
+            javafx.scene.image.Image shape = handler.getImages().getSilhouette(imgX, imgY, outline);
+            double step = Math.max(1, Math.round(scaled/guiSkin.CELL));
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dy = -1; dy <= 1; dy++) {
+                    if (dx != 0 || dy != 0) gc.drawImage(shape, 0, 0, guiSkin.CELL, guiSkin.CELL, Math.round(x + dx*step), Math.round(y + dy*step), Math.round(scaled), Math.round(scaled));
+                }
+            }
+        }
         gc.drawImage(getIcon(), 0, 0, guiSkin.CELL, guiSkin.CELL, Math.round(x), Math.round(y), Math.round(scaled), Math.round(scaled));
         gc.setGlobalAlpha(alpha);
     }
@@ -739,6 +810,16 @@ public class item implements picture {
     protected void dialogueAdd(character you) {
         handler.getDiealoguecontainer().add(new dialogue(you, "Used " + getName()));
     }
+
+    //What using it does, as a move's effects (moveEffects): it is used by them, and battleAI scores the item by them.
+    //null for items that do something else (rocks equip, the teleporter...)
+    private moveEffects effects;
+    public item effects (moveEffects effects) {
+        this.effects = effects;
+        this.useFunct = effects::apply;
+        return this;
+    }
+    public moveEffects getEffects () {return this.effects;}
 
     public void use (character character, character oppositeCharacter) {
         if (character == oppositeCharacter) throw new IllegalArgumentException("use må ta inn to ulike karakterer");

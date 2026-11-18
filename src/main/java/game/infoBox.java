@@ -28,11 +28,23 @@ public class infoBox {
     public String getText () {return this.text;}
 
     private List<String[]> rows = new ArrayList<String[]>();
+    private List<Color> rowColors = new ArrayList<Color>();
     //A line with left on the left and right lined up at the right edge, like a move and its uses
-    public infoBox row (String left, String right) {
+    public infoBox row (String left, String right) {return row(left, right, Color.BLACK);}
+
+    public infoBox row (String left, String right, Color color) {
         rows.add(new String[] {left, right});
+        rowColors.add(color);
         return this;
     }
+
+    private List<iconText> lines = new ArrayList<iconText>();
+    //Lines of text and icons under the text, like a move's effects (see moveEffects)
+    public infoBox lines (List<iconText> lines) {
+        this.lines.addAll(lines);
+        return this;
+    }
+    public List<iconText> getLines () {return this.lines;}
 
     private double barFill = -1;
     private Color barColor;
@@ -55,8 +67,12 @@ public class infoBox {
         double innerWidth = x + width - boxPad - textX;
         List<String> lines = text.isEmpty() ? new ArrayList<String>() : guiText.wrap(text, textSize, innerWidth);
         double headerHeight = guiText.height(12*s) + (subtitle.isEmpty() ? 0 : guiText.height(9*s));
+        List<iconText> iconLines = new ArrayList<iconText>();
+        for (iconText line : this.lines) iconLines.addAll(line.wrap(textSize, innerWidth));
+        double iconLineHeight = 0;
+        for (iconText line : iconLines) iconLineHeight += line.height(textSize) + 2*s;
         double barSize = 9*s, barHeight = barSize + 6*s, barGap = 3*s;
-        double extra = rows.size()*lineHeight + (barFill >= 0 ? barGap + barHeight : 0);
+        double extra = iconLineHeight + rows.size()*lineHeight + (barFill >= 0 ? barGap + barHeight : 0);
         double boxHeight = 2*boxPad + Math.max(headerHeight + lines.size()*lineHeight + extra + 2*s, iconSize);
 
         if (draw) {
@@ -75,9 +91,14 @@ public class infoBox {
                 guiText.draw(gc, line, textX, lineY, textSize, Color.BLACK);
                 lineY += lineHeight;
             }
-            for (String[] row : rows) {
-                guiText.draw(gc, row[0], textX, lineY, textSize, Color.BLACK);
-                guiText.draw(gc, row[1], textX + innerWidth, lineY, textSize, Color.BLACK, javafx.scene.text.TextAlignment.RIGHT);
+            for (iconText line : iconLines) {
+                line.draw(gc, gui, textX, lineY, textSize, innerWidth);
+                lineY += line.height(textSize) + 2*s;
+            }
+            for (int r = 0; r < rows.size(); r++) {
+                String[] row = rows.get(r);
+                guiText.draw(gc, row[0], textX, lineY, textSize, rowColors.get(r));
+                guiText.draw(gc, row[1], textX + innerWidth, lineY, textSize, rowColors.get(r), javafx.scene.text.TextAlignment.RIGHT);
                 lineY += lineHeight;
             }
             if (barFill >= 0) {

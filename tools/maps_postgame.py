@@ -45,7 +45,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 CHUNKS = os.path.join(HERE, '..', 'src', 'main', 'resources', 'game', 'reading', 'chunks.txt')
 LF, CRLF = chr(10), chr(13) + chr(10)
 BLOCKED = {147, 150, 151, 152, 155, 159, 161, 162, 163, 82, 57, 17, 93, 180, 182, 184, 188, 189, 104, 190, 191, 192, 193,
-           24, 44, 60, 64, 65, 66, 67, 68, 69, 70, 71, 72, 87, 89, 120, 194, 26, 27, 28, 33}
+           24, 44, 60, 64, 65, 66, 67, 68, 69, 70, 71, 72, 87, 89, 120, 194, 26, 27, 28, 33, 146, 204}
 # Tiles that take you to another world when stepped on
 DOORS = {3, 16, 29, 30, 31, 32, 40, 41, 42, 43, 103, 118, 124, 125, 140, 143} | set(range(164, 180)) | {185, 186, 187, 195, 196, 197, 198, 199, 200, 201, 202, 203}
 # Where each door of these areas leads
@@ -123,7 +123,7 @@ AREAS = [
     },
     {
         'name': 'Sky ruins', 'world': 4, 'x': 10009, 'y': 9951, 'floor': 110,
-        'legend': {'#': 184, '.': 110, 'm': 46, 'K': 182, 'k': 183, 'B': 193, 'H': 91, 'X': 201},
+        'legend': {'#': 184, '.': 110, 'm': 46, 'K': 182, 'k': 183, 'B': 193, 'H': 91, 'X': 201, 'C': 146},
         'start': (26, 13), 'exit': (0, 13),
         'grid': [
             "###########BXXXB###########",
@@ -134,7 +134,7 @@ AREAS = [
             "###########.....###########",
             "#############6#############",
             "############mmm############",
-            "###....####.mmm.####....###",
+            "###C...####.mmm.####....###",
             "##..K...##..mmm..##..K...##",
             "##..k5..mmmmmmmmmmm..k...##",
             "##......m##..m..##m...H..##",
@@ -166,7 +166,7 @@ AREAS = [
             "############...############",
             "#############8#############",
             "############...############",
-            "####...####.......####...##",
+            "####.C.####.......####...##",
             "###..x..##...ppp...##..x..#",
             "##..ppp.....ppppp.....pp..#",
             "##.ppppp..x..ppp..x..ppp..#",
@@ -471,7 +471,7 @@ def finale_rows():
     the niche in front of it, so it looks like it can be walked up to"""
     return ['93, 194, 189, 172, 172, 172, 189, 119, 93',
             '92, 83, 92, 58, 58, 58, 92, 82, 92',
-            '83, 58, 58, 58, 58, 58, 58, 58, 83']
+            '83, 58, 58, 58, 58, 58, 58, 87, 83']
 
 
 # Plain land all round an area, so its edge is not a wall of trees: the base tile with now and then something on it
@@ -502,6 +502,9 @@ MIRROR_BOSS = (10000, 9995, 4, 4)
 # to, three tiles behind where he waited: the girl flees into the left one (197, gone after), the right one (198) is
 # yours. In mirror dimension coordinates: (chunk x, y, column, row)
 MIRROR_TWINS = [(10002, 9995, 3, 1, 197), (10002, 9995, 5, 1, 198)]
+# The chest with the mirror shard, on the grass south-west of the healing pad's plaza (204, a chest on grass).
+# In mirror dimension coordinates: (chunk x, y, column, row, tile)
+MIRROR_CHESTS = [(10001, 10001, 2, 7, 204)]
 
 
 def own_blocks():
@@ -550,7 +553,7 @@ def mirror_blocks():
             copy = [list(reversed(row)) for row in walled]
             if (x, y) == (bx, by):
                 copy[br][8 - bc] = 196
-            for tx, ty, tc, tr, tid in MIRROR_TWINS:
+            for tx, ty, tc, tr, tid in MIRROR_TWINS + MIRROR_CHESTS:
                 if (MIRROR_AXIS - x, y) == (tx, ty):
                     copy[tr][tc] = tid
             out.append(LF.join(['%d, %d, %d, PG Mirror dimension %d %d' % (MIRROR_WORLD, MIRROR_AXIS - x, y, x, y)]

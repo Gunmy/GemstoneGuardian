@@ -52,6 +52,9 @@ public class tile {
 
     //Where the tile is in the world, in chunks (the same coordinates characters use)
     public double getRealX () {return this.realx;}
+    //Where it is in the whole world's grid of tiles (what tileType.drawLayer is given)
+    public int getGridX () {return this.x;}
+    public int getGridY () {return this.y;}
     public double getRealY () {return this.realy;}
 
     private double getRenderVal (double realx, double realy) {

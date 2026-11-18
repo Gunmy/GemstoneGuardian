@@ -49,6 +49,10 @@ public class itemInteractions {
     //How often a strike from an item held on the cursor goes for a conductor (otherwise always): swinging a boltstone
     //around should throw lightning about, not only into the copper
     public static final double HELD_CONDUCTOR_CHANCE = 0.35;
+    //How far a conductor draws a strike from an item lying in a slot, in the striking item's sizes: only from the slots
+    //right next to it, diagonals too (like the charging between neighbours). Held on the cursor and shaken, its
+    //strikes go for a conductor anywhere on screen
+    public static final double CONDUCTOR_REACH = 1.6;
     //How often a struck conductor also strikes a random item next to it (that item does not pass it on)
     public static final double SIDE_STRIKE_CHANCE = 0.5;
     //A share of the strikes, at full charge, that are long ones (up to half the screen) bursting at their end
@@ -327,8 +331,11 @@ public class itemInteractions {
         double width = isLong ? Math.round(Math.max(2, 3*scale)) : Math.round(Math.max(1, 2*scale));
         int segments = isLong ? 12 + rdm.nextInt(8) : 6 + rdm.nextInt(5);
 
-        //A conductor anywhere on screen draws the strike, however far (only some of the time while it is held)
-        placed conductor = isHeld(source) && rdm.nextDouble() >= HELD_CONDUCTOR_CHANCE ? null : nearest(source, cx, cy, Double.MAX_VALUE, kind, null, isLong);
+        //A conductor draws the strike: from a slot only one near it (CONDUCTOR_REACH), held one anywhere on screen
+        //(only some of the time while it is held)
+        boolean held = isHeld(source);
+        double conductorReach = held ? Double.MAX_VALUE : size*CONDUCTOR_REACH;
+        placed conductor = held && rdm.nextDouble() >= HELD_CONDUCTOR_CHANCE ? null : nearest(source, cx, cy, conductorReach, kind, null, isLong);
         placed target = conductor != null ? conductor : nearest(source, cx, cy, reach, null, null, isLong);
         guiLightning strike;
         if (conductor != null) {
@@ -494,6 +501,11 @@ public class itemInteractions {
         double icon = size*0.8;
         gui.addOutlinePulse(new guiOutlinePulse(outline, x + size/2, y + size/2, icon, 0.4, 2.0, 1.0, 0));
         gui.addOutlinePulse(new guiOutlinePulse(outline, x + size/2, y + size/2, icon, 0.45, 2.6, 0.55, 0.12));
+    }
+
+    //Sparks flying out from (x, y) in the colour, for the GUI's own moments (the win screen's banner landing, LEVEL UP)
+    public void sparks (double x, double y, double scale, Color color, int count, double power, boolean rainbow) {
+        burst(x, y, scale, color, count, power, gui.getRandom(), rainbow);
     }
 
     //Sparks flying out every way from (x, y), slowed down by air drag. power scales how fast they go

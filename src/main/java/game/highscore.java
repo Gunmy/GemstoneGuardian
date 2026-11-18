@@ -9,7 +9,7 @@ import java.io.IOException;
 public class highscore {
     public static double getCurrentScore () {
         //Create file if it doesnt exist
-        File obj = new File(getPath() + "/highscore.txt");
+        File obj = getFile();
 
         double score = -1;
         try {
@@ -24,15 +24,13 @@ public class highscore {
         return score;
     }
 
-    private static String getPath () {
-        String resourceFolder = "src/main/resources/game/reading/";
-        String absolutePath = new File(resourceFolder).getAbsolutePath();
-        return absolutePath;
+    private static File getFile () {
+        return gameFiles.writable("highscore.txt");
     }
 
     private static void write (double time) {
         try {
-            FileWriter myWriter = new FileWriter(getPath() + "/highscore.txt");
+            FileWriter myWriter = new FileWriter(getFile());
             myWriter.write("" + time);
             myWriter.close();
           } catch (IOException e) {

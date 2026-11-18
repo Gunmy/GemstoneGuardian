@@ -49,6 +49,34 @@ public class waveType extends tileType {
 
     public void setSway (boolean sway) {this.sway = sway;}
 
+    //Springy overlays (lily pads) give under whoever steps on them: they dip down, spring back up and wobble out
+    //over BOUNCE_TIME seconds. The character standing on it goes down with it (character.springOffset)
+    private boolean springy = false;
+    public void setSpringy (boolean springy) {this.springy = springy;}
+    public boolean isSpringy () {return this.springy;}
+
+    //How deep the first dip goes (in tiles), how fast it wobbles (radians a second) and how quickly it calms down
+    private static final double BOUNCE_DEPTH = 0.07, BOUNCE_SPEED = 15, BOUNCE_CALM = 5.5, BOUNCE_TIME = 1.0;
+    //When each springy tile was last stepped on, by world and place
+    private static final java.util.Map<Long, Long> steps = new java.util.HashMap<Long, Long>();
+
+    private static long key (int world, int x, int y) {return ((long) world << 50) ^ ((long) x << 25) ^ y;}
+
+    //Someone stepped onto it
+    public static void steppedOn (int world, tile at) {
+        steps.put(key(world, at.getGridX(), at.getGridY()), System.nanoTime());
+        if (steps.size() > 64) steps.values().removeIf(t -> (System.nanoTime() - t)/1e9 > BOUNCE_TIME);
+    }
+
+    //How far down (in tiles, up is negative) the tile is pushed right now
+    public static double bounce (int world, int x, int y) {
+        Long at = steps.get(key(world, x, y));
+        if (at == null) return 0;
+        double s = (System.nanoTime() - at)/1e9;
+        if (s > BOUNCE_TIME) return 0;
+        return BOUNCE_DEPTH*Math.exp(-BOUNCE_CALM*s)*Math.sin(BOUNCE_SPEED*s);
+    }
+
     //How hard the wind pushes the plant at (x, y) right now, 0 to 1. There is always a light breeze,
     //and the gusts are sharp peaks of a wave whose crests move towards the bottom right (x + y getting bigger)
     private double gust (int x, int y) {
@@ -142,6 +170,16 @@ public class waveType extends tileType {
             heightOffset += Math.sin(time/division)*handler.getUnitHeight()/handler.getTileCount()*0.09;
         }
 
+        //A springy overlay pushed down by a step, a little wider as it dips (squashed)
+        double squash = 0;
+        if (springy) {
+            double b = bounce(handler.getCurrentWorld(), x, y);
+            double tileH = handler.getUnitHeight()/handler.getTileCount();
+            heightOffset -= b*tileH;
+            squash = b*1.2*handler.getUnitWidth()/handler.getTileCount();
+            realx -= squash/2;
+        }
+
         if (scatter > 0) {
             realx += scatterValue(x, y, 0)*scatter*handler.getUnitWidth()/handler.getTileCount();
             realy += scatterValue(x, y, 1)*scatter*handler.getUnitHeight()/handler.getTileCount();
@@ -159,7 +197,7 @@ public class waveType extends tileType {
         handler.getTempGc().drawImage(handler.getImages().getImage(0),
         this.x, this.y, this.width, this.height,
          (int) realx,   (int) realy-heightOffset,
-         (int) (handler.getUnitWidth()/handler.getTileCount()+correctionVal),
+         (int) (handler.getUnitWidth()/handler.getTileCount()+correctionVal+squash),
          (int) (handler.getUnitHeight()/handler.getTileCount()+correctionVal)+heightOffset);
 
         //A chest the player can open right now gets lighter and back, fading in and out: a brightened copy of its own

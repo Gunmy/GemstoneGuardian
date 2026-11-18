@@ -8,15 +8,15 @@ public class items {
     }
 
     public item healingPotion () {
-        return new potion("Healing Potion", "#FF4060", itemParticles.HEAL,
-            (c1, c2) -> {c1.heal(c1.getMaxHealth()*0.3);}, handler)
+        return (item) new potion("Healing Potion", "#FF4060", itemParticles.HEAL, (c1, c2) -> {}, handler)
+            .effects(new moveEffects().heal((u, t) -> u.getMaxHealth()*0.3, "30% maxHP"))
             .lore("Red and sweet. Mends wounds from the inside.")
             .details("Heals: 30% of maxHP");
     }
 
     public item cleansingPotion () {
-        return new potion("Cleansing Potion", "#40C0FF", itemParticles.SPARKLE,
-            (c1, c2) -> {c1.clearEffects();}, handler)
+        return (item) new potion("Cleansing Potion", "#40C0FF", itemParticles.SPARKLE, (c1, c2) -> {}, handler)
+            .effects(new moveEffects().cleanse())
             .lore("Clear as spring water. Washes every curse away.")
             .details("Removes fire, poison and confusion from you");
     }
@@ -86,7 +86,8 @@ public class items {
     }
 
     public item woolBandage () {
-        return new item("Wool Bandage", (c1, c2) -> {c1.heal(c1.getMaxHealth()*0.15);}, true, handler)
+        return new item("Wool Bandage", (c1, c2) -> {}, true, handler)
+            .effects(new moveEffects().heal((u, t) -> u.getMaxHealth()*0.15, "15% maxHP"))
             .look(guiSkin.BANDAGE_X, guiSkin.GUI_Y, null)
             .stackable(16)
             .lore("Wool from a friendly sheep, wrapped tight. Stops the bleeding, mostly.")

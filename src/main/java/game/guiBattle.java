@@ -128,12 +128,12 @@ public class guiBattle extends guiElement {
         }
 
         String[] names = {stone.getAbility1name(), stone.getAbility2name(), stone.getAbility3name()};
-        List<List<Integer>> uses = List.of(stone.howManyAbility1Uses(), stone.howManyAbility2Uses(), stone.howManyAbility3Uses());
+        List<List<Integer>> uses = List.of(stone.usesOf(0, battle.getYou()), stone.usesOf(1, battle.getYou()), stone.usesOf(2, battle.getYou()));
         List<Double> chances = stone.chances(battle.getYou());
         abilityType[] types = {stone.getAbility1type(), stone.getAbility2type(), stone.getAbility3type()};
 
         for (int i = 0; i < 3; i++) {
-            abilityButtons[i].setText(names[i] + " (" + uses.get(i).get(0) + "/" + uses.get(i).get(1) + ") [" + Math.round(chances.get(i)*100) + "%]");
+            abilityButtons[i].setText(names[i] + " (" + uses.get(i).get(0) + "/" + uses.get(i).get(1) + ") [" + guiText.num(chances.get(i)*100) + "%]");
             abilityButtons[i].setEnabled(uses.get(i).get(0) > 0);
             abilityButtons[i].setIcon(types[i].getIcon(gui.getHandler().getImages()));
         }
@@ -149,11 +149,19 @@ public class guiBattle extends guiElement {
 
     @Override
     public void draw (GraphicsContext gc) {
-        if (!battle.isActive()) return;
+        if (!battle.isActive()) {
+            //The next fight's panel comes up from below again
+            panelUp = 0;
+            lastDraw = 0;
+            return;
+        }
+        //Cheat mode's scores start being worked out as soon as it is the player's turn, before anything is hovered
+        battle.getHints(gui.getHandler());
 
         double s = gui.s();
         drawHealth(gc, battle.getYou(), battle.getYourBar(), 20*s, 20*s);
         drawHealth(gc, battle.getThem(), battle.getTheirBar(), width - barWidth*s - 20*s, 20*s);
+        if (battle.getDuel() != null && battle.getDuel().isAgainstComputer()) drawStreak(gc, battle.getDuel().getStreak(), s);
 
         if (battle.waitingForOther(gui.getHandler())) {
             //A 1v1 waiting for the other player: a small panel where the moves would be, with the waiting sign
@@ -164,21 +172,35 @@ public class guiBattle extends guiElement {
             guiText.draw(gc, "Waiting for " + battle.getDuel().getTheirName(), px + 62*s, py + h/2 - guiText.height(12*s)/2, 12*s, Color.BLACK);
         }
 
+        long now = System.nanoTime();
+        double dt = lastDraw == 0 ? 0 : Math.min(0.1, (now - lastDraw)/1e9);
+        lastDraw = now;
+        //The panel comes up from the bottom when it is the player's turn and goes back down when a move is picked
+        panelUp = panelShown() ? Math.min(1, panelUp + dt/SLIDE_TIME) : Math.max(0, panelUp - dt/SLIDE_TIME);
+
         if (!panelShown()) {
             //Picking a move hides the panel; the popups start from hidden when it comes back
             java.util.Arrays.fill(popup, 0);
             java.util.Arrays.fill(slotPopup, 0);
-            lastDraw = 0;
-            return;
+            if (panelUp <= 0) {
+                lastDraw = 0;
+                //The rocks and items keep acting on each other (singularity charging healite) while the panel is
+                //down, as if on the More button, below the screen
+                if (battle.getYou() != null) {
+                    inventory inv = battle.getYou().getInventory();
+                    miniRockGrid.interactOnly(gui, inv.group(inventory.slotKind.ROCK), height);
+                    miniItemGrid.interactOnly(gui, inv.group(inventory.slotKind.ITEM), height);
+                }
+                return;
+            }
         }
 
-        long now = System.nanoTime();
-        double dt = lastDraw == 0 ? 0 : Math.min(0.1, (now - lastDraw)/1e9);
-        lastDraw = now;
         boolean movesShown = !battle.inMoreView() && battle.getYou().getGemstone() != null;
-        slide(popup, movesShown ? hoveredMove : -1, dt);
-        slide(slotPopup, battle.inMoreView() && hoveredItem != null ? 0 : -1, dt);
+        slide(popup, panelShown() && movesShown ? hoveredMove : -1, dt);
+        slide(slotPopup, panelShown() && battle.inMoreView() && hoveredItem != null ? 0 : -1, dt);
 
+        gc.save();
+        gc.translate(0, panelOffset());
         gui.getSkin().drawPanel(gc, panelX, panelY, panelWidth, panelHeight);
 
         if (battle.inMoreView()) {
@@ -187,17 +209,32 @@ public class guiBattle extends guiElement {
             itemGrid.draw(gc, gui, inv, battle.getYou().getGemstone(), true);
         }
 
+        //Going down the buttons are hidden already (layout), so the ones of the page shown are drawn
+        boolean more = battle.inMoreView();
         for (guiButton button : buttons) {
-            if (button.isVisible()) button.draw(gc);
+            boolean onPage = more ? button == backButton || button == giveUpButton : button != backButton && button != giveUpButton;
+            if (button.isVisible() || (!panelShown() && onPage)) button.draw(gc);
         }
+        gc.restore();
+    }
+
+    //How far up the action panel is, 0 (below the screen) to 1 (in place), and how far down that draws it
+    private double panelUp = 0;
+    private double panelOffset () {
+        double t = panelUp*panelUp*(3 - 2*panelUp);
+        return Math.round((1 - t)*(height - panelY + 4));
     }
 
     //The popups (a move's box, a rock's or item's info) are drawn by gui after everything else, glows, particles and
     //lightning included, so nothing is ever drawn over them. Each is still cut off at the edge it slides out of
     public void drawPopups (GraphicsContext gc) {
         if (!battle.isActive() || !panelShown()) return;
+        //With the panel, while it slides up
+        gc.save();
+        gc.translate(0, panelOffset());
         if (!battle.inMoreView() && battle.getYou().getGemstone() != null) drawMovePopups(gc);
         drawSlotPopups(gc);
+        gc.restore();
     }
 
     //Moves every popup towards up (the hovered one) or down by dt seconds' worth
@@ -210,6 +247,19 @@ public class guiBattle extends guiElement {
 
     //How far a popup has come up, eased out: fast at first, settling at the top
     private static double eased (double popup) {return 1 - Math.pow(1 - popup, 3);}
+
+    //A random battle: the wins in a row so far and the best, in a little panel at the top between the health bars
+    private void drawStreak (GraphicsContext gc, int streak, double s) {
+        String line = "Win streak: " + streak;
+        String best = "Best: " + duelBuild.library.shared().bestStreak;
+        double pad = gui.getSkin().getBorder()*0.75 + 4*s;
+        double w = Math.max(guiText.width(line, 14*s), guiText.width(best, 10*s)) + 2*pad + 12*s;
+        double h = 2*pad + guiText.height(14*s) + 3*s + guiText.height(10*s);
+        double px = Math.round((width - w)/2), py = Math.round(20*s);
+        gui.getSkin().drawPanel(gc, px, py, w, h);
+        guiText.draw(gc, line, width/2, py + pad, 14*s, streak > 0 ? Color.web("#A07800") : Color.BLACK, TextAlignment.CENTER);
+        guiText.draw(gc, best, width/2, py + pad + guiText.height(14*s) + 3*s, 10*s, Color.rgb(60, 60, 60), TextAlignment.CENTER);
+    }
 
     private void drawHealth (GraphicsContext gc, character c, double progress, double bx, double by) {
         double s = gui.s();
@@ -227,7 +277,7 @@ public class guiBattle extends guiElement {
         guiText.draw(gc, name, bx + pad, by + pad - 2*s, 11*s, Color.BLACK);
 
         //The health in numbers at the right end of the name line, next to the picture
-        String hp = Math.round(c.getShownHealth()) + "/" + Math.round(c.getMaxHealth());
+        String hp = guiText.num(c.getShownHealth()) + "/" + guiText.num(c.getMaxHealth());
         guiText.draw(gc, hp, bx + pad + innerWidth, by + pad - 2*s, 11*s, Color.BLACK, TextAlignment.RIGHT);
 
         double barY = by + barHeight - pad - 12*s;
@@ -236,8 +286,8 @@ public class guiBattle extends guiElement {
         gc.setFill(Color.RED);
         gc.fillRect(bx + pad, barY, innerWidth*Math.max(0, Math.min(1, progress)), 12*s);
 
-        //Under the bar: the equipped rock, then each effect on one line with its picture: what it is, how strong
-        //and the turns left
+        //Under the bar: the equipped rock, then each effect on one line: how strong with its icon, and the turns left
+        //with the rounds icon
         double lineSize = 10*s, lineHeight = Math.max(guiText.height(lineSize), 14*s);
         double lineY = by + barHeight - pad*0.5;
         gemstone stone = c.getGemstone();
@@ -245,10 +295,8 @@ public class guiBattle extends guiElement {
         if (stone != null) stone.drawIcon(gc, bx + pad, lineY + (lineHeight - 12*s)/2, 12*s);
         guiText.draw(gc, "Rock: " + (stone != null ? stone.getName() : "None"), bx + pad + 16*s, lineY + (lineHeight - guiText.height(lineSize))/2, lineSize, Color.BLACK);
         lineY += lineHeight;
-        for (infoBox effect : c.getEffectBoxes(true)) {
-            effect.getIcon().draw(gc, gui, bx + pad, lineY + (lineHeight - 12*s)/2, 12*s);
-            String text = effect.getTitle() + ": " + effect.getText() + ", " + effect.getSubtitle();
-            guiText.draw(gc, text, bx + pad + 16*s, lineY + (lineHeight - guiText.height(lineSize))/2, lineSize, Color.BLACK);
+        for (infoBox effect : c.getEffectBoxes()) {
+            for (iconText line : effect.getLines()) line.draw(gc, gui, bx + pad, lineY + (lineHeight - line.height(lineSize))/2, lineSize, innerWidth);
             lineY += lineHeight;
         }
     }
@@ -256,9 +304,13 @@ public class guiBattle extends guiElement {
     //The move boxes, each as wide as its move and ending on its top edge when fully up. Cut off at that edge, so they
     //come up from behind the move
     private void drawMovePopups (GraphicsContext gc) {
-        List<infoBox> moves = battle.getYou().getGemstone().getInfoBoxes();
+        List<infoBox> moves = battle.getYou().getGemstone().getInfoBoxes(battle.getYou(), battle.getThem());
+        battleAI.hints hints = battle.getHints(gui.getHandler());
         for (int i = 0; i < popup.length; i++) {
             if (popup[i] <= 0) continue;
+            //Cheat mode: how good the move is now, the best action in green
+            String[] hint = hintText(hints, battleSim.MOVE, i);
+            if (hint != null) moves.get(i).row(hint[0], hint[1], hints.isBest(battleSim.MOVE, i) ? HINT_BEST : Color.BLACK);
             guiButton button = abilityButtons[i];
             double h = moves.get(i).draw(gc, gui, 0, 0, button.width, false);
             double y = button.y - h*eased(popup[i]);
@@ -275,14 +327,50 @@ public class guiBattle extends guiElement {
         if (slotPopup[0] <= 0 || slotPopupItem == null) return;
         double s = gui.s();
         double w = slotInfoWidth*s, pad = gui.getSkin().getBorder() + 4*s;
-        double h = guiInventory.drawItemDetails(gc, gui, slotPopupItem, 0, 0, w - 2*pad, false) + 2*pad;
+        //Cheat mode: a line at the bottom with how good using it is now (switching to a rock, drinking a potion)
+        battleAI.hints hints = battle.getHints(gui.getHandler());
+        int[] action = slotAction(slotPopupItem);
+        String[] hint = action == null ? null : hintText(hints, action[0], action[1]);
+        double hintSize = 11*s, hintHeight = hint == null ? 0 : guiText.height(hintSize) + 6*s;
+        double details = guiInventory.drawItemDetails(gc, gui, slotPopupItem, 0, 0, w - 2*pad, false);
+        double h = details + hintHeight + 2*pad;
         double x = Math.round(panelX + (panelWidth - w)/2);
         double y = Math.round(panelY - h*eased(slotPopup[0]));
         gc.save();
         gui.clipTo(gc, 0, 0, width, panelY);
         gui.getSkin().drawPanel(gc, x, y, w, h);
         guiInventory.drawItemDetails(gc, gui, slotPopupItem, x + pad, y + pad, w - 2*pad, true);
+        if (hint != null) {
+            Color color = hints.isBest(action[0], action[1]) ? HINT_BEST : Color.BLACK;
+            double hy = y + pad + details + 6*s;
+            guiText.draw(gc, hint[0], x + pad, hy, hintSize, color);
+            guiText.draw(gc, hint[1], x + w - pad, hy, hintSize, color, TextAlignment.RIGHT);
+        }
         gc.restore();
+    }
+
+    //Cheat mode's best action is written in this green
+    private static final Color HINT_BEST = Color.rgb(30, 140, 30);
+
+    //"Win chance" and "62%" (the trained judge), or "Score" and "0.62" (the calculated one, which is no true chance);
+    //null when there is nothing to show for that action
+    private static String[] hintText (battleAI.hints hints, int kind, int index) {
+        if (hints == null) return null;
+        double v = hints.of(kind, index);
+        if (Double.isNaN(v)) return null;
+        if (hints.chance) return new String[] {"Win chance", Math.round(v*100) + "%"};
+        return new String[] {"Score", String.format(java.util.Locale.ENGLISH, "%.2f", v)};
+    }
+
+    //The battleSim action that using this rock or item is: switching to it, or using the item. Null for anything that
+    //is no action (the held rock, an item with no effect in a fight)
+    private int[] slotAction (item shown) {
+        character you = battle.getYou();
+        int k = battleSim.rockOrder(you).indexOf(shown);
+        if (k >= 0) return new int[] {battleSim.SWITCH, k};
+        k = battleSim.itemOrder(you).indexOf(shown);
+        if (k >= 0) return new int[] {battleSim.ITEM, k};
+        return null;
     }
 
     //How tall a health box is: the bar part, a line for the equipped rock and a line more for each effect on the character

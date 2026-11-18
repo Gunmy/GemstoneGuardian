@@ -1,27 +1,40 @@
 package game;
 
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 public class readChunks {
+    //The map file as last read, and what it was parsed into (world, x, y and the chunk's numbers, one per special
+    //chunk). The file is still read for every new game, so edits to it show up, but it is only parsed again when it
+    //changed: a switch between games (the zoom through space) is then not held up by it
+    private static String parsedText;
+    private static List<Object[]> parsed;
+
     public static void read (gameHandler handler) {
-        System.out.println("Reading chunks");
         String data = "";
 
-        //Lag ny fil i tilfelle den ikke eksisterer
-        File obj = new File(getPath() + "/chunks.txt");
-
-        try (BufferedReader reader = new BufferedReader(new FileReader( getPath() + "/chunks.txt"))) {
+        try (BufferedReader reader = gameFiles.read("chunks.txt")) {
             data = readAllLines(reader);
         } catch (IOException e) {
             System.out.println(e + " eeeeee");
         }
 
+        if (!data.equals(parsedText)) {
+            parsed = parse(data);
+            parsedText = data;
+        }
+        for (Object[] c : parsed) {
+            @SuppressWarnings("unchecked")
+            List<Integer> chunkInfo = (List<Integer>) c[3];
+            handler.getWorld((Integer) c[0]).generateSpecialChunk((Integer) c[1], (Integer) c[2], chunkInfo);
+        }
+    }
+
+    private static List<Object[]> parse (String data) {
+        List<Object[]> out = new ArrayList<Object[]>();
         String[] lines = data.replaceAll(" ", "").split("\\R");
 
         int i = 0;
@@ -50,22 +63,13 @@ public class readChunks {
                 }
 
                 for (int n = 0; n < tempWorld.size(); n++) {
-                    handler.getWorld(tempWorld.get(n)).generateSpecialChunk(tempX.get(n), tempY.get(n), chunkInfo);
-                    System.out.println(tempWorld.get(n) + ", " + tempX.get(n) + ", " + tempY.get(n) + " loading");
+                    out.add(new Object[] {tempWorld.get(n), tempX.get(n), tempY.get(n), chunkInfo});
                 }
             }
 
-            
-
             else {i++;}
         }
-         
-    }
-
-    private static String getPath () {
-        String resourceFolder = "src/main/resources/game/reading/";
-        String absolutePath = new File(resourceFolder).getAbsolutePath();
-        return absolutePath;
+        return out;
     }
 
     private static String readAllLines(BufferedReader reader) {

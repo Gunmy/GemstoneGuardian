@@ -10,6 +10,14 @@ import java.util.Random;
 //- stream: things flying from the user to the target in an arc (rocks, shards, drops, fire), back: the other way
 //- beam: a solid ray from the user into the target, with a white hot core, a pulsing glow and sparks flying off it
 //- bolt: lightning from the user to the target, skybolt: out of the sky onto the target
+//- shaft: a column of light pouring down out of the sky onto one of them (the moon's and the sun's moves)
+//- skyBeam: a solid beam of light straight down out of the sky onto one of them (beamParticle, the sunbeam)
+//- mirrorCopy: a mirror shimmering up, a cold blue mirror image of the target flying out of it at them and shattering
+//  (mirrorParticle, the Mirror Shard's Glint)
+//- vortex: things spiralling into one of them, faster and faster (a black hole's pull), core: a black core over them
+//- pull: moonstones and meteorites spiralling into one of them, tumbling (the singularity's pull); pullItems: the same
+//  with the real Moonstone and Meteorite items turning, singularity: the
+//  singularity itself over them, drawn as the inventory draws it
 //- impact: sparks bursting out of one of them
 //- rise: things floating up off one of them (hearts, bubbles, flames, smoke)
 //- orbit: things circling one of them's head (stars when confused)
@@ -19,6 +27,8 @@ import java.util.Random;
 //- toss: copies of the rock (its own tinted icon) thrown in arcs, skip: one skipping along the ground, bouncing
 //- roll: a big copy of the rock rolling along the ground into the target, kicking up dust
 //- meteor: a big copy of the rock coming down out of the sky onto the target, with a trail of fire behind it
+//- fromSpace: a copy of the rock falling from far above the screen, burning up, with a flash where it lands
+//- mood: the world goes towards night or a colour while it plays (see mood; rocks set theirs with gemstone.mood)
 //- lunge: the user's sprite steps at the target now and then (a throw, a punch), shake: the target's shakes when hit
 //- quake: the camera shaking, hard at first and settling
 //- fountain: a spray of sparks shooting up off one of them and raining back down
@@ -26,7 +36,7 @@ import java.util.Random;
 //- shout: a word thrown up off one of them once
 //- number: once, a damage (or healing) number thrown up off them that grows as it goes and falls back (forNumber)
 //Each move has a small chance (lucky) of its surprise version: its own extra parts if it has some (rare), and always a
-//jackpot of gold confetti, a golden star and a word ("WOW!") on top. Everything gives off RATE_SCALE times as much and
+//jackpot of gold confetti and a word ("WOW!") on top. Everything gives off RATE_SCALE times as much and
 //SIZE_SCALE times as big as written, so the whole lot can be turned up or down in one place.
 //Every gemstone move has one (gemstones, gemstone.animations), the rest fall back on their abilityType (forType).
 //Burn, poison and healing ticks have theirs (forEffect), and a failed move a puff of smoke (failed)
@@ -66,6 +76,13 @@ public class battleAnimation {
     public static final String[] GLASS = {"#F6FCFF", "#D8F4FF", "#FFFFFF", "#B8C0D0"};
     public static final String[] HURT = {"#FF0800", "#CC0D00", "#FF4060"};
     public static final String[] GOLD = {"#FFE500", "#FFFA00", "#FC9F00", "#FFFFFF", "#E0C040"};
+    public static final String[] VOID = {"#887BFE", "#B4A8FF", "#3C2B46", "#D040D0", "#FFFFFF"};
+    public static final String[] ACCRETION = {"#FC9F00", "#FFE500", "#FF6A20", "#887BFE", "#FFFFFF"};
+    public static final String[] MIRROR = {"#C8E4F4", "#F6FCFF", "#FFFFFF", "#8EDCF2", "#B8C0D0"};
+    public static final String[] MOONLIGHT = {"#D8F4FF", "#FFFFFF", "#F0F0F4", "#D8DCE4"};
+    public static final String[] SUNLIGHT = {"#FFFA00", "#FFE500", "#FFFFFF", "#FC9F00"};
+    //Charged healite's light: lilac and white
+    public static final String[] LILAC = {"#E0C0FF", "#C878FF", "#FFFFFF", "#F0E0FF"};
     public static final String[] CONFETTI = {"#FF0800", "#FC9F00", "#FFE500", "#21FF2C", "#3888DD", "#887BFE", "#FF70FF", "#FFFFFF"};
 
     //---- Shapes (pixel pictures, made in code) ----
@@ -104,12 +121,12 @@ public class battleAnimation {
         ".XX.XX.", "XXX.XXX", "XX...XX", "...X...", ".......", "..XXX..", ".XXXXX.");
 
     //One part of an animation: what it gives off each frame, between the user and the target
-    private interface part {
+    interface part {
         void spawn (scene at, double dt);
     }
 
     //Where the two fighters are this frame, for the parts
-    private static class scene {
+    static class scene {
         gameHandler handler;
         character user, target;
         Random rdm;
@@ -117,8 +134,16 @@ public class battleAnimation {
         double t;
         int world;
         double[] carry;
+        //How long the move's clock runs before it starts again (battleFx.loopOf)
+        double loop = battleFx.LOOP;
+        //The age in the frame before (battleFx.when)
+        double prev;
         //Whatever a part needs to keep between frames (when it last let go of something...)
         double[] memo;
+        //A path a part keeps between frames (where a falling rock started and lands, and whether it has landed)
+        double[][] paths;
+        void keepPath (double x0, double y0, double x1, double y1) {paths[index] = new double[] {x0, y0, x1, y1, 0};}
+        double[] path () {return paths[index];}
         int index;
 
         //How many to give off this frame at that rate a second (the leftover share is kept for the next frame)
@@ -189,6 +214,8 @@ public class battleAnimation {
     //A solid ray from the user's hand into the target: every frame it is filled in along its length with short-lived
     //small particles, a thin white hot core in the middle and the glow (colors) round it, the glow's width pulsing
     //(width in tiles, how far they spread). Sparks fly off it sideways now and then
+    private static final double BEAM_RATE = 600;
+    private static final int BEAM_LIGHTS = 6;
     public battleAnimation beam (String[] colors, double width) {
         parts.add((at, dt) -> {
             double x0 = at.cx(at.user) + Math.signum(at.target.getX() - at.user.getX())*0.3*at.t, y0 = at.cy(at.user) - 0.05*at.t;
@@ -197,16 +224,21 @@ public class battleAnimation {
             if (length <= 0) return;
             double nx = -(y1 - y0)/length, ny = (x1 - x0)/length;
             double pulse = 0.75 + 0.25*Math.sin(at.age*24);
-            //Enough to fill the ray this frame, the more the longer it is
-            int pieces = (int) Math.max(8, length/at.t*30*RATE_SCALE);
+            //Enough to fill the ray, the more the longer it is: BEAM_RATE specks a second per tile of it, so the same
+            //whatever the frame rate (it used to be a number per frame, thousands at once on a long beam)
+            int pieces = at.count(length/at.t*BEAM_RATE, dt);
             for (int i = 0; i < pieces; i++) {
                 double f = at.rdm.nextDouble(), side = (at.rdm.nextDouble() - 0.5)*width*at.t*pulse;
                 boolean core = i % 3 == 0;
                 double x = x0 + (x1 - x0)*f + nx*(core ? side*0.2 : side), y = y0 + (y1 - y0)*f + ny*(core ? side*0.2 : side);
-                //Small specks, many of them: the width only spreads them out
-                double size = (core ? 0.03 : 0.035 + at.rdm.nextDouble()*0.03)*at.t;
-                at.add(new battleParticle(at.handler, at.world, x, y, (x1 - x0)/length*0.8*at.t, (y1 - y0)/length*0.8*at.t,
-                    0.06 + at.rdm.nextDouble()*0.06, size, core ? "#FFFFFF" : at.pick(colors)));
+                //Small specks: the width only spreads them out
+                double size = (core ? 0.04 : 0.045 + at.rdm.nextDouble()*0.035)*at.t;
+                battleParticle p = new battleParticle(at.handler, at.world, x, y, (x1 - x0)/length*0.8*at.t, (y1 - y0)/length*0.8*at.t,
+                    0.06 + at.rdm.nextDouble()*0.06, size, core ? "#FFFFFF" : at.pick(colors));
+                //In the dark only one in BEAM_LIGHTS lights up round it: each light is a soft circle much bigger
+                //than the speck, so a few of them light the beam as well as all of them, for far less drawing
+                if (at.rdm.nextInt(BEAM_LIGHTS) != 0) p.noLight();
+                at.add(p);
             }
             for (int i = at.count(14, dt); i > 0; i--) {
                 double f = at.rdm.nextDouble(), out = (at.rdm.nextBoolean() ? 1 : -1)*(0.8 + at.rdm.nextDouble()*1.4)*at.t;
@@ -235,6 +267,175 @@ public class battleAnimation {
                 double x = at.cx(at.target) + (at.rdm.nextDouble() - 0.5)*0.6*at.t;
                 at.handler.strike(at.world, x + (at.rdm.nextDouble() - 0.5)*1.2*at.t, at.headY(at.target) - 3*at.t,
                     x, at.cy(at.target) + (at.rdm.nextDouble() - 0.5)*0.4*at.t, color);
+            }
+        });
+        return this;
+    }
+
+    //A shaft of light coming down out of the sky onto one of them: specks pouring straight down a column from far
+    //above the screen (width in tiles), brightest in the middle, with a pulse, splashing a little where it lands
+    public battleAnimation shaft (boolean onTarget, String[] colors, double width) {
+        parts.add((at, dt) -> {
+            character c = at.who(onTarget);
+            double pulse = 0.75 + 0.25*Math.sin(at.age*14);
+            double bottom = at.feetY(c), top = bottom - 6*at.t;
+            for (int i = at.count(160, dt); i > 0; i--) {
+                boolean core = i % 3 == 0;
+                double x = at.cx(c) + (at.rdm.nextDouble() - 0.5)*width*at.t*pulse*(core ? 0.3 : 1);
+                double y = top + at.rdm.nextDouble()*(bottom - top);
+                double speed = (4 + at.rdm.nextDouble()*3)*at.t;
+                double life = Math.min(0.35, (bottom - y)/speed + 0.05);
+                at.add(new battleParticle(at.handler, at.world, x, y, 0, speed, life, (core ? 0.05 : 0.035)*at.t, core ? "#FFFFFF" : at.pick(colors)).grow(-0.3));
+            }
+            for (int i = at.count(14, dt); i > 0; i--) {
+                double angle = Math.PI + at.rdm.nextDouble()*Math.PI, speed = (0.5 + at.rdm.nextDouble())*at.t;
+                at.add(new battleParticle(at.handler, at.world, at.cx(c), bottom, Math.cos(angle)*speed, Math.sin(angle)*speed, 0.4, 0.04*at.t, at.pick(colors)).gravity(2*at.t).drag(2));
+            }
+        });
+        return this;
+    }
+
+    //A solid beam of light straight down out of the sky onto one of them (beamParticle), width tiles wide, flickering:
+    //a new one every moment, each a little wider or narrower, glowing in glow round a body of body
+    public battleAnimation skyBeam (boolean onTarget, double width, String glow, String body) {
+        parts.add((at, dt) -> {
+            character c = at.who(onTarget);
+            for (int i = at.once(30, dt); i > 0; i--) {
+                double w = width*at.t*(0.8 + at.rdm.nextDouble()*0.4);
+                at.handler.addFrontParticle(new beamParticle(at.handler, at.world, at.cx(c), at.feetY(c), 8*at.t, w, 0.09, glow, body));
+            }
+        });
+        return this;
+    }
+
+    //How far the mirror always stands from both fighters, in tiles
+    public static final double MIRROR_GAP = 2.0;
+
+    //A mirror shimmering up between them (MIRROR_GAP from both) every every seconds, and out of it a cold blue mirror image of the
+    //target (mirrorParticle) flying at them, shattering into glass where it hits. The copy takes travel seconds
+    public battleAnimation mirrorCopy (double every, double travel) {
+        parts.add((at, dt) -> {
+            double side = Math.signum(at.target.getX() - at.user.getX());
+            //Never on top of either of them: halfway between, and if that is less than MIRROR_GAP from them, moved up off
+            //the line between them until it is that far from both
+            double ux = at.cx(at.user), uy = at.feetY(at.user), tx = at.cx(at.target), ty = at.feetY(at.target);
+            double half = Math.hypot(tx - ux, ty - uy)/2, gap = MIRROR_GAP*at.t;
+            double up = half < gap ? Math.sqrt(gap*gap - half*half) : 0;
+            double mx = (ux + tx)/2, my = (uy + ty)/2 - up;
+            double mirrorLife = travel + 0.35;
+            if (at.once(1/every, dt) > 0) {
+                at.memo[at.index] = at.age;
+                //Standing in the world: behind the fighters and anything tall, like the mirrors on the walls
+                at.handler.addBehindParticle(new mirrorParticle(at.handler, at.world, mx, my, 0.55*at.t, mirrorLife));
+                //It appears like the cutscenes' mirrors do
+                at.handler.mirrorAppears(mx, my - 0.55*at.t, at.world);
+            }
+            double since = at.age - at.memo[at.index];
+            //...and goes like them, blown apart
+            if (since >= mirrorLife - 0.08 && since - dt < mirrorLife - 0.08) at.handler.mirrorVanishes(mx, my - 0.55*at.t, at.world);
+            //The copy steps out once the mirror stands
+            if (since >= 0.2 && since - dt < 0.2) {
+                at.handler.addFrontParticle(new mirrorParticle(at.handler, at.world, mx, my - 0.5*at.t, at.cx(at.target) - side*0.1*at.t, at.cy(at.target),
+                    0.9*at.t, travel, at.target.getTintedIcon("#C8E4F4")));
+            }
+            //It shatters on them
+            if (since >= 0.2 + travel && since - dt < 0.2 + travel) {
+                for (int i = 0; i < 26; i++) {
+                    double angle = at.rdm.nextDouble()*2*Math.PI, speed = (0.6 + at.rdm.nextDouble()*1.4)*at.t;
+                    at.add(new battleParticle(at.handler, at.world, at.cx(at.target), at.cy(at.target), Math.cos(angle)*speed, Math.sin(angle)*speed - 0.4*at.t,
+                        0.5 + at.rdm.nextDouble()*0.3, 0.05*at.t, at.pick(MIRROR)).shape(SHARD).gravity(2.5*at.t).drag(2).spin(at.rdm.nextDouble()*2 - 1));
+                }
+            }
+        });
+        return this;
+    }
+
+    //A black hole's pull on one of them: things spiralling in from radius (tiles) round them, faster and faster,
+    //shrinking into the middle (battleParticle.spiral)
+    public battleAnimation vortex (boolean onTarget, String[] colors, double rate, double size, double radius) {
+        parts.add((at, dt) -> {
+            character c = at.who(onTarget);
+            for (int i = at.count(rate, dt); i > 0; i--) {
+                double life = 0.7 + at.rdm.nextDouble()*0.5;
+                at.add(new battleParticle(at.handler, at.world, at.cx(c), at.cy(c), 0, 0, life, size*at.t*(0.6 + at.rdm.nextDouble()*0.8), at.pick(colors))
+                    .spiral(at.cx(c), at.cy(c), radius*at.t*(0.6 + at.rdm.nextDouble()*0.5), at.rdm.nextDouble()*2*Math.PI, 1.2 + at.rdm.nextDouble(), 0.55).grow(-0.8));
+            }
+        });
+        return this;
+    }
+
+    //A black core over one of them, size tiles across, wobbling: black squares that give off no light, so it eats
+    //into the night round it
+    public battleAnimation core (boolean onTarget, double size) {
+        parts.add((at, dt) -> {
+            character c = at.who(onTarget);
+            for (int i = at.count(40, dt); i > 0; i--) {
+                double wobble = (at.rdm.nextDouble() - 0.5)*size*0.25*at.t;
+                at.add(new battleParticle(at.handler, at.world, at.cx(c) + wobble, at.cy(c) + wobble, 0, 0, 0.12, size*at.t*(0.8 + at.rdm.nextDouble()*0.3), "#000000")
+                    .spin(at.rdm.nextDouble()*0.5));
+            }
+        });
+        return this;
+    }
+
+    //The singularity over one of them, size tiles across, drawn as the inventory draws it (the Singularity item: its
+    //texture, white outline and dark glow). One every half of CORE_LIFE, so never more than two at once: one fully
+    //there while the one before fades
+    private static final double CORE_LIFE = 1.2;
+    public battleAnimation singularity (boolean onTarget, double size) {
+        //The item to draw, made once per game
+        item[] held = new item[1];
+        gameHandler[] heldFor = new gameHandler[1];
+        parts.add((at, dt) -> {
+            character c = at.who(onTarget);
+            if (heldFor[0] != at.handler) {
+                heldFor[0] = at.handler;
+                held[0] = at.handler.getItemRegistry() == null ? null : at.handler.getItemRegistry().make("Singularity");
+            }
+            if (held[0] == null) return;
+            for (int i = at.once(2/CORE_LIFE, dt); i > 0; i--) {
+                at.add(new battleParticle(at.handler, at.world, at.cx(c), at.cy(c), 0, 0, CORE_LIFE, size*at.t, gemstones.SINGULARITY_COLOR)
+                    .item(held[0]));
+            }
+        });
+        return this;
+    }
+
+    //The singularity's pull on one of them: moonstones and meteorites (the gemstones' own colours, as round the black
+    //hole in space) spiralling in from radius (tiles) round them, faster and faster, tumbling and shrinking as they go
+    public battleAnimation pull (boolean onTarget, double rate, double size, double radius) {
+        parts.add((at, dt) -> {
+            character c = at.who(onTarget);
+            for (int i = at.count(rate, dt); i > 0; i--) {
+                double life = 0.8 + at.rdm.nextDouble()*0.5;
+                String hex = at.rdm.nextBoolean() ? gemstones.MOON_COLOR : spaceView.METEORITE_COLOR;
+                at.add(new battleParticle(at.handler, at.world, at.cx(c), at.cy(c), 0, 0, life, size*at.t*(0.7 + at.rdm.nextDouble()*0.6), hex)
+                    .image(at.rock(hex)).spin((at.rdm.nextDouble() - 0.5)*4)
+                    .spiral(at.cx(c), at.cy(c), radius*at.t*(0.6 + at.rdm.nextDouble()*0.5), at.rdm.nextDouble()*2*Math.PI, 1.2 + at.rdm.nextDouble(), 0.55).grow(-0.8));
+            }
+        });
+        return this;
+    }
+
+    //The same pull with the real Moonstone and Meteorite items (their own textures, as in the inventory) turning as
+    //they spiral in, instead of tinted rocks
+    public battleAnimation pullItems (boolean onTarget, double rate, double size, double radius) {
+        item[] held = new item[2];
+        gameHandler[] heldFor = new gameHandler[1];
+        parts.add((at, dt) -> {
+            character c = at.who(onTarget);
+            if (heldFor[0] != at.handler) {
+                heldFor[0] = at.handler;
+                itemRegistry registry = at.handler.getItemRegistry();
+                held[0] = registry == null ? null : registry.make("Moonstone");
+                held[1] = registry == null ? null : registry.make("Meteorite");
+            }
+            if (held[0] == null || held[1] == null) return;
+            for (int i = at.count(rate, dt); i > 0; i--) {
+                double life = 0.8 + at.rdm.nextDouble()*0.5;
+                at.add(new battleParticle(at.handler, at.world, at.cx(c), at.cy(c), 0, 0, life, size*at.t*(0.7 + at.rdm.nextDouble()*0.6), gemstones.MOON_COLOR)
+                    .item(held[at.rdm.nextInt(2)]).spin((at.rdm.nextBoolean() ? 1 : -1)*(1 + at.rdm.nextDouble()*2))
+                    .spiral(at.cx(c), at.cy(c), radius*at.t*(0.6 + at.rdm.nextDouble()*0.5), at.rdm.nextDouble()*2*Math.PI, 1.2 + at.rdm.nextDouble(), 0.55).grow(-0.8));
             }
         });
         return this;
@@ -414,6 +615,42 @@ public class battleAnimation {
         return this;
     }
 
+    //A rock falling from space onto the target every every seconds: from far above the screen, almost straight down
+    //and fast, burning up into a long trail (trail's colours) as it comes, with a flash where it lands
+    public battleAnimation fromSpace (String hex, double every, double size, String[] trail) {
+        double travel = 0.7;
+        parts.add((at, dt) -> {
+            double s = size*at.t*SIZE_SCALE;
+            double side = at.target.getX() > at.user.getX() ? -1 : 1;
+            if (at.once(1/every, dt) > 0) {
+                double x1 = at.cx(at.target) + (at.rdm.nextDouble() - 0.5)*0.2*at.t, y1 = at.cy(at.target);
+                double x0 = x1 + side*0.9*at.t, y0 = y1 - 6*at.t;
+                at.handler.addFrontParticle(new battleParticle(at.handler, at.world, x0, y0, (x1 - x0)/travel, (y1 - y0)/travel, travel, s, hex).image(at.rock(hex)).spin(2));
+                at.memo[at.index] = at.age;
+                at.keepPath(x0, y0, x1, y1);
+            }
+            double since = at.age - at.memo[at.index];
+            double[] path = at.path();
+            if (path == null) return;
+            if (since >= 0 && since < travel) {
+                double x = path[0] + (path[2] - path[0])*since/travel, y = path[1] + (path[3] - path[1])*since/travel;
+                for (int i = 0; i < 6; i++) {
+                    at.add(new battleParticle(at.handler, at.world, x + (at.rdm.nextDouble() - 0.5)*s*0.4, y - at.rdm.nextDouble()*s*0.8,
+                        0, -0.05*at.t, 0.35 + at.rdm.nextDouble()*0.3, s*0.22*(0.6 + at.rdm.nextDouble()*0.6), at.pick(trail)).grow(-0.7));
+                }
+            } else if (since >= travel && path[4] == 0) {
+                //The flash where it lands, once
+                path[4] = 1;
+                for (int i = 0; i < 18; i++) {
+                    double angle = at.rdm.nextDouble()*Math.PI, speed = (0.8 + at.rdm.nextDouble()*1.4)*at.t;
+                    at.add(new battleParticle(at.handler, at.world, path[2], path[3], Math.cos(angle)*speed, -Math.sin(angle)*speed, 0.4 + at.rdm.nextDouble()*0.3,
+                        s*0.18, at.pick(trail)).gravity(3*at.t).drag(2));
+                }
+            }
+        });
+        return this;
+    }
+
     //The user steps at the target and back every every seconds, as if throwing or hitting (far: how far, in tiles)
     public battleAnimation lunge (double every, double far) {
         parts.add((at, dt) -> {
@@ -507,16 +744,46 @@ public class battleAnimation {
 
     //The surprise version of this move: these parts too, when it comes out lucky (see playing.roll)
     private battleAnimation rare;
+    //One of the drawn kinds (battleFx: cracks, crystals, pools, waves...) as a part
+    public battleAnimation then (part p) {
+        parts.add(p);
+        return this;
+    }
+
+    //A mood of the move's own, over its rock's (a thunderbolt darkening the sky of a rock that has none)
+    private mood own;
+    public battleAnimation dark (mood m) {
+        this.own = m;
+        return this;
+    }
+
     public battleAnimation rare (battleAnimation extra) {
         this.rare = extra;
         return this;
     }
 
-    //What every lucky move gets on top: gold confetti, a golden star and a word
+    //What every lucky move gets on top: a burst of sparks in the colours of the rock it came from (colors) and a word
     private static final String[] WORDS = {"WOW!", "LUCKY!", "BOOM!", "NICE!", "WHOA!", "EPIC!"};
-    private static battleAnimation jackpot (Random rdm) {
-        return new battleAnimation().fountain(true, CONFETTI, 40, 0.06, null).formation(false, BIG_STAR, GOLD, 0.6, 0.07)
-            .shout(false, WORDS[rdm.nextInt(WORDS.length)], "#FFE500").impact(false, GOLD, 20, 0.05);
+    private static battleAnimation jackpot (Random rdm, String[] colors) {
+        return new battleAnimation().fountain(true, colors, 40, 0.06, null)
+            .shout(false, WORDS[rdm.nextInt(WORDS.length)], colors[1]).impact(false, colors, 20, 0.05);
+    }
+
+    //The colours of the rock a move key (M:rock:move) is from: its colour, a lighter one and white; every colour only
+    //for rainbow uranium. Gold when it is from no rock
+    private static String[] rockColors (character user, String key) {
+        String[] parts = key.split(":");
+        if (parts.length < 2 || user == null || user.getHandler() == null || user.getHandler().getItemRegistry() == null) return GOLD;
+        item it = user.getHandler().getItemRegistry().make(parts[1]);
+        if (it == null) return GOLD;
+        if (parts[1].equals("Rainbow Uranium")) return CONFETTI;
+        String hex = it.getTint() == null ? "#FFE500" : it.getTint();
+        javafx.scene.paint.Color c = javafx.scene.paint.Color.web(hex), light = c.interpolate(javafx.scene.paint.Color.WHITE, 0.5);
+        return new String[] {hex, toHex(light), "#FFFFFF", toHex(c.interpolate(javafx.scene.paint.Color.WHITE, 0.25))};
+    }
+
+    private static String toHex (javafx.scene.paint.Color c) {
+        return String.format("#%02X%02X%02X", (int) Math.round(c.getRed()*255), (int) Math.round(c.getGreen()*255), (int) Math.round(c.getBlue()*255));
     }
 
     //---- Damage numbers ----
@@ -529,23 +796,88 @@ public class battleAnimation {
     //The number for damage done (or healing, heal true) by what caused it (the dialogue's source: burn and poison
     //get their own colour)
     public static battleAnimation forNumber (double amount, boolean heal, picture cause) {
-        return new battleAnimation().number((heal ? "+" : "-") + Math.round(amount), numberColor(heal, cause));
+        return new battleAnimation().number((heal ? "+" : "-") + guiText.num(amount) + " " + textIcons.forAmount(heal, cause), numberColor(heal, cause));
     }
 
     //Its key for a 1v1: N:colour:text
     public static String numberKey (double amount, boolean heal, picture cause) {
-        return "N:" + numberColor(heal, cause) + ":" + (heal ? "+" : "-") + Math.round(amount);
+        return "N:" + numberColor(heal, cause) + ":" + (heal ? "+" : "-") + guiText.num(amount) + " " + textIcons.forAmount(heal, cause);
     }
+
+    //---- Mood ----
+    //How a move colours the world while it plays: dark (0 to 1) how far towards night, tint a colour laid over
+    //everything with tintStrength (0 to 1), glow (0 to 1) how strongly the move's particles shine. Every rock's moves
+    //set its mood (gemstone.mood, DAY when it has none) and it stays after the move until the next move sets another;
+    //gameHandler eases from the one to the other (dark straight into pink, never through day), and back to DAY when
+    //the fight is over. Drawn over the world and the fighters, under the moves' particles, so those stand out
+    public static class mood {
+        public final double dark, tintStrength, glow;
+        public final javafx.scene.paint.Color tint;
+
+        public mood (double dark, String tint, double tintStrength, double glow) {
+            this.dark = dark;
+            this.tint = javafx.scene.paint.Color.web(tint);
+            this.tintStrength = tintStrength;
+            this.glow = glow;
+        }
+
+        public static final mood DAY = new mood(0, "#FFFFFF", 0, 0);
+        //Night, with the moves glowing
+        public static mood night (double dark) {return new mood(dark, "#FFFFFF", 0, 1);}
+        //Night with a coloured glow over it (magma's red)
+        public static mood night (double dark, String tint, double tintStrength) {return new mood(dark, tint, tintStrength, 1);}
+        //Day in a colour (healite's pink)
+        public static mood tinted (String tint, double tintStrength) {return new mood(0, tint, tintStrength, 0.4);}
+    }
+
+    //Sets the mood while it plays
+    public battleAnimation mood (mood m) {
+        parts.add((at, dt) -> at.handler.setBattleMood(m));
+        return this;
+    }
+
+    //A copy with a mood on top (its surprise version kept)
+    public battleAnimation withMood (mood m) {
+        battleAnimation copy = new battleAnimation();
+        copy.parts.addAll(parts);
+        copy.rare = rare;
+        copy.own = own;
+        mood used = own != null ? own : m;
+        //In the dark both fighters keep a soft light, so a move without glowing bits of its own does not lose them
+        if (used.dark > 0) copy.parts.add(battleFx.aura("#FFF4E0"));
+        return copy.mood(used);
+    }
+
+    //---- Luck ----
+    //A move that worked at a low hit chance gets a word thrown off its user: at or below LUCKY (80%) "LUCKY!", at or
+    //below VERY_LUCKY (60%) "VERY LUCKY!", at or below SUPER_LUCKY (50%) "SUPER LUCKY!". A move that failed gets "UNLUCKY..."
+    public static final double LUCKY = 0.8, VERY_LUCKY = 0.6, SUPER_LUCKY = 0.5;
+
+    //The key of the word for a move used at chance (0 to 1) that worked or not, null when there is none. Played with
+    //playing like any key, so a 1v1 shows it on both sides
+    public static String luckKey (double chance, boolean worked) {
+        if (!worked) return shoutKey("UNLUCKY...", "#A0A0A0");
+        if (chance <= SUPER_LUCKY) return shoutKey("SUPER LUCKY!", "#FF70FF");
+        if (chance <= VERY_LUCKY) return shoutKey("VERY LUCKY!", "#40C0FF");
+        if (chance <= LUCKY) return shoutKey("LUCKY!", "#60E060");
+        return null;
+    }
+
+    //A word thrown off the user: S:colour:text
+    public static String shoutKey (String text, String hex) {return "S:" + hex + ":" + text;}
 
     //---- Playing ----
 
     //An animation playing between two fighters, for as long as its message is on screen. key says which it is, so a
-    //1v1 can send it over (see duel): M:rock name:move (ending :R when lucky), E:effect, F (failed), N:colour:number
+    //1v1 can send it over (see duel): M:rock name:move (ending :R when lucky), E:effect, F (failed), N:colour:number,
+    //S:colour:word (thrown off the user)
     public static class playing {
         private final battleAnimation animation;
         private final character user, target;
         private final String key;
         private final double[] carry, memo;
+        private final double[][] paths;
+        private final double loop;
         private double age = 0;
         private final Random rdm = new Random();
 
@@ -555,7 +887,7 @@ public class battleAnimation {
                 battleAnimation all = new battleAnimation();
                 all.parts.addAll(animation.parts);
                 if (animation.rare != null) all.parts.addAll(animation.rare.parts);
-                all.parts.addAll(jackpot(new Random(key.hashCode())).parts);
+                all.parts.addAll(jackpot(new Random(key.hashCode()), rockColors(user, key)).parts);
                 animation = all;
             }
             this.animation = animation;
@@ -564,6 +896,8 @@ public class battleAnimation {
             this.key = key;
             this.carry = new double[animation.parts.size()];
             this.memo = new double[animation.parts.size()];
+            this.paths = new double[animation.parts.size()][];
+            this.loop = battleFx.loopOf(animation.parts);
             //Every part lets go of its first one straight away
             java.util.Arrays.fill(carry, 0.999);
             java.util.Arrays.fill(memo, -100);
@@ -580,17 +914,22 @@ public class battleAnimation {
 
         public void next (gameHandler handler, double dt) {
             if (user == null || target == null || user.getWorld() != handler.getCurrentWorld()) return;
+            //The age before this frame, exactly as it was (the first frame from just before 0, so beats at 0 fire)
+            double before = age == 0 ? -1e-9 : age;
             age += dt;
             scene at = new scene();
+            at.prev = before;
             at.handler = handler;
             at.user = user;
             at.target = target;
             at.rdm = rdm;
             at.age = age;
+            at.loop = loop;
             at.t = 1.0/handler.getTileCount();
             at.world = user.getWorld();
             at.carry = carry;
             at.memo = memo;
+            at.paths = paths;
             for (int i = 0; i < animation.parts.size(); i++) {
                 at.index = i;
                 animation.parts.get(i).spawn(at, dt);
@@ -604,6 +943,10 @@ public class battleAnimation {
         if (key.startsWith("N:")) {
             String[] f = key.split(":", 3);
             return f.length == 3 ? new battleAnimation().number(f[2], f[1]) : null;
+        }
+        if (key.startsWith("S:")) {
+            String[] f = key.split(":", 3);
+            return f.length == 3 ? new battleAnimation().shout(false, f[2], f[1]) : null;
         }
         if (key.startsWith("E:")) {
             try {
@@ -632,17 +975,17 @@ public class battleAnimation {
 
     //A move that failed: a puff of grey smoke off the user, and a question mark over them
     public static battleAnimation failed () {
-        return new battleAnimation().rise(false, SMOKE, 10, 0.09, null).formation(false, QUESTION, SMOKE, 1.0, 0.04);
+        return new battleAnimation().rise(false, SMOKE, 10, 0.09, null);
     }
 
     //A burn, poison or healing tick on whoever it is on (the user and the target are the same character)
     public static battleAnimation forEffect (abilityType kind) {
         switch (kind) {
             case FIRE:   return new battleAnimation().rise(false, FIRE, 22, 0.07, FLAME).rise(false, SMOKE, 5, 0.08, null).impact(false, EMBER, 6, 0.04)
-                             .fountain(false, EMBER, 8, 0.04, FLAME).formation(false, FIRE_SIGN, FIRE, 1.0, 0.05);
+                             .fountain(false, EMBER, 8, 0.04, FLAME);
             case POISON: return new battleAnimation().rise(false, POISON, 14, 0.07, BUBBLE).rise(false, POISON, 6, 0.04, null)
-                             .formation(false, SKULL, POISON, 1.0, 0.05).shake(false, 0.015);
-            default:     return new battleAnimation().rise(false, HEARTS, 10, 0.08, HEART).formation(false, BIG_HEART, HEARTS, 1.0, 0.045);
+                             .shake(false, 0.015);
+            default:     return new battleAnimation().rise(false, HEARTS, 10, 0.08, HEART);
         }
     }
 
@@ -651,12 +994,12 @@ public class battleAnimation {
         switch (kind) {
             case FIRE:      return new battleAnimation().stream(FIRE, 14, 0.06, FLAME, 0.4, 0.3).rise(true, FIRE, 14, 0.07, FLAME).impact(true, EMBER, 10, 0.04);
             case POISON:    return new battleAnimation().stream(POISON, 8, 0.06, DROP, 0.45, 0.5).rise(true, POISON, 12, 0.07, BUBBLE);
-            case CONFUSE:   return new battleAnimation().orbit(true, STARS, 16, 0.07, STAR).swirl(true, PURPLE, 12, 0.04);
+            case CONFUSE:   return new battleAnimation().orbit(true, PURPLE, 16, 0.07, STAR).swirl(true, PURPLE, 12, 0.04);
             case LIGHTNING: return new battleAnimation().bolt("#FFE500", 6).impact(true, YELLOW, 25, 0.05);
             case HEAL:      return new battleAnimation().rise(false, HEARTS, 12, 0.08, HEART);
             case DRAIN:     return new battleAnimation().impact(true, HURT, 15, 0.05).back(HEARTS, 8, 0.08, HEART, 0.6, 0.4);
             case CLEANSE:   return new battleAnimation().rise(false, CLEAN, 14, 0.06, SPARK).swirl(false, CLEAN, 12, 0.04);
-            case RESTORE:   return new battleAnimation().orbit(false, PINK, 12, 0.07, STAR).rise(false, CLEAN, 12, 0.05, SPARK);
+            case RESTORE:   return new battleAnimation().orbit(false, PINK, 12, 0.07, STAR).rise(false, PINK, 12, 0.05, SPARK);
             default:        return new battleAnimation().stream(GREY, 5, 0.1, CHUNK, 0.35, 0.4).impact(true, GREY, 15, 0.05);
         }
     }

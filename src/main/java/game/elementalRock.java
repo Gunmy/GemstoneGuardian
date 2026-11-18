@@ -21,15 +21,23 @@ public class elementalRock extends gemstone {
 
     public elementalRock (gameHandler handler) {
         super("Elemental Rock", "#C8B8FF", itemParticles.NONE, handler,
-            "Empty", abilityType.ATTACK, "", (c1, c2) -> {}, 0, 0,
-            "Empty", abilityType.ATTACK, "", (c1, c2) -> {}, 0, 0,
-            "Empty", abilityType.ATTACK, "", (c1, c2) -> {}, 0, 0);
-        rainbow();
+            "Empty", abilityType.ATTACK, new moveEffects(), 0, 0,
+            "Empty", abilityType.ATTACK, new moveEffects(), 0, 0,
+            "Empty", abilityType.ATTACK, new moveEffects(), 0, 0);
         lore("A hollow stone with three sockets. It becomes whatever you set in it.");
         onInventoryUse("Opens or closes its three rock slots, under the inventory", c -> handler.getGui().toggleElemental(this));
     }
 
     public gemstone getInside (int slot) {return inside[slot];}
+
+    //Its own colour, running through the rainbow only while a rainbow uranium is set in it (the one rock whose
+    //colours those are)
+    @Override
+    public String currentTint () {
+        rainbow = false;
+        for (gemstone g : getInsideList()) if (g.getName().equals("Rainbow Uranium")) rainbow = true;
+        return super.currentTint();
+    }
 
     //The rocks inside with their slot, for itemInteractions
     public List<gemstone> getInsideList () {
@@ -90,13 +98,11 @@ public class elementalRock extends gemstone {
     @Override public abilityType getAbility2type () {return inside[1] == null ? abilityType.ATTACK : inside[1].getAbility2type();}
     @Override public abilityType getAbility3type () {return inside[2] == null ? abilityType.ATTACK : inside[2].getAbility3type();}
 
-    @Override public List<Integer> howManyAbility1Uses () {return inside[0] == null ? NO_USES : inside[0].howManyAbility1Uses();}
-    @Override public List<Integer> howManyAbility2Uses () {return inside[1] == null ? NO_USES : inside[1].howManyAbility2Uses();}
-    @Override public List<Integer> howManyAbility3Uses () {return inside[2] == null ? NO_USES : inside[2].howManyAbility3Uses();}
+    @Override public List<Integer> usesOf (int n, character you) {return n >= 0 && n < SLOTS && inside[n] != null ? inside[n].usesOf(n, you) : NO_USES;}
 
-    @Override public boolean ability1usesLeft () {return inside[0] != null && inside[0].ability1usesLeft();}
-    @Override public boolean ability2usesLeft () {return inside[1] != null && inside[1].ability2usesLeft();}
-    @Override public boolean ability3usesLeft () {return inside[2] != null && inside[2].ability3usesLeft();}
+    @Override public double baseChance (int n, character you) {return n >= 0 && n < SLOTS && inside[n] != null ? inside[n].baseChance(n, you) : 0;}
+
+    @Override public moveEffects effectsOf (int n) {return n >= 0 && n < SLOTS && inside[n] != null ? inside[n].effectsOf(n) : null;}
 
     @Override public void ability1 (character you, character them) {if (inside[0] != null) inside[0].ability1(you, them);}
     @Override public void ability2 (character you, character them) {if (inside[1] != null) inside[1].ability2(you, them);}
@@ -110,15 +116,15 @@ public class elementalRock extends gemstone {
     }
 
     @Override
-    public boolean hasMovesLeft () {return ability1usesLeft() || ability2usesLeft() || ability3usesLeft();}
+    public boolean hasMovesLeft (character you) {return usesLeft(0, you) || usesLeft(1, you) || usesLeft(2, you);}
 
     //Move n's box from the rock in slot n, or an empty one
     @Override
-    public List<infoBox> getInfoBoxes () {
+    public List<infoBox> getInfoBoxes (character you, character them) {
         List<infoBox> boxes = new ArrayList<infoBox>();
         for (int i = 0; i < SLOTS; i++) {
             if (inside[i] == null) boxes.add(new infoBox(null, "Empty", "Slot " + (i+1), "Put a rock in slot " + (i+1) + " to get its move " + (i+1)));
-            else boxes.add(inside[i].getInfoBoxes().get(i));
+            else boxes.add(inside[i].getInfoBoxes(you, them).get(i));
         }
         if (inventoryAction != null) boxes.add(new infoBox(null, "Right click", "In the inventory", inventoryActionText));
         return boxes;
@@ -237,6 +243,14 @@ public class elementalRock extends gemstone {
     public double getAgitation () {
         double a = super.getAgitation();
         for (gemstone g : getInsideList()) a = Math.max(a, g.getAgitation());
+        return a;
+    }
+
+    //As really charged as the most charged rock inside (for lightning, see item.getCharge)
+    @Override
+    public double getCharge () {
+        double a = super.getCharge();
+        for (gemstone g : getInsideList()) a = Math.max(a, g.getCharge());
         return a;
     }
 

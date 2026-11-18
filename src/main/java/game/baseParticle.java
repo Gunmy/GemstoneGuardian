@@ -34,7 +34,7 @@ public abstract class baseParticle implements cordinate, entity {
         moveX = -moveX;
     }
 
-    private double getTimeAlive () {
+    protected double getTimeAlive () {
         return (System.nanoTime()-spawn)/1_000_000_000;
     }
 
@@ -62,10 +62,7 @@ public abstract class baseParticle implements cordinate, entity {
             handler.getTempGc().save();
             Rotate r = new Rotate(360/lifeTime*getTimeAlive()*spinSpeed, rendX, rendY);
             
-            double opacity = (lifeTime-getTimeAlive())/(lifeTime/2);
-            if (opacity > 0.9) {opacity = 0.9;}
-
-            handler.getTempGc().setGlobalAlpha(opacity);
+            handler.getTempGc().setGlobalAlpha(opacity());
 
             handler.getTempGc().setTransform(r.getMxx(), r.getMyx(), r.getMxy(), r.getMyy(), r.getTx(), r.getTy());
             
@@ -77,6 +74,16 @@ public abstract class baseParticle implements cordinate, entity {
     }
 
     protected abstract void drawSpecial (double rendX, double rendY);
+
+    //How see-through it is drawn now: fading out over the second half of its life
+    protected double opacity () {
+        double opacity = (lifeTime-getTimeAlive())/(lifeTime/2);
+        return Math.max(0, Math.min(0.9, opacity));
+    }
+
+    //Where it is on screen now
+    protected double screenX () {return (x-handler.getCamera().getX())*handler.getUnitWidth()+handler.getMidWIDTH();}
+    protected double screenY () {return (y-handler.getCamera().getY())*handler.getUnitHeight()+handler.getMidHEIGHT();}
 
 
     @Override

@@ -89,19 +89,20 @@ public class duelLink {
         }
     }
 
-    //An open challenge: says it is there over UDP every second (the player's name and their build, duelBuild.encode,
-    //so the list can show its rocks) and waits for one player to join
+    //An open challenge: says it is there over UDP every second (the player's name, their build, duelBuild.encode, so
+    //the list can show its rocks, and the level the fight is at, which the one who made it picks) and waits for one
+    //player to join
     public static class host {
         private ServerSocket server;
         private DatagramSocket announcer;
         private volatile duelLink joined;
         private volatile boolean stopped = false;
 
-        public host (String player, String build) throws IOException {
+        public host (String player, String build, int level) throws IOException {
             server = new ServerSocket(0);
             announcer = new DatagramSocket();
             announcer.setBroadcast(true);
-            String message = TAG + "\t" + duelBuild.enc(player) + "\t" + server.getLocalPort() + "\t" + duelBuild.enc(build);
+            String message = TAG + "\t" + duelBuild.enc(player) + "\t" + server.getLocalPort() + "\t" + duelBuild.enc(build) + "\t" + level;
             byte[] bytes = message.getBytes(StandardCharsets.UTF_8);
 
             Thread announce = new Thread(() -> {
@@ -172,13 +173,16 @@ public class duelLink {
         public final String player;
         //The challenger's build (duelBuild.encode)
         public final String build;
+        //The level the fight is at (an older game says none: duel.DEFAULT_LEVEL)
+        public final int level;
         private long seen;
 
-        challenge (InetAddress address, int port, String player, String build) {
+        challenge (InetAddress address, int port, String player, String build, int level) {
             this.address = address;
             this.port = port;
             this.player = player;
             this.build = build;
+            this.level = level;
         }
     }
 
@@ -214,7 +218,9 @@ public class duelLink {
                         synchronized (found) {
                             challenge c = found.get(key);
                             if (c == null || from.isLoopbackAddress()) {
-                                c = new challenge(from, port, duelBuild.dec(f[1]), duelBuild.dec(f[3]));
+                                int level = duel.DEFAULT_LEVEL;
+                                if (f.length >= 5) level = Math.max(0, Math.min(duel.MAX_LEVEL, Integer.parseInt(f[4])));
+                                c = new challenge(from, port, duelBuild.dec(f[1]), duelBuild.dec(f[3]), level);
                                 found.put(key, c);
                             }
                             c.seen = System.currentTimeMillis();

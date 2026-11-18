@@ -39,6 +39,8 @@ public class gui {
     private guiBattle battleScreen;
     private guiInventory inventoryScreen;
     private guiDialogue dialogueBox;
+    //The win and lose screens of a fight (fightOutcome), shown instead of the speech box
+    private guiOutcome outcomeScreen;
     private guiSettings settingsScreen;
     private guiTeleports teleportScreen;
     private guiMainMenu mainMenu;
@@ -74,6 +76,7 @@ public class gui {
     public gui (gameHandler handler) {
         this.handler = handler;
         this.skin = new guiSkin(this);
+        textIcons.use(handler.getImages());
 
         hud = new guiHud(this);
         //Comes up from the bottom once the game has opened, and goes back down when it is hidden
@@ -82,13 +85,19 @@ public class gui {
         battleScreen = new guiBattle(this, handler.getBattle());
         inventoryScreen = new guiInventory(this);
         dialogueBox = new guiDialogue(this);
+        outcomeScreen = new guiOutcome(this);
         settingsScreen = new guiSettings(this);
         teleportScreen = new guiTeleports(this);
         mainMenu = new guiMainMenu(this);
+        //The menus all come down from the top and go back up (the main menu does it itself)
+        inventoryScreen.slideFrom(guiElement.edge.TOP);
+        settingsScreen.slideFrom(guiElement.edge.TOP);
+        teleportScreen.slideFrom(guiElement.edge.TOP);
 
         elements.add(hud);
         elements.add(battleScreen);
         elements.add(inventoryScreen);
+        elements.add(outcomeScreen);
         elements.add(dialogueBox);
         elements.add(settingsScreen);
         elements.add(teleportScreen);
@@ -201,9 +210,14 @@ public class gui {
         }
     }
 
-    //Slides the main menu away while the game it starts is still loading in. The new game takes over the slide
-    private boolean menuLeaving = false;
-    public void menuLeaves () {menuLeaving = true;}
+
+    //The main menu off screen (and the hotbar), to slide in when shown: a game coming in from space (openFromSpace)
+    public void hideMainMenu () {
+        mainMenu.setVisible(false);
+        mainMenu.slideFrom(guiElement.edge.TOP);
+        hud.setVisible(false);
+        hud.slideFrom(guiElement.edge.BOTTOM);
+    }
 
     //A main menu for the game to slide in on top while quitting
     public guiElement makeMenu () {return new guiMainMenu(this);}
@@ -259,6 +273,8 @@ public class gui {
         lightning = lightning.stream().filter(l -> !l.isDead()).collect(Collectors.toList());
         particles = particles.stream().filter(p -> !p.isDead()).collect(Collectors.toList());
 
+        updateVisibility();
+        menusSwitch();
         for (guiElement element : elements) element.slide(deltaTime);
 
         //The held item may have turned into another (sand into glass)
@@ -341,17 +357,38 @@ public class gui {
         trailPaused = false;
     }
 
+    //What is shown follows the game: worked out before the slides (next) and again before drawing
+    private void updateVisibility () {
+        boolean menu = handler.inMenu();
+        //The hotbar waits for a menu sliding away and goes when the game is being left
+        //Both wait for a zoom through space between the menu and a game to be over (gameHandler.inSpaceTrip)
+        boolean trip = handler.inSpaceTrip();
+        boolean outcome = !menu && handler.getOutcome() != null;
+        hud.setVisible(!menu && !trip && menuOverlay == null && !handler.isLeaving() && !inventoryOpen() && !handler.getBattle().isActive() && !outcome);
+        //A fight's screen goes at once when zooming out into space and is back when nearly down again
+        battleScreen.setVisible(!menu && (!trip || handler.nearlyLanded()) && handler.getBattle().isActive() && !outcome);
+        outcomeScreen.setVisible(outcome);
+        dialogueBox.setVisible(!menu && handler.getDiealoguecontainer().isActive() && !outcome);
+        //The visuals page opened from the main menu is shown in its place
+        mainMenu.setVisible(menu && !trip && !settingsOpen() && !inventoryOpen());
+    }
+
+    //A menu hidden as another one is shown (settings to teleports, the 1v1 page to a build's inventory and back) goes
+    //out at the bottom as the other comes down from the top; one hidden on its own goes back up
+    private void menusSwitch () {
+        guiElement[] menus = {inventoryScreen, settingsScreen, teleportScreen, mainMenu};
+        boolean coming = false;
+        for (guiElement m : menus) coming |= m.justShown();
+        for (guiElement m : menus) {
+            if (m.justHidden()) m.leaveDown(coming);
+        }
+    }
+
     public void draw (GraphicsContext gc) {
         double screenWidth = handler.getWIDTH();
         double screenHeight = handler.getHEIGHT();
 
-        boolean menu = handler.inMenu();
-        //The hotbar waits for a menu sliding away and goes when the game is being left
-        hud.setVisible(!menu && menuOverlay == null && !handler.isLeaving() && !inventoryOpen() && !handler.getBattle().isActive());
-        battleScreen.setVisible(!menu && handler.getBattle().isActive());
-        dialogueBox.setVisible(!menu && handler.getDiealoguecontainer().isActive());
-        //The visuals page opened from the main menu is shown in its place
-        mainMenu.setVisible(menu && !settingsOpen() && !menuLeaving && !inventoryOpen());
+        updateVisibility();
 
         interactions.newFrame();
         gc.setGlobalAlpha(1);
@@ -427,6 +464,8 @@ public class gui {
         for (int i = elements.size()-1; i >= 0; i--) {
             guiElement element = elements.get(i);
             boolean modal = element == inventoryScreen || element == settingsScreen || element == teleportScreen || element == mainMenu;
+            //A menu going to another page takes no clicks until it is back
+            if (modal && element.isVisible() && element.isSwapping()) return true;
             if (element.isVisible() && (element.contains(mx, my) || modal) && element.click(mx, my, rightClick)) return true;
         }
         return false;

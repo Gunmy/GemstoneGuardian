@@ -3,7 +3,9 @@
 Read the "For developers and AI agents" section of `README.md` first; it explains how the game is built and run, how a frame is drawn, the tile/character/item/GUI systems, the sprite sheet and the working agreements. The short version:
 
 - Build with `javac` (no Maven here) into `target/classes`, copy `src/main/resources` on top, run from the project root. Close a running game before rebuilding.
+- `tools\build-windows.ps1` makes the Windows zip (`dist\GemstoneGuardian-windows.zip`); file locations (project folder vs `%APPDATA%\GemstoneGuardian`) are decided only in `gameFiles`.
 - Tile ids are list positions in `tileTypes.java`: only append, never reorder.
 - The owner draws the textures in `media/tiles.png`; draft and label new cells, never redraw finished ones (the rock at (200, 300) is finished).
 - Design general systems rather than single features, and ask design questions before starting a big one.
+- Before touching any screen or menu (battle and end screens too), read `MENUS.md`: layouts, sizes, motion, and the screen height budget.
 - Do not screenshot to verify visuals — start the game and ask the owner to look.

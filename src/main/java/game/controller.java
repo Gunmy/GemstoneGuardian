@@ -117,7 +117,7 @@ public class controller implements gameLauncher {
     public void openMenu () {
         pendingSwitch = () -> {
             start(null);
-            handler.openFromBlack(null);
+            handler.openFromSpace();
         };
     }
 
@@ -125,10 +125,9 @@ public class controller implements gameLauncher {
     public void play (saveFile save) {
         if (save == null) throw new IllegalArgumentException("Lagringen kan ikke være null");
         pendingSwitch = () -> {
-            //The menu page that was left stays on top for a moment, so it does not jump to another page
-            guiElement leaving = handler.getGui().getMainMenu();
+            //The menu has already slid away while zooming out (gui.draw)
             start(save);
-            handler.openFromBlack(leaving);
+            handler.openFromSpace();
             //A new campaign shows up in the list right away
             if (!save.exists()) handler.saveGame();
         };
@@ -137,9 +136,8 @@ public class controller implements gameLauncher {
     @Override
     public void duel (duel fight) {
         pendingSwitch = () -> {
-            guiElement leaving = handler.getGui().getMainMenu();
             start(null, fight);
-            handler.openFromBlack(leaving);
+            handler.openFromSpace();
         };
     }
 

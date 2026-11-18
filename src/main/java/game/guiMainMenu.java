@@ -16,7 +16,8 @@ import javafx.scene.text.TextAlignment;
 //- main: play, settings (the visuals page of guiSettings), 1v1, quit
 //- load: every savefile as a mini map of the 3x3 chunks around where the player was (a mapGrid), with an X to delete,
 //  and start new campaign under it
-//- new: three steps, one name each: the campaign, yourself, the girl (the first fight and the final boss).
+//- new: three steps, one name each: the campaign, yourself, the girl (the first fight and the final boss), then how
+//  strong the computer plays (aiStrength, kept in the savefile for good, like a difficulty).
 //  Next (enter) goes on and starts the campaign after the last, back (escape) goes a step back, from the first to the list
 //- delete: asks before a savefile is deleted
 //- duel: the 1v1 pages, handed to guiDuelMenu
@@ -38,8 +39,13 @@ public class guiMainMenu extends guiElement {
     //The steps of a new campaign: the campaign's name, the player's and the girl's, each with a title and a hint
     private guiTextField nameField, playerField, girlField;
     private List<guiTextField> newFields = new ArrayList<guiTextField>();
-    private List<String> newTitles = java.util.Arrays.asList("Name the campaign", "What is your name?", "Who is your rival?");
-    private List<String> newHints = java.util.Arrays.asList("Shown in the list of savefiles", "The hero of the story", "Your first fight, and your last");
+    private List<String> newTitles = java.util.Arrays.asList("Name the campaign", "What is your name?", "Who is your rival?", "Opponents");
+    private List<String> newHints = java.util.Arrays.asList("Shown in the list of savefiles", "The hero of the story", "Your first fight, and your last",
+        "How strong they play. Kept for this campaign");
+    //The last step: how strong the computer plays, with no text field (newFields only has the name steps)
+    private static final int STEPS = 4;
+    private aiStrength newStrength = aiStrength.DEFAULT;
+    private guiStrengthPicker strengthPicker;
     private int step = 0;
     private guiButton startButton, newBackButton;
 
@@ -57,14 +63,14 @@ public class guiMainMenu extends guiElement {
 
         mainButtons.add(new guiButton(gui, "Play", () -> openLoad()));
         mainButtons.add(new guiButton(gui, "Settings", () -> gui.openVisuals()));
-        duelMenu = new guiDuelMenu(gui, () -> current = page.MAIN);
-        mainButtons.add(new guiButton(gui, "1v1", () -> current = page.DUEL));
+        duelMenu = new guiDuelMenu(gui, () -> show(page.MAIN));
+        mainButtons.add(new guiButton(gui, "1v1", () -> show(page.DUEL)));
         mainButtons.add(new guiButton(gui, "Quit game", () -> javafx.application.Platform.exit()));
 
         //At most three campaigns side by side
         saves = new mapGrid(gui).maxColumns(3).scrollable();
         newCampaignButton = new guiButton(gui, "Start new campaign", () -> openNew());
-        loadBackButton = new guiButton(gui, "Back", () -> current = page.MAIN);
+        loadBackButton = new guiButton(gui, "Back", () -> show(page.MAIN));
 
         nameField = new guiTextField(gui, 24);
         playerField = new guiTextField(gui, 16);
@@ -73,6 +79,7 @@ public class guiMainMenu extends guiElement {
         newFields.add(playerField);
         newFields.add(girlField);
         for (guiTextField field : newFields) field.onEnter(() -> nextStep());
+        strengthPicker = new guiStrengthPicker(gui, () -> newStrength, chosen -> newStrength = chosen);
         startButton = new guiButton(gui, "Next", () -> nextStep());
         newBackButton = new guiButton(gui, "Back", () -> previousStep());
 
@@ -89,8 +96,13 @@ public class guiMainMenu extends guiElement {
         if (handler.inMenu()) returnToDuel = false;
     }
 
+    //Another page: the old one goes out at the bottom as the new one comes down (guiElement.swapPage)
+    private void show (page next) {swapPage(() -> current = next);}
+
     //The savefiles are read again every time the list is opened
-    private void openLoad () {
+    private void openLoad () {swapPage(() -> readLoad());}
+
+    private void readLoad () {
         gameHandler handler = gui.getHandler();
         saves.clear();
         for (saveFile save : saveFile.list()) {
@@ -100,10 +112,10 @@ public class guiMainMenu extends guiElement {
             tile standing = handler.getWorld(world).getTile(px, py);
             miniMap view = new miniMap(handler, world, (int) px, (int) py, 1, standing);
             saves.add(view, save.getName(), describe(save), () -> handler.playWithEffect(save));
-            saves.addDelete(() -> {
+            saves.addDelete(() -> swapPage(() -> {
                 toDelete = save;
                 current = page.DELETE;
-            });
+            }));
         }
         current = page.LOAD;
     }
@@ -117,25 +129,31 @@ public class guiMainMenu extends guiElement {
     }
 
     private void openNew () {
-        nameField.setText("Campaign " + (saveFile.list().size() + 1));
-        playerField.setText("Boy");
-        girlField.setText("Girl");
-        step = 0;
-        current = page.NEW;
+        swapPage(() -> {
+            nameField.setText("Campaign " + (saveFile.list().size() + 1));
+            playerField.setText("Boy");
+            girlField.setText("Girl");
+            newStrength = aiStrength.DEFAULT;
+            step = 0;
+            current = page.NEW;
+        });
     }
 
+    //The steps with a text field: step < newFields.size()
+    private boolean nameStep () {return step < newFields.size();}
+
     private boolean stepFilled () {
-        return !newFields.get(step).getText().trim().isEmpty();
+        return !nameStep() || !newFields.get(step).getText().trim().isEmpty();
     }
 
     private void nextStep () {
         if (!stepFilled()) return;
-        if (step < newFields.size() - 1) step++;
+        if (step < STEPS - 1) swapPage(() -> step++);
         else startNew();
     }
 
     private void previousStep () {
-        if (step > 0) step--;
+        if (step > 0) swapPage(() -> step--);
         else openLoad();
     }
 
@@ -143,13 +161,14 @@ public class guiMainMenu extends guiElement {
         saveFile save = saveFile.create(nameField.getText().trim());
         save.set(gameHandler.PLAYER_NAME, playerField.getText().trim());
         save.set(gameHandler.GIRL_NAME, girlField.getText().trim());
+        newStrength.saveTo(save);
         gui.getHandler().playWithEffect(save);
     }
 
     //Escape goes back a page
     public void back () {
         switch (current) {
-            case LOAD:   current = page.MAIN; break;
+            case LOAD:   show(page.MAIN); break;
             case NEW:    previousStep(); break;
             case DELETE: openLoad(); break;
             case DUEL:   duelMenu.back(); break;
@@ -170,7 +189,12 @@ public class guiMainMenu extends guiElement {
         List<guiElement> list = new ArrayList<guiElement>();
         switch (current) {
             case LOAD:   list.add(newCampaignButton); list.add(loadBackButton); break;
-            case NEW:    list.add(newFields.get(step)); list.add(startButton); list.add(newBackButton); break;
+            case NEW:
+                if (nameStep()) list.add(newFields.get(step));
+                else list.addAll(strengthPicker.elements());
+                list.add(startButton);
+                list.add(newBackButton);
+                break;
             case DELETE: list.add(deleteButton); list.add(cancelDeleteButton); break;
             default:     list.addAll(mainButtons); break;
         }
@@ -203,15 +227,18 @@ public class guiMainMenu extends guiElement {
                 break;
             }
             case NEW: {
+                //A name step has its text field, the last step the strength's two rows (guiStrengthPicker)
+                double content = nameStep() ? buttonHeight : guiStrengthPicker.height(s);
                 width = buttonWidth + 2*pad;
-                height = 2*pad + titleHeight + textHeight + buttonHeight + 2*gap + 2*buttonHeight + gap;
+                height = 2*pad + titleHeight + textHeight + content + 2*gap + 2*buttonHeight + gap;
                 setPosition(screenWidth, screenHeight);
                 double top = y + pad + titleHeight + textHeight;
-                newFields.get(step).setBounds(x + pad, Math.round(top), buttonWidth, buttonHeight);
-                double buttonsTop = top + buttonHeight + 2*gap;
+                if (nameStep()) newFields.get(step).setBounds(x + pad, Math.round(top), buttonWidth, buttonHeight);
+                else strengthPicker.layout(x + pad, top, buttonWidth, s);
+                double buttonsTop = top + content + 2*gap;
                 startButton.setBounds(x + pad, Math.round(buttonsTop), buttonWidth, buttonHeight);
                 newBackButton.setBounds(x + pad, Math.round(buttonsTop + buttonHeight + gap), buttonWidth, buttonHeight);
-                startButton.setText(step == newFields.size() - 1 ? "Start" : "Next");
+                startButton.setText(step == STEPS - 1 ? "Start" : "Next");
                 startButton.setEnabled(stepFilled());
                 break;
             }
@@ -312,7 +339,8 @@ public class guiMainMenu extends guiElement {
             return true;
         }
         if (current == page.NEW) {
-            newFields.get(step).keyPressed(code);
+            if (nameStep()) newFields.get(step).keyPressed(code);
+            else if (code == KeyCode.ENTER) nextStep();
         }
         return true;
     }
@@ -320,7 +348,7 @@ public class guiMainMenu extends guiElement {
     @Override
     public boolean keyTyped (String typed) {
         if (current == page.DUEL) return duelMenu.keyTyped(typed);
-        if (current == page.NEW) newFields.get(step).keyTyped(typed);
+        if (current == page.NEW && nameStep()) newFields.get(step).keyTyped(typed);
         return true;
     }
 }

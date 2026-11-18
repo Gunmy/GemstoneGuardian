@@ -72,7 +72,46 @@ public class chunks {
     //A sky world: the open sky with its clouds is drawn behind it (and a few in front), see skyLayer
     private boolean sky = false;
     public chunks sky () {this.sky = true; return this;}
+
+    //An open world (outside) that has clouds high over it, seen when zoomed far out (skyLayer.drawHigh)
+    private boolean cloudsFromAfar = false;
+    public chunks cloudsFromAfar () {this.cloudsFromAfar = true; return this;}
+    public boolean hasCloudsFromAfar () {return this.cloudsFromAfar;}
     public boolean isSky () {return this.sky;}
+
+    //A world that can be seen from space (gameHandler.planetView, spaceView): zoomed far out, behind a cover of cloud,
+    //it becomes a planet, a square in space. The square is around every chunk of the map with SQUARE_MARGIN chunks to
+    //spare, centred on them, as wide as the map is long (makeSquare, after the map is read): the planet is that big,
+    //and where the player is on the map is where the view comes out of the clouds
+    private boolean space = false;
+    public chunks space () {this.space = true; return this;}
+    //Seen from space as another world's planet (the sky ruins are over the overworld, so they show its planet)
+    private chunks planetOf;
+    public chunks space (chunks planetOf) {this.space = true; this.planetOf = planetOf; return this;}
+    //The world whose planet is shown from space: its own, or the one set with space(planetOf)
+    public chunks getPlanet () {return planetOf != null ? planetOf : this;}
+    public boolean isSpace () {return this.space;}
+
+    public static final int SQUARE_MARGIN = 2;
+    //Left, top and side, in chunks; null before makeSquare or for a world with no chunks
+    private double[] square;
+    public double[] getSquare () {return this.square;}
+
+    public void makeSquare () {
+        if (chunks.isEmpty()) return;
+        long minX = Long.MAX_VALUE, maxX = Long.MIN_VALUE, minY = Long.MAX_VALUE, maxY = Long.MIN_VALUE;
+        for (long k : chunks.keySet()) {
+            int x = (int) (k >> 32), y = (int) k;
+            minX = Math.min(minX, x);
+            maxX = Math.max(maxX, x);
+            minY = Math.min(minY, y);
+            maxY = Math.max(maxY, y);
+        }
+        double side = Math.max(maxX - minX + 1, maxY - minY + 1) + 2*SQUARE_MARGIN;
+        double midX = (minX + maxX + 1)/2.0, midY = (minY + maxY + 1)/2.0;
+        square = new double[] {Math.floor(midX - side/2), Math.floor(midY - side/2), side};
+    }
+
 
     public chunk getChunk (int x, int y) {
         chunk c = chunks.get(key(x, y));

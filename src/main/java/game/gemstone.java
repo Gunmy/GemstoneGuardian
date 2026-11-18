@@ -10,7 +10,8 @@ public class gemstone extends item {
     private BiConsumer<character, character> ability1, ability2, ability3;
     private String ability1name, ability2name, ability3name;
     private abilityType ability1type, ability2type, ability3type;
-    private String ability1description, ability2description, ability3description;
+    //What each move does, also shown in its info box (moveEffects)
+    private moveEffects ability1effects, ability2effects, ability3effects;
     private int ability1usages, ability2usages, ability3usages;
     private int ability1uses, ability2uses, ability3uses;
     private double ability1chance, ability2chance, ability3chance;
@@ -25,28 +26,66 @@ public class gemstone extends item {
         return this;
     }
 
-    //n is 0, 1 or 2
+    //What move n (0, 1 or 2) does (battleAI scores it), null if there is none
+    public moveEffects effectsOf (int n) {
+        return n == 0 ? ability1effects : n == 1 ? ability2effects : n == 2 ? ability3effects : null;
+    }
+
+    //Uses left of move n for you, and how many it has when full: its own uses and the extra ones of the level
+    //milestones you have reached (moveEffects.moreUses). The rock counts the uses taken off its own, so reaching a
+    //milestone gives the extra use at once, and going down a level takes it away again
+    public List<Integer> usesOf (int n, character you) {
+        moveEffects fx = effectsOf(n);
+        int extra = fx == null ? 0 : fx.extraUses(you);
+        int left = n == 0 ? ability1uses : n == 1 ? ability2uses : ability3uses;
+        int full = n == 0 ? ability1usages : n == 1 ? ability2usages : ability3usages;
+        return Arrays.asList(Math.max(0, left + extra), full + extra);
+    }
+
+    public boolean usesLeft (int n, character you) {return usesOf(n, you).get(0) > 0;}
+
+    //Uses move n on them
+    public void useMove (int n, character you, character them) {
+        if (n == 0) ability1(you, them);
+        else if (n == 1) ability2(you, them);
+        else ability3(you, them);
+    }
+
+    //How the world looks while its moves play (battleAnimation.mood): night for obsidian, pink for healite...
+    private battleAnimation.mood mood = battleAnimation.mood.DAY;
+    public gemstone mood (battleAnimation.mood mood) {
+        this.mood = mood;
+        return this;
+    }
+
+    //n is 0, 1 or 2. Always with the rock's mood (DAY when it has none, so the fight goes back to day)
     public battleAnimation getAnimation (int n) {
         if (n < 0 || n > 2) return null;
-        if (animations[n] != null) return animations[n];
+        if (animations[n] != null) return animations[n].withMood(mood);
         abilityType[] types = {ability1type, ability2type, ability3type};
-        return battleAnimation.forType(types[n]);
+        return battleAnimation.forType(types[n]).withMood(mood);
     }
 
     //The message of a move used, with its animation playing while it is up (or the puff of a failed one)
+    //With the move's hit chance, a word for the luck of it is thrown off the user too (battleAnimation.luckKey)
     private dialogue used (character you, character them, String text, int n, boolean worked) {
         battleAnimation shown = worked ? getAnimation(n) : battleAnimation.failed();
         String key = worked ? "M:" + getName() + ":" + n : "F";
-        if (!worked) return new dialogue(you, text).animate(new battleAnimation.playing(shown, you, them, key));
-        return new dialogue(you, text).animate(battleAnimation.playing.roll(shown, you, them, key, rdm));
+        abilityType[] types = {ability1type, ability2type, ability3type};
+        dialogue message = new dialogue(you, text + " " + textIcons.of(types[n]));
+        if (!worked) message.animate(new battleAnimation.playing(shown, you, them, key));
+        else message.animate(battleAnimation.playing.roll(shown, you, them, key, rdm));
+        String luck = battleAnimation.luckKey(chances(you).get(n), worked);
+        if (luck != null) message.animate(new battleAnimation.playing(battleAnimation.fromKey(luck, null), you, them, luck));
+        return message;
     }
 
     //Every gemstone is the same grey rock texture coloured in with color, and can give off particles
     public gemstone(
         String name, String color, itemParticles particles, gameHandler handler,
-        String ability1name, abilityType ability1type, String ability1description, BiConsumer<character, character> ability1, int ability1usages, double ability1chance,
-        String ability2name, abilityType ability2type, String ability2description, BiConsumer<character, character> ability2, int ability2usages, double ability2chance,
-        String ability3name, abilityType ability3type, String ability3description, BiConsumer<character, character> ability3, int ability3usages, double ability3chance) {
+        String ability1name, abilityType ability1type, moveEffects ability1effects, int ability1usages, double ability1chance,
+        String ability2name, abilityType ability2type, moveEffects ability2effects, int ability2usages, double ability2chance,
+        String ability3name, abilityType ability3type, moveEffects ability3effects, int ability3usages, double ability3chance) {
         super(name, null, false, handler);
         look(guiSkin.ROCK_X, guiSkin.GUI_Y, color);
         particles(particles);
@@ -57,14 +96,14 @@ public class gemstone extends item {
                 c1.equipGemstone(this);
             }
         };
-        this.ability1 = ability1;
-        this.ability2 = ability2;
-        this.ability3 = ability3;
+        this.ability1effects = ability1effects;
+        this.ability2effects = ability2effects;
+        this.ability3effects = ability3effects;
+        this.ability1 = ability1effects::apply;
+        this.ability2 = ability2effects::apply;
+        this.ability3 = ability3effects::apply;
         this.ability1name = ability1name;
         this.ability1type = ability1type;
-        this.ability1description = ability1description;
-        this.ability2description = ability2description;
-        this.ability3description = ability3description;
         this.ability2type = ability2type;
         this.ability3type = ability3type;
         this.ability2name = ability2name;
@@ -97,12 +136,19 @@ public class gemstone extends item {
         ability1uses-=1;
     }
 
+    //The hit chances for you: each move's own, or the one of a level milestone you have reached, times what your
+    //confusion leaves
     public List<Double> chances (character you) {
-        return Arrays.asList(ability1chance*(1-you.getConfusion()), ability2chance*(1-you.getConfusion()), ability3chance*(1-you.getConfusion()));
+        double clear = 1 - you.getConfusion();
+        return Arrays.asList(baseChance(0, you)*clear, baseChance(1, you)*clear, baseChance(2, you)*clear);
     }
 
-    public boolean ability1usesLeft () {return ability1uses > 0;}
-    public List<Integer> howManyAbility1Uses () {return Arrays.asList(ability1uses, ability1usages);}
+    //Move n's hit chance for you without confusion
+    public double baseChance (int n, character you) {
+        double own = n == 0 ? ability1chance : n == 1 ? ability2chance : ability3chance;
+        moveEffects fx = effectsOf(n);
+        return fx == null ? own : fx.chance(own, you);
+    }
 
     public void ability2 (character you, character them) {
         
@@ -118,8 +164,6 @@ public class gemstone extends item {
         ability2uses-=1;
     }
 
-    public boolean ability2usesLeft () {return ability2uses > 0;}
-    public List<Integer> howManyAbility2Uses () {return Arrays.asList(ability2uses, ability2usages);}
 
     public void ability3 (character you, character them) {
         if (rdm.nextDouble() <= chances(you).get(2)) {
@@ -135,8 +179,6 @@ public class gemstone extends item {
 
     }
 
-    public boolean ability3usesLeft () {return ability3uses > 0;}
-    public List<Integer> howManyAbility3Uses () {return Arrays.asList(ability3uses, ability3usages);}
 
     public String getAbility1name() {return ability1name;}
     public String getAbility2name() {return ability2name;}
@@ -146,12 +188,19 @@ public class gemstone extends item {
     public abilityType getAbility2type() {return ability2type;}
     public abilityType getAbility3type() {return ability3type;}
 
+    //Outside a fight the numbers are worked out for the player, with no target
     @Override
-    public List<infoBox> getInfoBoxes () {
+    public List<infoBox> getInfoBoxes () {return getInfoBoxes(handler.getMainCharacter(), null);}
+
+    //One box per move, its effects worked out for you against them (null when there is no target)
+    public List<infoBox> getInfoBoxes (character you, character them) {
         List<infoBox> boxes = new ArrayList<infoBox>();
-        boxes.add(new infoBox(ability1type, ability1name, ability1uses + "/" + ability1usages + " uses left, " + Math.round(ability1chance*100) + "% hit", ability1description));
-        boxes.add(new infoBox(ability2type, ability2name, ability2uses + "/" + ability2usages + " uses left, " + Math.round(ability2chance*100) + "% hit", ability2description));
-        boxes.add(new infoBox(ability3type, ability3name, ability3uses + "/" + ability3usages + " uses left, " + Math.round(ability3chance*100) + "% hit", ability3description));
+        String[] names = {ability1name, ability2name, ability3name};
+        abilityType[] types = {ability1type, ability2type, ability3type};
+        for (int n = 0; n < 3; n++) {
+            List<Integer> uses = usesOf(n, you);
+            boxes.add(new infoBox(types[n], names[n], uses.get(0) + "/" + uses.get(1) + " uses left, " + guiText.num(baseChance(n, you)*100) + "% hit", "").lines(effectsOf(n).lines(you, them)));
+        }
         return boxes;
     }
 
@@ -164,12 +213,14 @@ public class gemstone extends item {
         }
     }
 
-    public boolean hasMovesLeft () {
-        return ability1usesLeft() || ability2usesLeft() || ability3usesLeft();
+    public boolean hasMovesLeft (character you) {
+        return usesLeft(0, you) || usesLeft(1, you) || usesLeft(2, you);
     }
 
 
-    //Uses left of the three abilities
+    private static final int MOST_EXTRA = 50;
+
+    //Uses left of the three abilities (of their own uses: below 0 when extra ones from milestones were taken)
     @Override
     public String saveState () {return ability1uses + "," + ability2uses + "," + ability3uses;}
 
@@ -178,9 +229,10 @@ public class gemstone extends item {
         String[] uses = state.split(",");
         if (uses.length != 3) return;
         try {
-            ability1uses = Math.max(0, Math.min(ability1usages, Integer.parseInt(uses[0])));
-            ability2uses = Math.max(0, Math.min(ability2usages, Integer.parseInt(uses[1])));
-            ability3uses = Math.max(0, Math.min(ability3usages, Integer.parseInt(uses[2])));
+            //Below 0 when extra uses from level milestones were taken
+            ability1uses = Math.max(-MOST_EXTRA, Math.min(ability1usages, Integer.parseInt(uses[0])));
+            ability2uses = Math.max(-MOST_EXTRA, Math.min(ability2usages, Integer.parseInt(uses[1])));
+            ability3uses = Math.max(-MOST_EXTRA, Math.min(ability3usages, Integer.parseInt(uses[2])));
         } catch (NumberFormatException e) {
             System.out.println("Ugyldige bruk i lagret " + getName() + ": " + state);
         }

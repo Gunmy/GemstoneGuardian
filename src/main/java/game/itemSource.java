@@ -12,9 +12,24 @@ public class itemSource implements slotGroup {
     //One made item per slot to show and to tell about when hovered, never handed out
     private List<itemStack> shown = new ArrayList<itemStack>();
 
+    //Sorted rocks first, then trinkets, then everything else, each kept in the order given
     public itemSource (List<Supplier<item>> makers) {
-        this.makers = makers;
-        for (Supplier<item> maker : makers) shown.add(new itemStack(maker.get()));
+        List<item> made = new ArrayList<item>();
+        for (Supplier<item> maker : makers) made.add(maker.get());
+        List<Integer> order = new ArrayList<Integer>();
+        for (int i = 0; i < makers.size(); i++) order.add(i);
+        order.sort(java.util.Comparator.comparingInt(i -> group(made.get(i))));
+        this.makers = new ArrayList<Supplier<item>>();
+        for (int i : order) {
+            this.makers.add(makers.get(i));
+            shown.add(new itemStack(made.get(i)));
+        }
+    }
+
+    private static int group (item item) {
+        if (item instanceof gemstone) return 0;
+        if (item instanceof trinket) return 1;
+        return 2;
     }
 
     @Override public int size () {return shown.size();}

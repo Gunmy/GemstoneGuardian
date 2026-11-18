@@ -69,6 +69,7 @@ public class guiInventory extends guiElement {
     private guiButton saveButton, backButton;
 
     public void openForBuild (slotGroup catalogue, String title, Runnable save) {
+        clearClosed();
         build = true;
         grids = buildGrids;
         buildSave = save;
@@ -96,6 +97,7 @@ public class guiInventory extends guiElement {
 
     //Opens the inventory with the chest above it. Closing the inventory closes the chest too
     public void openWith (slotGroup chest, String title) {
+        if (stale) clearClosed();
         this.chest = chest;
         this.chestTitle = title;
         this.chestScroll = 0;
@@ -114,15 +116,33 @@ public class guiInventory extends guiElement {
         return Math.min(getInventory().getRows(), VISIBLE_ROWS);
     }
 
+    //Closed, but still showing the chest, the build or the elemental rock it was closed with while it slides away
+    //(clearClosed takes them off once it is gone, or when it is opened again without them)
+    private boolean stale = false;
+
+    private void clearClosed () {
+        stale = false;
+        chest = null;
+        elemental = null;
+        build = false;
+        grids = allGrids;
+    }
+
+    @Override
+    public void slide (double deltaTime) {
+        super.slide(deltaTime);
+        if (stale && !isDrawn()) clearClosed();
+    }
+
     @Override
     public void setVisible (boolean visible) {
+        //Opened on its own (not with a chest or a build, which set theirs first): last time's are taken off
+        if (visible && !isVisible() && stale) clearClosed();
         super.setVisible(visible);
-        slotGroup closing = visible ? null : chest;
-        if (!visible) chest = null;
-        if (!visible) elemental = null;
+        slotGroup closing = visible || stale ? null : chest;
         if (!visible) {
-            build = false;
-            grids = allGrids;
+            //The chest is closed now and nothing can be done in it any more, but it is still drawn on the way out
+            stale = true;
             buildSave = null;
         }
         //Whatever is on the cursor goes back in when the screen closes
@@ -132,6 +152,17 @@ public class guiInventory extends guiElement {
             for (int i = 0; i < held.getCount(); i++) getInventory().give(held.getItem());
         }
         if (closing != null) closing.closed();
+    }
+
+    //The chest sits above the inventory; the build's buttons, or the elemental rock's slots, under it
+    @Override
+    protected double drawnTop () {return chest != null ? Math.min(chestY, y) : y;}
+    @Override
+    protected double drawnBottom () {
+        double bottom = Math.max(y + height, y + trinketHeight);
+        if (build) bottom = Math.max(bottom, backButton.y + backButton.height);
+        else if (elemental != null) bottom = Math.max(bottom, elementalY + elementalHeight);
+        return bottom;
     }
 
     @Override
@@ -172,12 +203,14 @@ public class guiInventory extends guiElement {
         elementalX = Math.round(x + (width - elementalWidth)/2);
         elementalY = Math.round(y + height + infoGap*s);
         if (build) {
-            //Save and Back under the inventory, the elemental rock's slots under them
+            //Save and Back under the inventory. The elemental rock's slots sit inside the inventory, in the middle of
+            //the top rows a build covers over (there is no room under the buttons)
             double buttonWidth = 140*s, buttonHeight = 36*s;
             double buttonsY = Math.round(y + height + infoGap*s);
             backButton.setBounds(Math.round(x + width/2 - buttonWidth - infoGap*s/2), buttonsY, buttonWidth, buttonHeight);
             saveButton.setBounds(Math.round(x + width/2 + infoGap*s/2), buttonsY, buttonWidth, buttonHeight);
-            elementalY = Math.round(buttonsY + buttonHeight + infoGap*s);
+            double topHeight = rows*slotSize + (rows-1)*gap;
+            elementalY = Math.round(y + pad + (topHeight - elementalHeight)/2);
         }
         elementalGrid.setBounds(elementalX + pad, elementalY + pad, slotSize, gap);
 
@@ -209,6 +242,24 @@ public class guiInventory extends guiElement {
         }
 
         gui.getSkin().drawPanel(gc, trinketX, y, trinketWidth, trinketHeight);
+        //Under the inventory it is drawn first; in a build it lies on top of the covered rows (drawn after them)
+        if (!build) drawElemental(gc);
+        gui.getSkin().drawPanel(gc, x, y, width, height);
+        for (slotGrid grid : allGrids) grid.draw(gc, gui, inv, equipped, true);
+        //A build has no use for the top rows and the item slots: they are covered over
+        if (build) {
+            for (slotGrid closed : new slotGrid[] {topGrid, itemGrid}) {
+                int first = closed == topGrid ? scroll*inventory.COLUMNS : 0;
+                int count = closed == topGrid ? visibleRows()*inventory.COLUMNS : inventory.ACTIVE;
+                for (int i = first; i < first + count; i++) drawClosedSlot(gc, closed.slotX(i), closed.slotY(i), closed.getSlotSize());
+            }
+            drawElemental(gc);
+        }
+        drawRest(gc);
+    }
+
+    //The elemental rock's slots in their small panel, while it is open
+    private void drawElemental (GraphicsContext gc) {
         if (elemental != null) {
             gui.getSkin().drawPanel(gc, elementalX, elementalY, elementalWidth, elementalHeight);
             //The rocks give off their particles here, but their lightning is the elemental rock's: itemInteractions draws
@@ -222,16 +273,11 @@ public class guiInventory extends guiElement {
                 if (elemental.getInside(i) == null && elemental.getInsideList().size() >= elementalRock.MAX_ROCKS) drawClosedSlot(gc, sx, sy, size);
             }
         }
-        gui.getSkin().drawPanel(gc, x, y, width, height);
-        for (slotGrid grid : allGrids) grid.draw(gc, gui, inv, equipped, true);
-        //A build has no use for the top rows and the item slots: they are covered over
-        if (build) {
-            for (slotGrid closed : new slotGrid[] {topGrid, itemGrid}) {
-                int first = closed == topGrid ? scroll*inventory.COLUMNS : 0;
-                int count = closed == topGrid ? visibleRows()*inventory.COLUMNS : inventory.ACTIVE;
-                for (int i = first; i < first + count; i++) drawClosedSlot(gc, closed.slotX(i), closed.slotY(i), closed.getSlotSize());
-            }
-        }
+    }
+
+    private void drawRest (GraphicsContext gc) {
+        inventory inv = getInventory();
+        double s = gui.s();
         //An item that does something on a right click lights up while hovered, like a button
         if (hoveredGrid != null && gui.getCursor() == null && hovered != null && hovered.hasInventoryAction()) {
             double size = hoveredGrid.getSlotSize();
@@ -344,7 +390,7 @@ public class guiInventory extends guiElement {
 
         //What the letters in the formulas mean, with the player's current numbers
         character boy = gui.getHandler().getMainCharacter();
-        String legend = "lvl = your level (" + boy.getLevel() + "), maxHP = your max health (" + Math.round(boy.getMaxHealth()) + ")";
+        String legend = "lvl = your level (" + boy.getLevel() + "), maxHP = your max health (" + guiText.num(boy.getMaxHealth()) + ")";
         for (String line : guiText.wrap(legend, 9*s, width)) {
             if (draw) guiText.draw(gc, line, x, textY, 9*s, Color.GRAY);
             textY += guiText.height(9*s);

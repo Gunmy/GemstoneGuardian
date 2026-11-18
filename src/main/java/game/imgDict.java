@@ -35,7 +35,18 @@ public class imgDict {
     private boolean cold = false;
     public void setCold (boolean cold) {this.cold = cold;}
 
-    //The whole sheet washed out and laid over with a pale blue, made the first time it is needed
+    //Cells (left, top) that keep their own colours in the cold copy: the mirrors (the mirror tiles, 194-198), which are
+    //the same mirrors in the mirror dimension as outside it
+    private static final int[][] KEEPS_COLOURS = {{260, 360}};
+
+    private static boolean keepsColours (int x, int y) {
+        for (int[] cell : KEEPS_COLOURS) {
+            if (x >= cell[0] && x < cell[0] + guiSkin.CELL && y >= cell[1] && y < cell[1] + guiSkin.CELL) return true;
+        }
+        return false;
+    }
+
+    //The whole sheet washed out and laid over with a pale blue (but for KEEPS_COLOURS), made the first time it is needed
     private Image coldSheet;
     private Image coldSheet () {
         if (coldSheet == null) {
@@ -47,7 +58,7 @@ public class imgDict {
             for (int y = 0; y < h; y++) {
                 for (int x = 0; x < w; x++) {
                     Color c = reader.getColor(x, y);
-                    if (c.getOpacity() == 0) {
+                    if (c.getOpacity() == 0 || keepsColours(x, y)) {
                         writer.setColor(x, y, c);
                         continue;
                     }

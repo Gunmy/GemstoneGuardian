@@ -13,7 +13,8 @@ import java.util.Properties;
 //What a player brings to a 1v1 (see duel): up to four rocks and two trinkets, by item name and the item's own state
 //(item.saveState: the rocks inside an Elemental Rock), made with the itemRegistry when the fight starts. Every rock and
 //trinket in the game can be picked.
-//The player's builds, which one is picked and the name they fight under are kept in saves/duel.txt
+//The player's builds, which one is picked, the name they fight under and their best streak of random battles are kept
+//in saves/duel.txt
 public class duelBuild {
 
     public static final int ROCKS = inventory.ACTIVE;
@@ -93,6 +94,36 @@ public class duelBuild {
         }
     }
 
+    //The rocks and trinkets the campaign hands out (as the build editor offers them), by name, once each: the rocks
+    //without the Elemental Rock, which would be empty
+    public static void handedOut (gameHandler handler, List<String> rockNames, List<String> trinketNames) {
+        for (java.util.function.Supplier<item> maker : handler.getItemRegistry().getMakers()) {
+            item made = maker.get();
+            String name = made.getName();
+            if (!handler.isHandedOut(name) || rockNames.contains(name) || trinketNames.contains(name)) continue;
+            if (made instanceof gemstone && !(made instanceof elementalRock)) rockNames.add(name);
+            else if (made instanceof trinket) trinketNames.add(name);
+        }
+    }
+
+    //A build at random from the rocks and trinkets the campaign hands out (handedOut): four different rocks, one of
+    //them equipped, and up to two trinkets
+    public static duelBuild random (gameHandler handler) {
+        List<String> rockNames = new ArrayList<String>(), trinketNames = new ArrayList<String>();
+        handedOut(handler, rockNames, trinketNames);
+        java.util.Collections.shuffle(rockNames);
+        java.util.Collections.shuffle(trinketNames);
+        java.util.Random rdm = new java.util.Random();
+        duelBuild build = new duelBuild();
+        int rockCount = Math.min(ROCKS, rockNames.size());
+        for (int i = 0; i < rockCount; i++) build.setRock(i, rockNames.get(i));
+        if (rockCount == 0) build.setRock(0, "Rock");
+        int trinketCount = Math.min(rdm.nextInt(TRINKETS + 1), trinketNames.size());
+        for (int i = 0; i < trinketCount; i++) build.setTrinket(i, trinketNames.get(i));
+        build.setEquipped(rdm.nextInt(Math.max(1, rockCount)));
+        return build;
+    }
+
     //One line, for the network and the file: the six slots, each name:state in base64 (empty for an empty slot), and the
     //equipped slot, joined by commas. The first field is empty: it held the build's name when builds had names
     public String encode () {
@@ -158,7 +189,33 @@ public class duelBuild {
         //The campaign character (by id, character.getId) the player fights as: its looks, not its level
         public String character = "Boy";
 
-        public duelBuild current () {return builds.get(Math.max(0, Math.min(selected, builds.size() - 1)));}
+        //The best streak of random battles won in a row ("Battle random" on the 1v1 page, see duel.countStreak), with
+        //the build it was won with and who the player was then (name and look). That build can be picked like the others
+        //(selected is BEST) but not edited; a new record replaces it
+        public static final int BEST = SLOTS;
+        //Picked like a build, but every fight (the first and each Battle again) gets a new duelBuild.random
+        public static final int RANDOM = SLOTS + 1;
+        public boolean isRandom () {return selected == RANDOM;}
+        public int bestStreak = 0;
+        public duelBuild bestBuild;
+        public String bestPlayer, bestCharacter;
+
+        public duelBuild current () {
+            if (selected == BEST && bestBuild != null) return bestBuild;
+            return builds.get(Math.max(0, Math.min(selected, builds.size() - 1)));
+        }
+
+        //A streak of wins that beats the record: kept with a copy of the build (so editing the build later does not
+        //change it) and saved. False if it is no record
+        public boolean record (int streak, duelBuild build, String player, String look) {
+            if (streak <= bestStreak) return false;
+            bestStreak = streak;
+            bestBuild = decode(build.encode());
+            bestPlayer = player;
+            bestCharacter = look;
+            save();
+            return true;
+        }
 
         public duelBuild get (int slot) {return builds.get(slot);}
 
@@ -204,7 +261,20 @@ public class duelBuild {
                 if (lib.builds.isEmpty()) made.setRock(0, "Rock");
                 lib.builds.add(made);
             }
-            lib.selected = Math.max(0, Math.min(lib.selected, SLOTS - 1));
+            try {
+                lib.bestStreak = Integer.parseInt(data.getProperty("best.streak", "0"));
+            } catch (NumberFormatException e) {
+                lib.bestStreak = 0;
+            }
+            String best = data.getProperty("best.build");
+            if (lib.bestStreak > 0 && best != null) {
+                lib.bestBuild = decode(best);
+                lib.bestPlayer = data.getProperty("best.player", lib.player);
+                lib.bestCharacter = data.getProperty("best.character", lib.character);
+            } else {
+                lib.bestStreak = 0;
+            }
+            if (lib.selected != RANDOM) lib.selected = Math.max(0, Math.min(lib.selected, lib.bestBuild != null ? BEST : SLOTS - 1));
             return lib;
         }
 
@@ -215,6 +285,12 @@ public class duelBuild {
             data.setProperty("selected", String.valueOf(selected));
             data.setProperty("build.count", String.valueOf(builds.size()));
             for (int i = 0; i < builds.size(); i++) data.setProperty("build." + i, builds.get(i).encode());
+            if (bestBuild != null) {
+                data.setProperty("best.streak", String.valueOf(bestStreak));
+                data.setProperty("best.build", bestBuild.encode());
+                data.setProperty("best.player", bestPlayer == null ? player : bestPlayer);
+                data.setProperty("best.character", bestCharacter == null ? character : bestCharacter);
+            }
             File f = file();
             f.getParentFile().mkdirs();
             try (FileOutputStream out = new FileOutputStream(f)) {

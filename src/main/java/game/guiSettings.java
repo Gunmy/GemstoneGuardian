@@ -18,7 +18,7 @@ public class guiSettings extends guiElement {
     private List<guiButton> secretButtons = new ArrayList<guiButton>();
     private List<guiButton> visualButtons = new ArrayList<guiButton>();
 
-    private guiButton collidersButton, bordersButton, darknessButton, sizeButton, fluidsButton;
+    private guiButton collidersButton, bordersButton, darknessButton, cheatButton, sizeButton, fluidsButton;
     //The player's level with a - and a + on each side of it
     private guiButton levelButton, levelDown, levelUp;
     //Small square buttons drawn at the left and right end of a button's row (the button itself gets narrower)
@@ -36,8 +36,8 @@ public class guiSettings extends guiElement {
         gameHandler handler = gui.getHandler();
 
         mainButtons.add(new guiButton(gui, "Back to game", () -> gui.closeSettings()));
-        mainButtons.add(new guiButton(gui, "Hidden secrets", () -> current = page.SECRETS));
-        mainButtons.add(new guiButton(gui, "Visuals", () -> current = page.VISUALS));
+        mainButtons.add(new guiButton(gui, "Hidden secrets", () -> show(page.SECRETS)));
+        mainButtons.add(new guiButton(gui, "Visuals", () -> show(page.VISUALS)));
         mainButtons.add(new guiButton(gui, "Save and quit to menu", () -> {
             gui.closeSettings();
             handler.quitToMenu();
@@ -49,6 +49,9 @@ public class guiSettings extends guiElement {
         secretButtons.add(bordersButton);
         darknessButton = new guiButton(gui, "", () -> handler.Hpress());
         secretButtons.add(darknessButton);
+        //Cheat mode: in a fight, hovering an action shows how good it is now (battle.getHints)
+        cheatButton = new guiButton(gui, "", () -> handler.getSettings().toggleCheatMode());
+        secretButtons.add(cheatButton);
         secretButtons.add(new guiButton(gui, "Teleports", () -> {
             gui.closeSettings();
             gui.openTeleports(handler.getAllTeleportTargets(), "Teleports", () -> gui.openSecrets());
@@ -75,7 +78,7 @@ public class guiSettings extends guiElement {
         floorUp = new guiButton(gui, "+", () -> handler.changeFloor(1));
         sideButtons.put(floorButton, new guiButton[] {floorDown, floorUp});
         secretButtons.add(floorButton);
-        secretButtons.add(new guiButton(gui, "Back", () -> current = page.MAIN));
+        secretButtons.add(new guiButton(gui, "Back", () -> show(page.MAIN)));
 
         sizeButton = new guiButton(gui, "", () -> handler.getSettings().cycleGuiSize());
         fluidsButton = new guiButton(gui, "", () -> handler.getSettings().cycleFluidStyle());
@@ -83,9 +86,12 @@ public class guiSettings extends guiElement {
         visualButtons.add(fluidsButton);
         visualButtons.add(new guiButton(gui, "Back", () -> {
             if (visualsOnly) gui.closeSettings();
-            else current = page.MAIN;
+            else show(page.MAIN);
         }));
     }
+
+    //Another page: the old one goes out at the bottom as the new one comes down (guiElement.swapPage)
+    private void show (page next) {swapPage(() -> current = next);}
 
     //Opened from the main menu: only the visuals page, and back closes it
     private boolean visualsOnly = false;
@@ -159,6 +165,7 @@ public class guiSettings extends guiElement {
         collidersButton.setText("Phase through blocks: " + (handler.collidersOn() ? "Off" : "On"));
         bordersButton.setText("Show borders: " + (handler.infoOn() ? "On" : "Off"));
         darknessButton.setText("Darkness in caves: " + (handler.darknessOff() ? "Off" : "On"));
+        cheatButton.setText("Cheat mode: " + (handler.getSettings().cheatMode() ? "On" : "Off"));
         sizeButton.setText("GUI size: " + handler.getSettings().getGuiSize().label);
         fluidsButton.setText("Fluids: " + handler.getSettings().getFluidStyle().label);
         int level = handler.getMainCharacter().getLevel();
