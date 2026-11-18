@@ -207,3 +207,9 @@ saves/
 
 # Python caches of the tools
 __pycache__/
+
+# The Windows version built by tools/build-windows.ps1
+dist/
+
+# Training runs of the computer's judge (tools/ai/train.py): positions, checkpoints, logs
+tools/ai/runs/

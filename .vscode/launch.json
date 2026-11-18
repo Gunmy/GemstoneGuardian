@@ -11,6 +11,24 @@
             "mainClass": "${file}"
         },
         {
+            "type": "debugpy",
+            "name": "Train AI",
+            "request": "launch",
+            "program": "${workspaceFolder}/tools/ai/train.py",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "type": "debugpy",
+            "name": "Score rocks",
+            "request": "launch",
+            "program": "${workspaceFolder}/tools/ai/score_rocks.py",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
             "type": "java",
             "name": "app",
             "request": "launch",
