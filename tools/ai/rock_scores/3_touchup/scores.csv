@@ -1,0 +1,755 @@
+rock,level,points,games
+Charged Copper,0,205.5,360
+Charged Copper,1,186.0,360
+Charged Copper,2,195.0,360
+Charged Copper,3,177.5,360
+Charged Copper,4,192.0,360
+Charged Copper,5,211.5,360
+Charged Copper,6,236.0,360
+Charged Copper,7,220.5,360
+Charged Copper,8,208.5,360
+Charged Copper,9,201.5,360
+Charged Copper,10,189.0,360
+Charged Copper,11,197.5,360
+Charged Copper,12,197.5,360
+Charged Copper,13,185.0,360
+Charged Copper,14,192.5,360
+Charged Copper,15,186.5,360
+Charged Copper,16,174.0,360
+Charged Copper,17,182.0,360
+Charged Copper,18,163.0,360
+Charged Copper,19,189.0,360
+Charged Copper,20,159.0,360
+Charged Copper,21,152.5,360
+Charged Copper,22,153.5,360
+Charged Copper,23,150.0,360
+Charged Copper,24,154.0,360
+Charged Copper,25,169.0,360
+Charged Copper,30,167.5,360
+Charged Copper,40,180.0,360
+Charged Copper,50,136.0,360
+Lava,0,181.0,360
+Lava,1,207.0,360
+Lava,2,205.0,360
+Lava,3,201.5,360
+Lava,4,205.0,360
+Lava,5,194.5,360
+Lava,6,195.5,360
+Lava,7,191.5,360
+Lava,8,174.0,360
+Lava,9,183.0,360
+Lava,10,197.0,360
+Lava,11,204.0,360
+Lava,12,201.5,360
+Lava,13,197.5,360
+Lava,14,198.5,360
+Lava,15,156.5,360
+Lava,16,185.0,360
+Lava,17,172.0,360
+Lava,18,184.5,360
+Lava,19,185.0,360
+Lava,20,172.5,360
+Lava,21,172.0,360
+Lava,22,154.0,360
+Lava,23,151.5,360
+Lava,24,168.5,360
+Lava,25,146.0,360
+Lava,30,149.5,360
+Lava,40,134.0,360
+Lava,50,161.0,360
+Magma,0,151.5,360
+Magma,1,144.0,360
+Magma,2,162.5,360
+Magma,3,156.0,360
+Magma,4,148.5,360
+Magma,5,153.0,360
+Magma,6,153.0,360
+Magma,7,164.5,360
+Magma,8,160.5,360
+Magma,9,144.5,360
+Magma,10,153.5,360
+Magma,11,148.5,360
+Magma,12,148.0,360
+Magma,13,153.0,360
+Magma,14,156.0,360
+Magma,15,197.0,360
+Magma,16,210.5,360
+Magma,17,199.0,360
+Magma,18,199.0,360
+Magma,19,198.0,360
+Magma,20,207.5,360
+Magma,21,194.0,360
+Magma,22,174.0,360
+Magma,23,182.5,360
+Magma,24,211.5,360
+Magma,25,192.0,360
+Magma,30,180.0,360
+Magma,40,187.5,360
+Magma,50,191.0,360
+Copper,0,216.5,360
+Copper,1,193.5,360
+Copper,2,174.0,360
+Copper,3,159.0,360
+Copper,4,151.5,360
+Copper,5,196.5,360
+Copper,6,197.0,360
+Copper,7,190.0,360
+Copper,8,208.0,360
+Copper,9,178.0,360
+Copper,10,187.0,360
+Copper,11,188.5,360
+Copper,12,160.0,360
+Copper,13,169.0,360
+Copper,14,168.0,360
+Copper,15,149.0,360
+Copper,16,159.0,360
+Copper,17,145.5,360
+Copper,18,182.5,360
+Copper,19,169.5,360
+Copper,20,158.5,360
+Copper,21,145.5,360
+Copper,22,171.0,360
+Copper,23,161.0,360
+Copper,24,158.5,360
+Copper,25,133.0,360
+Copper,30,168.5,360
+Copper,40,137.5,360
+Copper,50,144.0,360
+Coal,0,164.5,360
+Coal,1,157.5,360
+Coal,2,191.5,360
+Coal,3,160.0,360
+Coal,4,179.0,360
+Coal,5,161.5,360
+Coal,6,199.0,360
+Coal,7,190.0,360
+Coal,8,175.0,360
+Coal,9,175.0,360
+Coal,10,175.0,360
+Coal,11,165.0,360
+Coal,12,168.5,360
+Coal,13,191.5,360
+Coal,14,166.0,360
+Coal,15,179.5,360
+Coal,16,164.5,360
+Coal,17,136.5,360
+Coal,18,152.5,360
+Coal,19,162.0,360
+Coal,20,186.5,360
+Coal,21,164.5,360
+Coal,22,169.5,360
+Coal,23,160.0,360
+Coal,24,182.5,360
+Coal,25,177.0,360
+Coal,30,141.0,360
+Coal,40,166.5,360
+Coal,50,178.5,360
+Salt Water,0,155.0,360
+Salt Water,1,141.5,360
+Salt Water,2,156.5,360
+Salt Water,3,173.0,360
+Salt Water,4,191.5,360
+Salt Water,5,187.0,360
+Salt Water,6,169.0,360
+Salt Water,7,174.0,360
+Salt Water,8,178.0,360
+Salt Water,9,177.0,360
+Salt Water,10,194.0,360
+Salt Water,11,193.0,360
+Salt Water,12,190.5,360
+Salt Water,13,210.0,360
+Salt Water,14,200.0,360
+Salt Water,15,198.5,360
+Salt Water,16,195.5,360
+Salt Water,17,183.0,360
+Salt Water,18,178.0,360
+Salt Water,19,193.5,360
+Salt Water,20,171.0,360
+Salt Water,21,181.5,360
+Salt Water,22,178.5,360
+Salt Water,23,190.0,360
+Salt Water,24,195.0,360
+Salt Water,25,160.5,360
+Salt Water,30,191.5,360
+Salt Water,40,169.0,360
+Salt Water,50,183.5,360
+Uranium,0,151.0,360
+Uranium,1,166.0,360
+Uranium,2,191.5,360
+Uranium,3,173.0,360
+Uranium,4,208.5,360
+Uranium,5,199.5,360
+Uranium,6,210.0,360
+Uranium,7,205.0,360
+Uranium,8,205.0,360
+Uranium,9,209.5,360
+Uranium,10,184.0,360
+Uranium,11,200.5,360
+Uranium,12,220.5,360
+Uranium,13,193.5,360
+Uranium,14,239.0,360
+Uranium,15,208.5,360
+Uranium,16,210.5,360
+Uranium,17,202.0,360
+Uranium,18,218.0,360
+Uranium,19,215.5,360
+Uranium,20,183.0,360
+Uranium,21,202.0,360
+Uranium,22,201.0,360
+Uranium,23,197.5,360
+Uranium,24,199.5,360
+Uranium,25,208.0,360
+Uranium,30,205.5,360
+Uranium,40,188.0,360
+Uranium,50,185.5,360
+Healite,0,185.0,360
+Healite,1,190.0,360
+Healite,2,183.5,360
+Healite,3,153.0,360
+Healite,4,167.0,360
+Healite,5,155.0,360
+Healite,6,173.0,360
+Healite,7,160.0,360
+Healite,8,165.5,360
+Healite,9,163.5,360
+Healite,10,184.0,360
+Healite,11,188.5,360
+Healite,12,180.0,360
+Healite,13,175.0,360
+Healite,14,167.0,360
+Healite,15,192.0,360
+Healite,16,187.5,360
+Healite,17,197.0,360
+Healite,18,213.5,360
+Healite,19,207.0,360
+Healite,20,187.5,360
+Healite,21,189.0,360
+Healite,22,222.5,360
+Healite,23,208.0,360
+Healite,24,207.0,360
+Healite,25,185.0,360
+Healite,30,202.0,360
+Healite,40,213.5,360
+Healite,50,198.0,360
+Water,0,139.0,360
+Water,1,190.5,360
+Water,2,167.0,360
+Water,3,183.0,360
+Water,4,192.5,360
+Water,5,166.0,360
+Water,6,174.0,360
+Water,7,167.0,360
+Water,8,155.0,360
+Water,9,160.5,360
+Water,10,195.0,360
+Water,11,186.0,360
+Water,12,170.0,360
+Water,13,167.5,360
+Water,14,191.5,360
+Water,15,181.5,360
+Water,16,178.5,360
+Water,17,159.0,360
+Water,18,167.5,360
+Water,19,135.0,360
+Water,20,172.0,360
+Water,21,166.0,360
+Water,22,145.5,360
+Water,23,149.5,360
+Water,24,189.5,360
+Water,25,155.0,360
+Water,30,161.5,360
+Water,40,166.0,360
+Water,50,150.0,360
+Sandstone,0,156.0,360
+Sandstone,1,161.5,360
+Sandstone,2,179.5,360
+Sandstone,3,159.0,360
+Sandstone,4,185.0,360
+Sandstone,5,164.0,360
+Sandstone,6,173.0,360
+Sandstone,7,174.0,360
+Sandstone,8,187.5,360
+Sandstone,9,168.5,360
+Sandstone,10,194.5,360
+Sandstone,11,180.0,360
+Sandstone,12,177.5,360
+Sandstone,13,172.0,360
+Sandstone,14,184.0,360
+Sandstone,15,160.5,360
+Sandstone,16,178.0,360
+Sandstone,17,182.0,360
+Sandstone,18,169.5,360
+Sandstone,19,199.5,360
+Sandstone,20,161.0,360
+Sandstone,21,163.5,360
+Sandstone,22,181.0,360
+Sandstone,23,190.5,360
+Sandstone,24,169.5,360
+Sandstone,25,160.5,360
+Sandstone,30,146.5,360
+Sandstone,40,184.0,360
+Sandstone,50,164.5,360
+Charged Healite,0,186.5,360
+Charged Healite,1,211.0,360
+Charged Healite,2,181.5,360
+Charged Healite,3,191.5,360
+Charged Healite,4,196.5,360
+Charged Healite,5,172.5,360
+Charged Healite,6,176.5,360
+Charged Healite,7,176.0,360
+Charged Healite,8,180.0,360
+Charged Healite,9,186.0,360
+Charged Healite,10,192.5,360
+Charged Healite,11,204.0,360
+Charged Healite,12,175.5,360
+Charged Healite,13,186.0,360
+Charged Healite,14,199.0,360
+Charged Healite,15,230.0,360
+Charged Healite,16,216.5,360
+Charged Healite,17,196.0,360
+Charged Healite,18,192.5,360
+Charged Healite,19,193.0,360
+Charged Healite,20,210.0,360
+Charged Healite,21,209.0,360
+Charged Healite,22,212.5,360
+Charged Healite,23,209.5,360
+Charged Healite,24,224.0,360
+Charged Healite,25,226.5,360
+Charged Healite,30,226.0,360
+Charged Healite,40,221.0,360
+Charged Healite,50,222.5,360
+Rainbow Uranium,0,173.0,360
+Rainbow Uranium,1,188.0,360
+Rainbow Uranium,2,198.0,360
+Rainbow Uranium,3,205.5,360
+Rainbow Uranium,4,196.5,360
+Rainbow Uranium,5,210.0,360
+Rainbow Uranium,6,216.0,360
+Rainbow Uranium,7,202.0,360
+Rainbow Uranium,8,215.0,360
+Rainbow Uranium,9,211.0,360
+Rainbow Uranium,10,211.0,360
+Rainbow Uranium,11,191.5,360
+Rainbow Uranium,12,201.0,360
+Rainbow Uranium,13,217.5,360
+Rainbow Uranium,14,221.0,360
+Rainbow Uranium,15,216.0,360
+Rainbow Uranium,16,228.5,360
+Rainbow Uranium,17,209.0,360
+Rainbow Uranium,18,202.5,360
+Rainbow Uranium,19,217.0,360
+Rainbow Uranium,20,217.0,360
+Rainbow Uranium,21,232.5,360
+Rainbow Uranium,22,210.0,360
+Rainbow Uranium,23,194.0,360
+Rainbow Uranium,24,207.5,360
+Rainbow Uranium,25,195.5,360
+Rainbow Uranium,30,190.5,360
+Rainbow Uranium,40,200.0,360
+Rainbow Uranium,50,207.5,360
+Ice,0,214.5,360
+Ice,1,205.0,360
+Ice,2,179.0,360
+Ice,3,177.0,360
+Ice,4,155.0,360
+Ice,5,164.5,360
+Ice,6,166.0,360
+Ice,7,155.5,360
+Ice,8,159.0,360
+Ice,9,174.0,360
+Ice,10,174.5,360
+Ice,11,185.5,360
+Ice,12,191.5,360
+Ice,13,176.5,360
+Ice,14,200.0,360
+Ice,15,195.5,360
+Ice,16,183.5,360
+Ice,17,181.5,360
+Ice,18,168.0,360
+Ice,19,166.0,360
+Ice,20,160.5,360
+Ice,21,168.5,360
+Ice,22,166.0,360
+Ice,23,158.5,360
+Ice,24,182.0,360
+Ice,25,165.5,360
+Ice,30,169.5,360
+Ice,40,131.0,360
+Ice,50,157.5,360
+Glass,0,147.5,360
+Glass,1,173.0,360
+Glass,2,164.0,360
+Glass,3,144.0,360
+Glass,4,164.0,360
+Glass,5,161.5,360
+Glass,6,143.5,360
+Glass,7,159.5,360
+Glass,8,149.5,360
+Glass,9,169.0,360
+Glass,10,163.0,360
+Glass,11,157.0,360
+Glass,12,161.5,360
+Glass,13,160.5,360
+Glass,14,138.5,360
+Glass,15,193.5,360
+Glass,16,184.5,360
+Glass,17,195.5,360
+Glass,18,194.5,360
+Glass,19,190.5,360
+Glass,20,216.5,360
+Glass,21,212.5,360
+Glass,22,205.0,360
+Glass,23,198.5,360
+Glass,24,209.0,360
+Glass,25,198.5,360
+Glass,30,216.0,360
+Glass,40,199.5,360
+Glass,50,183.0,360
+Giant Bolder,0,213.5,360
+Giant Bolder,1,192.0,360
+Giant Bolder,2,179.0,360
+Giant Bolder,3,147.0,360
+Giant Bolder,4,145.0,360
+Giant Bolder,5,222.0,360
+Giant Bolder,6,222.0,360
+Giant Bolder,7,203.0,360
+Giant Bolder,8,209.0,360
+Giant Bolder,9,215.0,360
+Giant Bolder,10,219.5,360
+Giant Bolder,11,207.5,360
+Giant Bolder,12,213.5,360
+Giant Bolder,13,218.5,360
+Giant Bolder,14,204.0,360
+Giant Bolder,15,175.0,360
+Giant Bolder,16,202.5,360
+Giant Bolder,17,181.0,360
+Giant Bolder,18,197.5,360
+Giant Bolder,19,191.0,360
+Giant Bolder,20,177.0,360
+Giant Bolder,21,174.0,360
+Giant Bolder,22,192.5,360
+Giant Bolder,23,172.5,360
+Giant Bolder,24,169.5,360
+Giant Bolder,25,172.0,360
+Giant Bolder,30,168.0,360
+Giant Bolder,40,169.5,360
+Giant Bolder,50,165.0,360
+Boltstone,0,198.5,360
+Boltstone,1,202.5,360
+Boltstone,2,212.0,360
+Boltstone,3,218.5,360
+Boltstone,4,212.5,360
+Boltstone,5,200.0,360
+Boltstone,6,202.0,360
+Boltstone,7,196.0,360
+Boltstone,8,193.5,360
+Boltstone,9,190.5,360
+Boltstone,10,201.0,360
+Boltstone,11,195.5,360
+Boltstone,12,177.0,360
+Boltstone,13,204.0,360
+Boltstone,14,207.0,360
+Boltstone,15,188.5,360
+Boltstone,16,191.5,360
+Boltstone,17,202.5,360
+Boltstone,18,192.0,360
+Boltstone,19,181.5,360
+Boltstone,20,207.0,360
+Boltstone,21,193.0,360
+Boltstone,22,213.5,360
+Boltstone,23,178.0,360
+Boltstone,24,191.5,360
+Boltstone,25,179.0,360
+Boltstone,30,198.0,360
+Boltstone,40,205.0,360
+Boltstone,50,196.0,360
+Moonstone,0,154.5,360
+Moonstone,1,164.5,360
+Moonstone,2,164.5,360
+Moonstone,3,148.0,360
+Moonstone,4,179.0,360
+Moonstone,5,169.0,360
+Moonstone,6,155.5,360
+Moonstone,7,147.5,360
+Moonstone,8,149.0,360
+Moonstone,9,148.5,360
+Moonstone,10,159.0,360
+Moonstone,11,155.0,360
+Moonstone,12,152.5,360
+Moonstone,13,155.0,360
+Moonstone,14,145.5,360
+Moonstone,15,189.5,360
+Moonstone,16,181.5,360
+Moonstone,17,203.0,360
+Moonstone,18,193.0,360
+Moonstone,19,179.5,360
+Moonstone,20,214.5,360
+Moonstone,21,180.0,360
+Moonstone,22,220.0,360
+Moonstone,23,215.5,360
+Moonstone,24,201.0,360
+Moonstone,25,208.0,360
+Moonstone,30,202.0,360
+Moonstone,40,195.0,360
+Moonstone,50,184.5,360
+Obsidian,0,165.5,360
+Obsidian,1,204.0,360
+Obsidian,2,199.5,360
+Obsidian,3,197.0,360
+Obsidian,4,209.0,360
+Obsidian,5,201.0,360
+Obsidian,6,211.5,360
+Obsidian,7,189.5,360
+Obsidian,8,189.5,360
+Obsidian,9,208.5,360
+Obsidian,10,197.0,360
+Obsidian,11,205.5,360
+Obsidian,12,175.0,360
+Obsidian,13,194.0,360
+Obsidian,14,184.0,360
+Obsidian,15,179.0,360
+Obsidian,16,191.5,360
+Obsidian,17,176.5,360
+Obsidian,18,175.5,360
+Obsidian,19,173.5,360
+Obsidian,20,162.5,360
+Obsidian,21,158.5,360
+Obsidian,22,159.5,360
+Obsidian,23,158.0,360
+Obsidian,24,158.0,360
+Obsidian,25,156.0,360
+Obsidian,30,156.5,360
+Obsidian,40,151.0,360
+Obsidian,50,156.0,360
+Saltstone,0,162.0,360
+Saltstone,1,183.0,360
+Saltstone,2,189.0,360
+Saltstone,3,174.0,360
+Saltstone,4,191.5,360
+Saltstone,5,174.5,360
+Saltstone,6,178.0,360
+Saltstone,7,180.5,360
+Saltstone,8,208.5,360
+Saltstone,9,191.5,360
+Saltstone,10,174.0,360
+Saltstone,11,187.0,360
+Saltstone,12,174.0,360
+Saltstone,13,177.0,360
+Saltstone,14,175.5,360
+Saltstone,15,155.0,360
+Saltstone,16,164.0,360
+Saltstone,17,170.5,360
+Saltstone,18,173.5,360
+Saltstone,19,176.5,360
+Saltstone,20,165.0,360
+Saltstone,21,180.5,360
+Saltstone,22,169.5,360
+Saltstone,23,158.5,360
+Saltstone,24,174.5,360
+Saltstone,25,154.5,360
+Saltstone,30,162.5,360
+Saltstone,40,168.0,360
+Saltstone,50,188.5,360
+Mirror Shard,0,156.5,360
+Mirror Shard,1,143.5,360
+Mirror Shard,2,139.5,360
+Mirror Shard,3,131.5,360
+Mirror Shard,4,150.5,360
+Mirror Shard,5,141.0,360
+Mirror Shard,6,148.5,360
+Mirror Shard,7,138.0,360
+Mirror Shard,8,129.5,360
+Mirror Shard,9,118.0,360
+Mirror Shard,10,139.5,360
+Mirror Shard,11,142.5,360
+Mirror Shard,12,129.0,360
+Mirror Shard,13,139.0,360
+Mirror Shard,14,133.5,360
+Mirror Shard,15,137.5,360
+Mirror Shard,16,144.5,360
+Mirror Shard,17,140.0,360
+Mirror Shard,18,150.0,360
+Mirror Shard,19,128.0,360
+Mirror Shard,20,146.0,360
+Mirror Shard,21,168.5,360
+Mirror Shard,22,187.5,360
+Mirror Shard,23,155.5,360
+Mirror Shard,24,159.5,360
+Mirror Shard,25,213.0,360
+Mirror Shard,30,192.0,360
+Mirror Shard,40,201.5,360
+Mirror Shard,50,202.5,360
+Sunstone,0,150.5,360
+Sunstone,1,153.0,360
+Sunstone,2,160.5,360
+Sunstone,3,178.0,360
+Sunstone,4,179.0,360
+Sunstone,5,169.0,360
+Sunstone,6,171.5,360
+Sunstone,7,170.0,360
+Sunstone,8,174.5,360
+Sunstone,9,192.0,360
+Sunstone,10,197.0,360
+Sunstone,11,205.5,360
+Sunstone,12,188.0,360
+Sunstone,13,198.5,360
+Sunstone,14,205.5,360
+Sunstone,15,150.0,360
+Sunstone,16,165.0,360
+Sunstone,17,161.0,360
+Sunstone,18,169.0,360
+Sunstone,19,172.0,360
+Sunstone,20,208.0,360
+Sunstone,21,206.5,360
+Sunstone,22,190.5,360
+Sunstone,23,213.0,360
+Sunstone,24,189.0,360
+Sunstone,25,209.5,360
+Sunstone,30,220.0,360
+Sunstone,40,219.5,360
+Sunstone,50,206.0,360
+Singularity,0,148.5,360
+Singularity,1,158.0,360
+Singularity,2,137.5,360
+Singularity,3,147.5,360
+Singularity,4,143.5,360
+Singularity,5,137.5,360
+Singularity,6,139.0,360
+Singularity,7,143.5,360
+Singularity,8,147.5,360
+Singularity,9,149.5,360
+Singularity,10,123.5,360
+Singularity,11,127.0,360
+Singularity,12,145.0,360
+Singularity,13,123.0,360
+Singularity,14,129.0,360
+Singularity,15,142.0,360
+Singularity,16,142.0,360
+Singularity,17,158.0,360
+Singularity,18,126.0,360
+Singularity,19,138.0,360
+Singularity,20,162.5,360
+Singularity,21,182.0,360
+Singularity,22,179.0,360
+Singularity,23,163.5,360
+Singularity,24,194.0,360
+Singularity,25,222.5,360
+Singularity,30,206.5,360
+Singularity,40,190.0,360
+Singularity,50,202.5,360
+Meteorite,0,213.5,360
+Meteorite,1,190.0,360
+Meteorite,2,218.5,360
+Meteorite,3,203.0,360
+Meteorite,4,211.0,360
+Meteorite,5,191.0,360
+Meteorite,6,195.0,360
+Meteorite,7,207.5,360
+Meteorite,8,186.5,360
+Meteorite,9,203.0,360
+Meteorite,10,199.5,360
+Meteorite,11,205.5,360
+Meteorite,12,184.5,360
+Meteorite,13,200.5,360
+Meteorite,14,184.5,360
+Meteorite,15,202.5,360
+Meteorite,16,210.0,360
+Meteorite,17,185.0,360
+Meteorite,18,195.5,360
+Meteorite,19,220.0,360
+Meteorite,20,208.5,360
+Meteorite,21,217.5,360
+Meteorite,22,226.5,360
+Meteorite,23,229.5,360
+Meteorite,24,219.5,360
+Meteorite,25,222.5,360
+Meteorite,30,205.5,360
+Meteorite,40,220.5,360
+Meteorite,50,201.5,360
+Pebble,0,193.0,360
+Pebble,1,210.0,360
+Pebble,2,196.0,360
+Pebble,3,200.0,360
+Pebble,4,194.5,360
+Pebble,5,174.5,360
+Pebble,6,173.0,360
+Pebble,7,185.0,360
+Pebble,8,187.5,360
+Pebble,9,185.5,360
+Pebble,10,181.0,360
+Pebble,11,181.5,360
+Pebble,12,171.0,360
+Pebble,13,167.5,360
+Pebble,14,174.5,360
+Pebble,15,168.5,360
+Pebble,16,164.5,360
+Pebble,17,162.0,360
+Pebble,18,171.0,360
+Pebble,19,163.0,360
+Pebble,20,134.0,360
+Pebble,21,154.5,360
+Pebble,22,161.0,360
+Pebble,23,163.0,360
+Pebble,24,153.5,360
+Pebble,25,133.0,360
+Pebble,30,154.5,360
+Pebble,40,141.5,360
+Pebble,50,157.0,360
+Rock,0,207.0,360
+Rock,1,221.5,360
+Rock,2,218.5,360
+Rock,3,216.5,360
+Rock,4,211.0,360
+Rock,5,192.0,360
+Rock,6,194.0,360
+Rock,7,166.5,360
+Rock,8,173.0,360
+Rock,9,199.0,360
+Rock,10,166.0,360
+Rock,11,168.5,360
+Rock,12,170.0,360
+Rock,13,149.0,360
+Rock,14,151.5,360
+Rock,15,160.5,360
+Rock,16,159.0,360
+Rock,17,161.0,360
+Rock,18,132.5,360
+Rock,19,160.5,360
+Rock,20,146.0,360
+Rock,21,156.5,360
+Rock,22,144.5,360
+Rock,23,138.0,360
+Rock,24,133.5,360
+Rock,25,138.5,360
+Rock,30,118.0,360
+Rock,40,118.5,360
+Rock,50,132.5,360
+Discombobulate Shard,0,201.5,360
+Discombobulate Shard,1,194.5,360
+Discombobulate Shard,2,180.0,360
+Discombobulate Shard,3,212.5,360
+Discombobulate Shard,4,196.5,360
+Discombobulate Shard,5,181.5,360
+Discombobulate Shard,6,175.0,360
+Discombobulate Shard,7,164.0,360
+Discombobulate Shard,8,181.0,360
+Discombobulate Shard,9,202.0,360
+Discombobulate Shard,10,179.5,360
+Discombobulate Shard,11,157.5,360
+Discombobulate Shard,12,169.5,360
+Discombobulate Shard,13,169.5,360
+Discombobulate Shard,14,182.0,360
+Discombobulate Shard,15,175.0,360
+Discombobulate Shard,16,187.5,360
+Discombobulate Shard,17,173.5,360
+Discombobulate Shard,18,184.0,360
+Discombobulate Shard,19,174.5,360
+Discombobulate Shard,20,204.0,360
+Discombobulate Shard,21,180.5,360
+Discombobulate Shard,22,192.0,360
+Discombobulate Shard,23,179.5,360
+Discombobulate Shard,24,185.5,360
+Discombobulate Shard,25,197.5,360
+Discombobulate Shard,30,204.0,360
+Discombobulate Shard,40,199.5,360
+Discombobulate Shard,50,175.5,360

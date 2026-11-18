@@ -1,0 +1,342 @@
+Run 0_old_rocks. Measured minus target, in points (targets shifted to average 50; both smoothed over +-1 levels up to 25)
+rock                    mean    2    5    8   10   12   15   18   20   22   25   rms  worst
+Rainbow Uranium        +31.3  +27  +30  +21  +18  +17  +20  +23  +19  +25  +30  23.9  +30 at 25
+Uranium                +26.2  +20  +18  +25  +29  +19  +17  +22  +19  +28  +24  21.9  +29 at 10
+Obsidian               +24.0   +4   +4   +8  +22  +21  +27  +33  +37  +38  +41  25.8  +41 at 25
+Singularity            +18.4  +10  +31  +28  +25  +30  +33  +34  +27  +21  +19  26.7  +34 at 18
+Lava                   +13.2  +34  +23   +9  +13  +11   +9  +17   -0  +11   +7  17.1  +37 at 1
+Rock                   +12.7  +18  +13  +14  +14  +10   +6  +13  +13   +6  +11  13.4  +21 at 1
+Meteorite               +6.8   +4   -5   +4   +9  -12   +9   +1   +7   +5   +6   6.1  -13 at 13
+Boltstone               +6.5   -3  +10   +2   +7   +4   +2   -0   +3   +2   +1   5.2  +11 at 13
+Charged Copper          +4.0   +3  -16   -6   +2   +2   +9  +16  +14  +11   +8   9.4  -16 at 5
+Pebble                  +3.5  -12   -1   -2  +19  +14   +6  +15  +21  +15  +11  12.4  +21 at 11
+Sunstone                +3.4  +11   +9   -0  +21   -1   +4   -6  +10   -2   +1   8.0  +21 at 10
+Giant Bolder            +1.5   +1   -3  -14   +4   -1   -4   +9  +15   +9   +9   7.7  +15 at 20
+Discombobulate Shard    +0.6   +6   +5   +3  +18   -3   -1   -9   +4  -10   -1   7.2  +18 at 10
+Mirror Shard            -2.3   -6  +12   +9  +14  +12   +6   +7  +15   +0  -11  11.0  +20 at 9
+Salt Water              -7.0   -6   -0  -23   -3   -1   -5  -18   -0   -7  -11  11.5  -26 at 17
+Copper                  -7.1  -16  -19   -7   -0   +5  -20   +7   +9  +15   -1  12.4  -28 at 6
+Glass                   -9.7  -16   -8   +1   +3   -1   -3  -30  -11  -13   +4  12.7  -30 at 18
+Saltstone              -10.3  -17  -13   -9   -4   -1  -27   -3   -2   +7  -10  12.8  -27 at 15
+Sandstone              -10.6  -14  -10   -6   -4   -2  -29   -5   -4   +5   -9  12.2  -29 at 15
+Charged Healite        -11.1  -22   -7  -17  -29  -21  -17  -13  -27  -26  -12  20.5  -37 at 21
+Coal                   -13.7  -18   -1   -8   -2  -11   -9  -12   -3  -14  -12  11.9  -23 at 1
+Water                  -14.1  -32   -2   -8   -4  -14   -8   -9  -20   -7   -7  14.9  -32 at 1
+Magma                  -14.2   -1  -29   -3   -7   +1  -17  -19  -27  -32   -2  16.7  -32 at 22
+Moonstone              -15.2   +4  -10  -21  -18   +1  -23  -23  -26  -27  -15  17.3  -29 at 9
+Healite                -17.5  -25  -23  -10   -1  -21  -28  -20  -28  -20  -35  23.2  -35 at 25
+Ice                    -18.3  -14   +3  -25  -21  -27  -32  -10  -32   -7  -11  18.9  -32 at 20
+
+Overall rms miss (levels 0 to 25): 15.8 points
+
+Outside 35 to 65% (one level alone, so with its noise):
+  Rainbow Uranium at level 1: 84%
+  Rainbow Uranium at level 2: 72%
+  Rainbow Uranium at level 3: 78%
+  Rainbow Uranium at level 4: 85%
+  Rainbow Uranium at level 5: 82%
+  Rainbow Uranium at level 6: 87%
+  Rainbow Uranium at level 7: 81%
+  Rainbow Uranium at level 8: 84%
+  Rainbow Uranium at level 9: 76%
+  Rainbow Uranium at level 10: 86%
+  Rainbow Uranium at level 11: 76%
+  Rainbow Uranium at level 12: 77%
+  Rainbow Uranium at level 13: 82%
+  Rainbow Uranium at level 14: 83%
+  Rainbow Uranium at level 15: 78%
+  Rainbow Uranium at level 16: 82%
+  Rainbow Uranium at level 17: 88%
+  Rainbow Uranium at level 18: 84%
+  Rainbow Uranium at level 19: 79%
+  Rainbow Uranium at level 20: 80%
+  Rainbow Uranium at level 21: 78%
+  Rainbow Uranium at level 22: 85%
+  Rainbow Uranium at level 23: 83%
+  Rainbow Uranium at level 24: 79%
+  Rainbow Uranium at level 25: 82%
+  Uranium at level 2: 81%
+  Uranium at level 3: 65%
+  Uranium at level 4: 69%
+  Uranium at level 5: 82%
+  Uranium at level 7: 75%
+  Uranium at level 8: 81%
+  Uranium at level 9: 89%
+  Uranium at level 10: 84%
+  Uranium at level 11: 89%
+  Uranium at level 13: 81%
+  Uranium at level 14: 81%
+  Uranium at level 15: 72%
+  Uranium at level 16: 71%
+  Uranium at level 17: 84%
+  Uranium at level 18: 84%
+  Uranium at level 19: 70%
+  Uranium at level 20: 76%
+  Uranium at level 21: 83%
+  Uranium at level 22: 84%
+  Uranium at level 23: 78%
+  Uranium at level 24: 72%
+  Uranium at level 25: 73%
+  Obsidian at level 3: 70%
+  Obsidian at level 6: 80%
+  Obsidian at level 7: 65%
+  Obsidian at level 9: 78%
+  Obsidian at level 10: 82%
+  Obsidian at level 11: 81%
+  Obsidian at level 12: 77%
+  Obsidian at level 13: 73%
+  Obsidian at level 14: 71%
+  Obsidian at level 15: 85%
+  Obsidian at level 16: 79%
+  Obsidian at level 17: 74%
+  Obsidian at level 18: 87%
+  Obsidian at level 19: 82%
+  Obsidian at level 20: 80%
+  Obsidian at level 21: 85%
+  Obsidian at level 22: 83%
+  Obsidian at level 23: 77%
+  Obsidian at level 24: 84%
+  Obsidian at level 25: 84%
+  Singularity at level 4: 67%
+  Singularity at level 5: 71%
+  Singularity at level 6: 74%
+  Singularity at level 7: 68%
+  Singularity at level 8: 76%
+  Singularity at level 10: 65%
+  Singularity at level 11: 71%
+  Singularity at level 12: 72%
+  Singularity at level 14: 73%
+  Singularity at level 15: 72%
+  Singularity at level 16: 74%
+  Singularity at level 17: 74%
+  Singularity at level 18: 75%
+  Singularity at level 19: 78%
+  Singularity at level 20: 66%
+  Singularity at level 21: 69%
+  Singularity at level 22: 71%
+  Singularity at level 23: 68%
+  Singularity at level 24: 76%
+  Singularity at level 25: 77%
+  Lava at level 1: 89%
+  Lava at level 2: 89%
+  Lava at level 3: 85%
+  Lava at level 4: 82%
+  Lava at level 5: 82%
+  Lava at level 6: 82%
+  Lava at level 8: 66%
+  Lava at level 10: 72%
+  Lava at level 17: 68%
+  Lava at level 18: 68%
+  Rock at level 1: 86%
+  Rock at level 2: 87%
+  Rock at level 3: 74%
+  Rock at level 4: 74%
+  Rock at level 5: 71%
+  Rock at level 6: 71%
+  Rock at level 7: 72%
+  Rock at level 8: 74%
+  Rock at level 10: 66%
+  Rock at level 11: 75%
+  Rock at level 14: 68%
+  Rock at level 16: 33%
+  Rock at level 19: 68%
+  Rock at level 20: 69%
+  Rock at level 21: 30%
+  Rock at level 24: 68%
+  Rock at level 25: 31%
+  Meteorite at level 10: 68%
+  Meteorite at level 12: 34%
+  Meteorite at level 13: 32%
+  Meteorite at level 15: 67%
+  Meteorite at level 21: 70%
+  Meteorite at level 24: 68%
+  Boltstone at level 4: 73%
+  Boltstone at level 5: 68%
+  Boltstone at level 10: 71%
+  Boltstone at level 13: 67%
+  Boltstone at level 14: 71%
+  Boltstone at level 17: 68%
+  Boltstone at level 21: 66%
+  Charged Copper at level 3: 68%
+  Charged Copper at level 5: 35%
+  Charged Copper at level 10: 71%
+  Charged Copper at level 14: 75%
+  Charged Copper at level 19: 67%
+  Pebble at level 1: 67%
+  Pebble at level 2: 28%
+  Pebble at level 4: 35%
+  Pebble at level 6: 68%
+  Pebble at level 11: 73%
+  Pebble at level 18: 66%
+  Pebble at level 21: 74%
+  Sunstone at level 6: 67%
+  Sunstone at level 10: 72%
+  Sunstone at level 11: 76%
+  Sunstone at level 13: 33%
+  Sunstone at level 20: 70%
+  Sunstone at level 21: 71%
+  Giant Bolder at level 1: 69%
+  Giant Bolder at level 2: 28%
+  Giant Bolder at level 10: 67%
+  Giant Bolder at level 11: 66%
+  Giant Bolder at level 12: 66%
+  Giant Bolder at level 21: 68%
+  Discombobulate Shard at level 2: 70%
+  Discombobulate Shard at level 10: 68%
+  Discombobulate Shard at level 11: 66%
+  Discombobulate Shard at level 12: 29%
+  Discombobulate Shard at level 17: 34%
+  Discombobulate Shard at level 22: 32%
+  Mirror Shard at level 2: 18%
+  Mirror Shard at level 4: 67%
+  Mirror Shard at level 6: 20%
+  Mirror Shard at level 7: 31%
+  Mirror Shard at level 15: 24%
+  Mirror Shard at level 17: 66%
+  Mirror Shard at level 18: 30%
+  Mirror Shard at level 21: 68%
+  Mirror Shard at level 22: 33%
+  Salt Water at level 3: 20%
+  Salt Water at level 7: 18%
+  Salt Water at level 8: 31%
+  Salt Water at level 9: 34%
+  Salt Water at level 13: 28%
+  Salt Water at level 15: 68%
+  Salt Water at level 16: 28%
+  Salt Water at level 17: 20%
+  Salt Water at level 18: 32%
+  Salt Water at level 22: 33%
+  Salt Water at level 24: 35%
+  Copper at level 2: 27%
+  Copper at level 5: 16%
+  Copper at level 7: 31%
+  Copper at level 11: 32%
+  Copper at level 14: 20%
+  Copper at level 15: 20%
+  Copper at level 16: 29%
+  Copper at level 17: 33%
+  Copper at level 19: 67%
+  Copper at level 20: 34%
+  Copper at level 25: 25%
+  Glass at level 1: 14%
+  Glass at level 2: 28%
+  Glass at level 4: 18%
+  Glass at level 8: 25%
+  Glass at level 13: 20%
+  Glass at level 14: 32%
+  Glass at level 17: 28%
+  Glass at level 18: 24%
+  Glass at level 19: 20%
+  Glass at level 22: 23%
+  Glass at level 25: 66%
+  Saltstone at level 1: 30%
+  Saltstone at level 2: 30%
+  Saltstone at level 5: 20%
+  Saltstone at level 6: 28%
+  Saltstone at level 7: 28%
+  Saltstone at level 11: 34%
+  Saltstone at level 14: 18%
+  Saltstone at level 15: 20%
+  Saltstone at level 16: 24%
+  Saltstone at level 17: 28%
+  Saltstone at level 20: 30%
+  Saltstone at level 25: 15%
+  Sandstone at level 1: 30%
+  Sandstone at level 2: 32%
+  Sandstone at level 3: 34%
+  Sandstone at level 5: 16%
+  Sandstone at level 6: 32%
+  Sandstone at level 7: 22%
+  Sandstone at level 11: 32%
+  Sandstone at level 14: 15%
+  Sandstone at level 15: 15%
+  Sandstone at level 16: 27%
+  Sandstone at level 17: 31%
+  Sandstone at level 20: 31%
+  Sandstone at level 25: 21%
+  Charged Healite at level 1: 31%
+  Charged Healite at level 3: 18%
+  Charged Healite at level 4: 28%
+  Charged Healite at level 9: 9%
+  Charged Healite at level 10: 30%
+  Charged Healite at level 13: 27%
+  Charged Healite at level 16: 24%
+  Charged Healite at level 17: 29%
+  Charged Healite at level 20: 10%
+  Charged Healite at level 21: 28%
+  Charged Healite at level 22: 29%
+  Coal at level 2: 8%
+  Coal at level 6: 16%
+  Coal at level 7: 22%
+  Coal at level 11: 26%
+  Coal at level 12: 31%
+  Coal at level 15: 13%
+  Coal at level 18: 15%
+  Coal at level 19: 25%
+  Coal at level 22: 18%
+  Coal at level 23: 22%
+  Coal at level 24: 29%
+  Water at level 1: 8%
+  Water at level 2: 30%
+  Water at level 3: 20%
+  Water at level 7: 19%
+  Water at level 10: 16%
+  Water at level 12: 16%
+  Water at level 13: 28%
+  Water at level 16: 17%
+  Water at level 19: 13%
+  Water at level 20: 22%
+  Water at level 23: 12%
+  Water at level 24: 32%
+  Magma at level 1: 22%
+  Magma at level 4: 7%
+  Magma at level 5: 22%
+  Magma at level 6: 8%
+  Magma at level 7: 23%
+  Magma at level 9: 31%
+  Magma at level 10: 25%
+  Magma at level 13: 28%
+  Magma at level 15: 15%
+  Magma at level 16: 27%
+  Magma at level 18: 20%
+  Magma at level 21: 12%
+  Magma at level 23: 34%
+  Magma at level 25: 66%
+  Moonstone at level 4: 22%
+  Moonstone at level 6: 30%
+  Moonstone at level 8: 8%
+  Moonstone at level 9: 9%
+  Moonstone at level 10: 26%
+  Moonstone at level 14: 12%
+  Moonstone at level 15: 25%
+  Moonstone at level 18: 12%
+  Moonstone at level 19: 29%
+  Moonstone at level 21: 16%
+  Moonstone at level 22: 29%
+  Moonstone at level 25: 21%
+  Healite at level 1: 6%
+  Healite at level 3: 14%
+  Healite at level 4: 28%
+  Healite at level 6: 7%
+  Healite at level 7: 29%
+  Healite at level 12: 8%
+  Healite at level 15: 10%
+  Healite at level 16: 24%
+  Healite at level 19: 18%
+  Healite at level 20: 21%
+  Healite at level 23: 24%
+  Healite at level 24: 21%
+  Healite at level 25: 24%
+  Ice at level 2: 9%
+  Ice at level 3: 28%
+  Ice at level 7: 7%
+  Ice at level 8: 27%
+  Ice at level 9: 26%
+  Ice at level 11: 4%
+  Ice at level 12: 26%
+  Ice at level 14: 6%
+  Ice at level 15: 22%
+  Ice at level 19: 9%
+  Ice at level 20: 6%
+  Ice at level 21: 27%
+  Ice at level 24: 24%
