@@ -39,6 +39,14 @@ public class dialogue {
         this.text = text;
     }
 
+    //Text worked out when it is shown, not when the message is made (a line with the player's name in it, made before
+    //the savefile's names are read)
+    private java.util.function.Supplier<String> liveText;
+    public dialogue (character character, java.util.function.Supplier<String> text) {
+        this.c = character;
+        this.liveText = text;
+    }
+
     public dialogue highlight (String border, picture picture) {
         this.border = border;
         this.picture = picture;
@@ -58,7 +66,7 @@ public class dialogue {
         StringBuilder text = new StringBuilder();
         for (dialogue d : parts) {
             if (text.length() > 0) text.append("\n");
-            text.append(d.text);
+            text.append(d.getText());
         }
         dialogue combined = first.c != null ? new dialogue(first.c, text.toString()) : new dialogue(first.name, text.toString());
         for (dialogue d : parts) {
@@ -106,6 +114,7 @@ public class dialogue {
     public boolean isSpecial () {return border != null || getPicture() != null;}
 
     public String getText () {
+        if (liveText != null) return liveText.get();
         return text;
     }
 

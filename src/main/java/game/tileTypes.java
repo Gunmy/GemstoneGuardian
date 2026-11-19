@@ -95,8 +95,10 @@ public class tileTypes {
         addType("Bedwall", 100, 140, 20, 20, true, null); //75 bedwall
         addWaveType("Cupboardfloor", 120, 140, 20, 20, false, null, types.get(15), false); //76 cupboardfloor
         addWaveType("Emptyshelf", 140, 140, 20, 20, true, null, types.get(15), false); //77 emptyshelf
-        addType("Wheelchairtop", 80, 100, 20, 20, true, null); //78 wheelchairtop
-        addWaveType("Wheelchairbottom", 80, 120, 20, 20, true, null, types.get(15), false); //79 wheelchairbottom
+        //78 and 79 were the wheelchair (top, bottom), taken out of the game: kept so the ids after them stay, their cells
+        //in tiles.png are empty and they are on no map
+        addType("Unused 78", 80, 100, 20, 20, true, null); //78 unused (was the wheelchair top)
+        addWaveType("Unused 79", 80, 120, 20, 20, true, null, types.get(15), false); //79 unused (was the wheelchair bottom)
         addWaveType("Sign", 40, 20, 20, 20, true, null, types.get(1), false, 1, 1, 0); solidFrom(0, 0, 0, 1); solidTo(0, 0, 0, 1); //80 sign, can be walked behind
         addWaveType("Chest", 160, 140, 20, 20, true, null, types.get(15), true); container(); //81 chest
         addFluidType("Lava", 200, 200, 20, 20, true, null, 0.3, 0, 0.4, 1, true); //82 lava

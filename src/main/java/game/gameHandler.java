@@ -782,7 +782,13 @@ public class gameHandler {
         }
 
         //Add eventlisteners for events ---------
-        eventListeners.add(new eventListener(this, 10000.1, 10000.1, 0.5, 3, spawnEvent, Arrays.asList(new dialogue(getMainCharacter(), "What a weird dream..."),new dialogue(getMainCharacter(), "Wait..."), new dialogue(getMainCharacter(), "I can feel my legs?"),new dialogue(getMainCharacter(), "Wait how do I walk again...\nIt is WASD to move right?"))));
+        eventListeners.add(new eventListener(this, 10000.1, 10000.1, 0.5, 3, spawnEvent, Arrays.asList(
+            new dialogue(getMainCharacter(), "What a weird dream..."),
+            new dialogue(getMainCharacter(), "I dreamt I was studying"),
+            new dialogue(getMainCharacter(), "Oh well, thank god that's not real"),
+            //Mother yelling up the stairs, with the name the player picked
+            new dialogue(characters.get("Mother"), () -> getMainCharacter().getName().toUpperCase() + " COME DOWN!"),
+            new dialogue(getMainCharacter(), "): ..."))));
         eventListeners.add(new eventListener(this, 10000.3, 10000.56, 0.3, 2, motherTellEvent, Arrays.asList(new dialogue(characters.get("Mother"), "Dont forget that you promised granny to\nclean her house!"),new dialogue(getMainCharacter(), "... ):"))));
 
 
