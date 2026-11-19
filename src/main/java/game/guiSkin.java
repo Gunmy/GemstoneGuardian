@@ -45,10 +45,13 @@ public class guiSkin {
     }
 
     public void drawCell (GraphicsContext gc, Image img, int cellX, int cellY, double x, double y, double w, double h, boolean flipX, boolean flipY) {
+        //Both edges are rounded and the size taken from them, so pieces that meet (the 9-slice's) share the same pixel
+        //edge: rounding the start and the size apart left a 1px gap or overlap by the right and bottom edges
+        long left = Math.round(x), top = Math.round(y), right = Math.round(x + w), bottom = Math.round(y + h);
         gc.save();
-        gc.translate(Math.round(x) + (flipX ? Math.round(w) : 0), Math.round(y) + (flipY ? Math.round(h) : 0));
+        gc.translate(flipX ? right : left, flipY ? bottom : top);
         gc.scale(flipX ? -1 : 1, flipY ? -1 : 1);
-        gc.drawImage(img, cellX, cellY, CELL, CELL, 0, 0, Math.round(w), Math.round(h));
+        gc.drawImage(img, cellX, cellY, CELL, CELL, 0, 0, right - left, bottom - top);
         gc.restore();
     }
 

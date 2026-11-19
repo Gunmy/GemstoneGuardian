@@ -31,10 +31,11 @@ public class saveFile {
         return gameFiles.savesFolder();
     }
 
-    //Every savefile, the one played last first. Files that can not be read are skipped
+    //Every savefile, the one played last first. Files that can not be read are skipped. Only save_*.txt (what create
+    //names them): other files kept in the folder, like the 1v1 build (duel.txt), are not campaigns
     public static List<saveFile> list () {
         List<saveFile> saves = new ArrayList<saveFile>();
-        File[] files = getFolder().listFiles((dir, name) -> name.endsWith(".txt"));
+        File[] files = getFolder().listFiles((dir, name) -> name.startsWith("save_") && name.endsWith(".txt"));
         if (files == null) return saves;
         for (File f : files) {
             saveFile save = new saveFile(f);
