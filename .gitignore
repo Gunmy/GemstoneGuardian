@@ -213,3 +213,9 @@ dist/
 
 # Training runs of the computer's judge (tools/ai/train.py): positions, checkpoints, logs
 tools/ai/runs/
+
+# The web version is its own repository (GemstoneGuardianWeb), kept in this folder
+web/
+
+# Crash dumps written by Git Bash
+*.stackdump
