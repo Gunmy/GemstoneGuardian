@@ -204,12 +204,22 @@ public class fightOutcome extends dialogue {
         if (run != null) run.run();
     }
 
-    //A choice at the end (a random battle: again, or back to the menu), shown as buttons once it has played out
+    //A choice at the end (a random battle: again, or back to the menu), shown as buttons once it has played out. With
+    //no back (null) there is one button only (a run of fights: on to the next, or to the results)
     private Runnable again, back;
+    private String againLabel = "Battle again", backLabel = "Back to menu";
     public void offer (Runnable again, Runnable back) {
+        offer("Battle again", again, "Back to menu", back);
+    }
+    public void offer (String againLabel, Runnable again, String backLabel, Runnable back) {
         this.again = again;
         this.back = back;
+        this.againLabel = againLabel;
+        this.backLabel = backLabel;
     }
+    public String againLabel () {return this.againLabel;}
+    public String backLabel () {return this.backLabel;}
+    public boolean hasBack () {return back != null;}
     public boolean hasChoice () {return again != null;}
     public void again () {leave(again);}
     public void back () {leave(back);}

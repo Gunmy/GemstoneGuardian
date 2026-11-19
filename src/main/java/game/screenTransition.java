@@ -75,8 +75,37 @@ public class screenTransition {
         this.handler = handler;
     }
 
+    //Out in space for good, zoomed all the way out: the main menu's view (a game with no savefile, gameHandler). Not a
+    //trip: the menu is shown and works (gameHandler.inSpaceTrip and inTransition leave it out). startSpace leaves it
+    private boolean parked = false;
+    public void park () {
+        this.space = true;
+        this.parked = true;
+        this.middle = null;
+        this.end = null;
+        this.holding = false;
+        this.sizeCarry = 1;
+        this.cue = null;
+        enter(phase.BLACK);
+    }
+    public boolean isParked () {return isActive() && parked;}
+
     //Zooms out into space, then runs end (the switch to the other game), which starts with startFromSpace
     public void startSpace (Runnable end) {
+        startSpace(end, 0);
+    }
+
+    //From parked in space (the main menu) there is nothing to zoom out of: end runs after hold seconds (for the menu to
+    //slide away, or a 1v1's fighters to rise, battleIntro)
+    public void startSpace (Runnable end, double hold) {
+        if (isParked()) {
+            this.parked = false;
+            this.end = end;
+            this.holding = false;
+            this.blackTime = hold;
+            enter(phase.BLACK);
+            return;
+        }
         if (isActive()) return;
         this.space = true;
         this.middle = null;
@@ -195,7 +224,7 @@ public class screenTransition {
                     cue = null;
                     run.run();
                 }
-                if (holding || phaseTime() < blackTime) break;
+                if (parked || holding || phaseTime() < blackTime) break;
                 if (end != null) {
                     Runnable run = end;
                     end = null;

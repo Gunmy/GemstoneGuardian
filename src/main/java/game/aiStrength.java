@@ -10,6 +10,25 @@ public final class aiStrength {
 
     //The standard: the trained net, 3 actions ahead (new campaigns, the 1v1 page, and savefiles with no choice saved)
     public static final aiStrength DEFAULT = new aiStrength(true, 3);
+    //What a new campaign starts on (the trained net, 2 ahead), and how far ahead one can be set to look at most
+    public static final aiStrength CAMPAIGN = new aiStrength(true, 2);
+    public static final int CAMPAIGN_MAX_DEPTH = 3;
+
+    //What a strength comes to, shown when a campaign is started: points are the depth, one more for the trained
+    //judge (when there is a trained net): 2 or less is Easy, 3 Medium, 4 or more Hard
+    public enum difficulty {
+        EASY("Easy", "#40C040"), MEDIUM("Medium", "#E09020"), HARD("Hard", "#E04040");
+        public final String label, color;
+        difficulty (String label, String color) {
+            this.label = label;
+            this.color = color;
+        }
+    }
+
+    public difficulty difficulty () {
+        int points = depth + (givesChance() ? 1 : 0);
+        return points <= 2 ? difficulty.EASY : points == 3 ? difficulty.MEDIUM : difficulty.HARD;
+    }
 
     public final boolean trained;
     public final int depth;
@@ -52,6 +71,8 @@ public final class aiStrength {
     //The one the computer plays with in this game: the 1v1's, the campaign's, or the default in the menu
     public static aiStrength of (gameHandler handler) {
         if (handler == null) return DEFAULT;
+        //A fight of a run (the daily battles) plays at its stage's strength
+        if (handler.getDuel() != null && handler.getDuel().getStrength() != null) return handler.getDuel().getStrength();
         if (handler.getDuel() != null) return handler.getSettings().getDuelAI();
         if (handler.getSave() != null) return load(handler.getSave());
         return DEFAULT;

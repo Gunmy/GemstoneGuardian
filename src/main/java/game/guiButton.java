@@ -40,11 +40,19 @@ public class guiButton extends guiElement {
     private String color;
     public void setColor (String hex) {this.color = hex;}
 
+    //Only shows something (the difficulty a strength comes to): looks like a button with black text, but does not
+    //light up under the mouse and can not be clicked
+    private boolean display = false;
+    public guiButton displayOnly () {
+        this.display = true;
+        return this;
+    }
+
     @Override
     public void draw (GraphicsContext gc) {
         gui.getSkin().drawButton(gc, x, y, width, height, color);
 
-        if (hovered && enabled) {
+        if (hovered && enabled && !display) {
             gc.setFill(Color.rgb(255, 255, 255, 0.25));
             gc.fillRect(x, y, width, height);
         }
@@ -69,7 +77,7 @@ public class guiButton extends guiElement {
 
     @Override
     public boolean click (double mx, double my, boolean rightClick) {
-        if (enabled && action != null) action.run();
+        if (enabled && !display && action != null) action.run();
         return true;
     }
 

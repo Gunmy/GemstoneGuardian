@@ -111,6 +111,34 @@ public class duel {
         }, () -> handler.quitToMenu());
     }
 
+    //A fight of a run (fightRun: the daily battles): which stage, and how strong the opponent plays (null: the 1v1
+    //page's setting, aiStrength.of)
+    private fightRun run;
+    private int stage;
+    private aiStrength strength;
+    //How many levels the opponent is above the level both fight at (the daily battles' last stage)
+    private int theirLevelsAbove = 0;
+    public void inRun (fightRun run, int stage, aiStrength strength, int theirLevelsAbove) {
+        this.run = run;
+        this.stage = stage;
+        this.strength = strength;
+        this.theirLevelsAbove = theirLevelsAbove;
+    }
+    public fightRun getRun () {return this.run;}
+    public int getStage () {return this.stage;}
+    public aiStrength getStrength () {return this.strength;}
+
+    //The end of a fight of a run: counted, then one button: on to the next stage, or (lost, or the last one beaten) to
+    //how the run went, on the main menu
+    public void runFightOver (fightOutcome outcome) {
+        run.fightOver(outcome.youWon, outcome.numbers);
+        if (!run.isOver()) {
+            outcome.offer("Next battle (" + (run.beaten() + 1) + "/" + run.stages.size() + ")", () -> handler.duelWithEffect(run.current()), null, null);
+        } else {
+            outcome.offer("See results", () -> handler.quitToMenu(), null, null);
+        }
+    }
+
     public boolean isHost () {return this.host;}
     public String getTheirName () {return this.theirName;}
 
@@ -170,18 +198,39 @@ public class duel {
         return null;
     }
 
+    //One of these places (name, world, chunk x, chunk y), picked with rdm, the fighters as near as they fit to a point
+    //near its middle (moved by up to JITTER chunks, also with rdm) and at most reach chunks from it. Who stands about is
+    //not looked at, so the same rdm always gives the same spot (the daily battles: nobody else is in a 1v1's world).
+    //Null if none has room
+    public static spot spotIn (gameHandler handler, Object[][] pool, java.util.Random rdm, double reach) {
+        List<Object[]> places = new java.util.ArrayList<Object[]>(java.util.Arrays.asList(pool));
+        java.util.Collections.shuffle(places, rdm);
+        for (Object[] place : places) {
+            double cx = (Integer) place[2] + 0.5 + (rdm.nextDouble()*2 - 1)*JITTER*reach/PLACE_REACH;
+            double cy = (Integer) place[3] + 0.5 + (rdm.nextDouble()*2 - 1)*JITTER*reach/PLACE_REACH;
+            spot found = freeNear(handler, (String) place[0], (Integer) place[1], cx, cy, reach, false);
+            if (found != null) return found;
+        }
+        return null;
+    }
+    private static final double JITTER = 0.3;
+
     private static spot freeNear (gameHandler handler, String name, int worldId, double cx, double cy) {
+        return freeNear(handler, name, worldId, cx, cy, PLACE_REACH, true);
+    }
+
+    private static spot freeNear (gameHandler handler, String name, int worldId, double cx, double cy, double reach, boolean people) {
         chunks world = handler.getWorld(worldId);
         if (world == null) return null;
         double t = 1.0/handler.getTileCount();
         List<tile> candidates = world.findTiles(type -> free(type));
-        candidates.removeIf(c -> Math.hypot(c.getRealX() - cx, c.getRealY() - cy) > PLACE_REACH);
+        candidates.removeIf(c -> Math.hypot(c.getRealX() - cx, c.getRealY() - cy) > reach);
         candidates.sort(java.util.Comparator.comparingDouble(c -> Math.hypot(c.getRealX() + t - cx, c.getRealY() - cy)));
         for (tile first : candidates) {
             boolean ok = true;
             for (int k = 0; k < 3 && ok; k++) {
                 tile at = world.getTile(first.getRealX() + k*t, first.getRealY());
-                ok = free(at.getTileType()) && nobodyOn(handler, worldId, at);
+                ok = free(at.getTileType()) && (!people || nobodyOn(handler, worldId, at));
             }
             if (ok) return new spot(name, worldId, first.getRealX(), first.getRealY());
         }
@@ -215,11 +264,18 @@ public class duel {
         look(them, theirLook);
         handler.addCharacter(them);
 
-        prepare(me, myBuild);
-        prepare(them, theirBuild);
+        //Only the two fighters are in the world: the campaign's characters standing about made it hard to tell who
+        //you fight. They are kept (gone), since their looks are what the fighters are dressed in
+        for (character c : handler.getCharacters()) if (c != me && c != them) c.setGone(true);
+
+        prepare(me, myBuild, level);
+        prepare(them, theirBuild, Math.min(MAX_LEVEL, level + theirLevelsAbove));
 
         handler.getCamera().setX(me.getX() + 0.5*t);
         handler.getCamera().setY(me.getY() + 0.5*t);
+
+        //The first fight of the daily battles uses up today's try
+        if (run != null && stage == 0) daily.shared().started(run);
 
         battle fight = handler.getBattle();
         fight.setDuel(this);
@@ -228,9 +284,24 @@ public class duel {
             if (link != null) handler.getDiealoguecontainer().setListener(this::forward);
             //The fight's own turn order has the player (the host) first
             fight.resumeTurn(hostBegins);
-            String first = hostBegins ? myName : theirName;
-            handler.getDiealoguecontainer().add(new dialogue("Game", myName + " vs " + theirName + " at " + place.name + ". " + first + " begins"));
         }
+    }
+
+    //The intro on the way out of the game the 1v1 is started from (gameHandler.duelWithEffect): stand-ins with both
+    //players' names, looks and builds (so they wear their trinkets from the start), not added to that game. The fight's
+    //game puts the real fighters in (battle.newBattle)
+    public void introduce (gameHandler from) {
+        battleIntro.untilLanded(standIn(from, myName, myLook, myBuild), standIn(from, theirName, theirLook, theirBuild));
+    }
+
+    private static character standIn (gameHandler from, String name, String look, duelBuild build) {
+        character main = from.getMainCharacter();
+        character c = new character("1v1 intro " + name, 0, 0, main.getImgX(), main.getImgY(), guiSkin.CELL, guiSkin.CELL, 0, from, 3);
+        c.setDisplayName(name);
+        character model = from.getCharacters().stream().filter(m -> m.getId().equals(look)).findFirst().orElse(null);
+        if (model != null) c.setSprite(model.getImgX(), model.getImgY());
+        build.giveTo(c, from.getItemRegistry());
+        return c;
     }
 
     //Gives the fighter the sprite of the campaign character with that id (unchanged if there is none)
@@ -251,7 +322,7 @@ public class duel {
         return list;
     }
 
-    private void prepare (character c, duelBuild build) {
+    private void prepare (character c, duelBuild build, int level) {
         c.setLevel(level);
         build.giveTo(c, handler.getItemRegistry());
         c.clearEffects();

@@ -159,9 +159,11 @@ public class guiBattle extends guiElement {
         battle.getHints(gui.getHandler());
 
         double s = gui.s();
-        drawHealth(gc, battle.getYou(), battle.getYourBar(), 20*s, 20*s);
-        drawHealth(gc, battle.getThem(), battle.getTheirBar(), width - barWidth*s - 20*s, 20*s);
-        if (battle.getDuel() != null && battle.getDuel().isAgainstComputer()) drawStreak(gc, battle.getDuel().getStreak(), s);
+        boolean streak = battle.getDuel() != null && battle.getDuel().isAgainstComputer();
+        double boxWidth = healthBoxWidth(s, streak);
+        drawHealth(gc, battle.getYou(), battle.getYourBar(), 20*s, 20*s, boxWidth);
+        drawHealth(gc, battle.getThem(), battle.getTheirBar(), width - boxWidth - 20*s, 20*s, boxWidth);
+        if (streak) drawStreak(gc, battle.getDuel(), s);
 
         if (battle.waitingForOther(gui.getHandler())) {
             //A 1v1 waiting for the other player: a small panel where the moves would be, with the waiting sign
@@ -249,9 +251,12 @@ public class guiBattle extends guiElement {
     private static double eased (double popup) {return 1 - Math.pow(1 - popup, 3);}
 
     //A random battle: the wins in a row so far and the best, in a little panel at the top between the health bars
-    private void drawStreak (GraphicsContext gc, int streak, double s) {
-        String line = "Win streak: " + streak;
-        String best = "Best: " + duelBuild.library.shared().bestStreak;
+    //In random battles the streak; in a run (the daily battles) which fight of how many
+    private void drawStreak (GraphicsContext gc, duel fight, double s) {
+        fightRun run = fight.getRun();
+        int streak = run != null ? 0 : fight.getStreak();
+        String line = run != null ? "Daily battle " + (fight.getStage() + 1) + " / " + run.stages.size() : "Win streak: " + streak;
+        String best = run != null ? "Beaten so far: " + run.beaten() : "Best: " + duelBuild.library.shared().bestStreak;
         double pad = gui.getSkin().getBorder()*0.75 + 4*s;
         double w = Math.max(guiText.width(line, 14*s), guiText.width(best, 10*s)) + 2*pad + 12*s;
         double h = 2*pad + guiText.height(14*s) + 3*s + guiText.height(10*s);
@@ -261,9 +266,37 @@ public class guiBattle extends guiElement {
         guiText.draw(gc, best, width/2, py + pad + guiText.height(14*s) + 3*s, 10*s, Color.rgb(60, 60, 60), TextAlignment.CENTER);
     }
 
-    private void drawHealth (GraphicsContext gc, character c, double progress, double bx, double by) {
+    //Both health boxes are as wide as the longer one's name line needs (name and level, a gap, the health in numbers,
+    //the portrait), at least barWidth, and at most what leaves room between them (for the streak panel in random
+    //battles). A name too long even then is drawn smaller (drawHealth)
+    private double healthBoxWidth (double s, boolean streak) {
+        double need = Math.max(nameLineWidth(battle.getYou(), s), nameLineWidth(battle.getThem(), s));
+        double pad = gui.getSkin().getBorder()*0.75;
+        double portrait = barHeight*s - 2*pad*0.6;
+        double w = Math.max(barWidth*s, need + 3*pad + portrait);
+        double most = (width - 40*s - (streak ? STREAK_ROOM : MIDDLE_GAP)*s)/2;
+        return Math.round(Math.max(barWidth*s, Math.min(w, most)));
+    }
+    private static final double STREAK_ROOM = 200, MIDDLE_GAP = 20, NAME_HP_GAP = 12;
+
+    private static String nameLine (character c) {
+        return c.getLevel() == 0 ? c.getName() : c.getName() + " (Lvl " + c.getLevel() + ")";
+    }
+
+    private static String hpText (character c) {
+        return guiText.num(c.getShownHealth()) + "/" + guiText.num(c.getMaxHealth());
+    }
+
+    //Measured with the widest the health can be written (a decimal under the max), so the box does not change size as
+    //the health goes down
+    private double nameLineWidth (character c, double s) {
+        String widest = guiText.num(c.getMaxHealth()) + ".5/" + guiText.num(c.getMaxHealth());
+        return guiText.width(nameLine(c), 11*s) + NAME_HP_GAP*s + guiText.width(widest, 11*s);
+    }
+
+    private void drawHealth (GraphicsContext gc, character c, double progress, double bx, double by, double barWidth) {
         double s = gui.s();
-        double barWidth = this.barWidth*s, barHeight = this.barHeight*s;
+        double barHeight = this.barHeight*s;
         gui.getSkin().drawPanel(gc, bx, by, barWidth, healthBoxHeight(c));
         double pad = gui.getSkin().getBorder()*0.75;
 
@@ -273,12 +306,15 @@ public class guiBattle extends guiElement {
             Math.round(bx + barWidth - pad - portrait), Math.round(by + (barHeight - portrait)/2), Math.round(portrait), Math.round(portrait));
         double innerWidth = barWidth - 3*pad - portrait;
 
-        String name = c.getLevel() == 0 ? c.getName() : c.getName() + " (Lvl " + c.getLevel() + ")";
-        guiText.draw(gc, name, bx + pad, by + pad - 2*s, 11*s, Color.BLACK);
-
         //The health in numbers at the right end of the name line, next to the picture
-        String hp = guiText.num(c.getShownHealth()) + "/" + guiText.num(c.getMaxHealth());
+        String hp = hpText(c);
         guiText.draw(gc, hp, bx + pad + innerWidth, by + pad - 2*s, 11*s, Color.BLACK, TextAlignment.RIGHT);
+
+        //The name shrinks when the box can not grow enough for it (a very long name on a narrow window)
+        String name = nameLine(c);
+        double room = innerWidth - guiText.width(hp, 11*s) - NAME_HP_GAP*s;
+        double nameSize = 11*s*Math.max(0.6, Math.min(1, room/Math.max(1, guiText.width(name, 11*s))));
+        guiText.draw(gc, name, bx + pad, by + pad - 2*s + (guiText.height(11*s) - guiText.height(nameSize))/2, nameSize, Color.BLACK);
 
         double barY = by + barHeight - pad - 12*s;
         gc.setFill(Color.rgb(0, 0, 0, 0.2));

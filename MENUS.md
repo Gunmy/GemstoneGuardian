@@ -18,7 +18,7 @@ window.** Check any new screen against that height.
 ### Elements, order, clicks
 - Everything is drawn on the canvas by `gui*` classes. There are no JavaFX controls.
 - `gui` owns the elements and draws them in this order, so the last is on top and gets clicks first:
-  `guiHud` → `guiBattle` → `guiInventory` → `guiOutcome` → `guiDialogue` → `guiSettings` → `guiTeleports` →
+  `guiHud` → `guiBattle` → `guiInventory` → `guiOutcome` → `guiBattleIntro` → `guiDialogue` → `guiSettings` → `guiTeleports` →
   `guiMainMenu`.
 - After the elements it draws: the menu overlay (a main menu sliding over a game that is being left), trails, the
   held item on the cursor, item glows (`itemInteractions.drawGlows`), GUI particles, lightning, outline pulses, the
@@ -36,7 +36,8 @@ window.** Check any new screen against that height.
 - Hover runs every frame, not only when the mouse moves, so tooltips follow things that change under the mouse.
 - Who is shown is decided in one place, `gui.updateVisibility()`. It runs every frame from the game's state:
   - the hotbar shows while walking and not in a fight, menu, inventory or end screen;
-  - the battle screen shows while a fight is active and no end screen is up;
+  - the battle screen shows while a fight is active, no end screen is up and its intro is over;
+  - the battle intro shows while `battleIntro.playing()`;
   - the end screen shows while `handler.getOutcome() != null`;
   - the speech box shows while a message is up and no end screen is;
   - the main menu shows in the menu, except while the inventory or settings are open over it.
@@ -89,15 +90,17 @@ window.** Check any new screen against that height.
 
 ## 2. Main menu (`guiMainMenu`)
 
-It is shown over a real `gameHandler` with no savefile (`inMenu()`): the outside world drifts by behind it. It comes
+It is shown over a real `gameHandler` with no savefile (`inMenu()`): out in space, zoomed all the way out over the planet (`screenTransition.park`), behind it. It comes
 down from the top. Pages (`page` enum) switch with `swapPage`, and escape (`back()`) goes one page back.
 
 ```
 +------------------------------+       MAIN: 320-wide column, title 22*s in a 44 band
 |      Gemstone Guardian       |       buttons 320x40, gap 8
-|  [          Play          ]  |
+|  [   Play daily battles   ]  |       green: straight into the loadout (the inventory, with Play and Back);
+|                              |       red "Daily battles: next in 07:12:33" once played -> page DAILY (the result)
+|  [       Play story       ]  |
+|  [       Play 1v1s        ]  |       Play 1v1s -> page DUEL (handed to guiDuelMenu)
 |  [        Settings        ]  |       Settings -> gui.openVisuals() (the Visuals page alone)
-|  [          1v1           ]  |       1v1 -> page DUEL (handed to guiDuelMenu)
 |  [       Quit game        ]  |
 +------------------------------+
 ```
@@ -109,7 +112,10 @@ down from the top. Pages (`page` enum) switch with `swapPage`, and escape (`back
   is your rival?", each with a grey hint line. Below are a 320×40 field, then Next (disabled while the field is empty)
   and Back. The fourth, "Opponents" ("How strong they play. Kept for this campaign"), has the strength picker instead
   of a field (`guiStrengthPicker`: "Judge: Calculated / Trained" 320×40, then "Looks ahead: n actions" with square
-  - and + at its ends, the settings' side-button pattern), then Start and Back. The choice is saved in the savefile
+  - and + at its ends, the settings' side-button pattern, here 1 to `aiStrength.CAMPAIGN_MAX_DEPTH` = 3, then
+  "Difficulty: Easy / Medium / Hard" 320×40 on green / orange / red, `aiStrength.difficulty`: the depth plus one for
+  the trained judge, 2 or less Easy, 3 Medium, 4 Hard), then Start and Back. It starts on the trained judge, 2 ahead
+  (`aiStrength.CAMPAIGN`, Medium). The choice is saved in the savefile
   (`aiStrength`) and never changes for that campaign. Enter = Next. Back on step 0 returns to LOAD. Each step change
   is a `swapPage`.
 - **DELETE** ("Delete campaign?"): shows the save's name, "will be gone for good", then Delete and Cancel.
@@ -159,7 +165,7 @@ to its right. `width` covers both, so they are centred together. Draw anything b
 - **Best streak box (right):** drawn by `drawBest`. Without a record it shows "Highest streak: 0", an empty frame,
   "Win random battles in a row" and a disabled Equip loadout.
 - **AI** (70 wide, at the end of Battle random's row like Edit) opens **STRENGTH** ("Computer strength"): a grey "In
-  random battles" label, the strength picker (the same two rows as the campaign's Opponents step) and a 100×40 Back
+  random battles" label, the strength picker (the campaign's Opponents step's first two rows, up to 5 ahead, no difficulty row) and a 100×40 Back
   bottom left. Kept in `settings.txt` (`settings.getDuelAI`).
 - **Battle level** (in Back's row, so the page gets no taller): "Battle level: n" with square - and + at its ends,
   0 to `duel.MAX_LEVEL` = 25 (default 13). Both fighters are set to it, in random battles and over the network,
@@ -175,6 +181,35 @@ to its right. `width` covers both, so they are centred together. Draw anything b
 - **HOSTING / JOINING:** a 320-wide panel showing your name and your four rocks (hosting), "Others on your network
   can join from 1v1" and a 56-unit waiting sign, with Cancel bottom left. `pollConnection()` runs from `layout`
   (every frame) and does the handshake.
+
+---
+
+## 3b. Daily battles (`guiDailyMenu`)
+
+"Play daily battles" (green) opens the daily build straight in the inventory (`guiDailyMenu.editLoadout`, the build
+editor of the 1v1 page with the title "Daily battles, 19 Nov 2026"): Play (green, disabled with no rock in the rock
+slots) saves the build and zooms into the first fight; Back (red) and escape close it, back on the main menu. Once
+today's try is used the button is red and opens the main menu's DAILY page, handed to `guiDailyMenu`: the result.
+`guiMainMenu.returnToDaily` opens it on the result after a run.
+
+```
++----------------------------------------------------------+   RESULT: 512 column (+ pad), about 470 high
+|               Daily battles, 19 Nov 2026                  |
+|                    3 / 5 BEATEN                           |   26, gold when all five are beaten
+|  [grey] [grey] [grey] [bounce] [bounce]                   |   5 squares of 84, the one lost to framed
+|   Name   Name   Name   Name    Name                        |   11 (shrinks to fit), place 10 grey under
+|  [Brilliant 12][Great 5][OK 3][Bad 1][Terrible 0]          |   5 tiles 96x50, gap 8, the grade's colour
+|  [=========== bar of the grades ===========]              |   12 high
+|  Accuracy 87%    Turns 41    Damage 1830    Best hit 212   |   11 grey
+|              ▪▪▪▪ ▪▪  (the build used, 30 slots)          |
+|  [ Back ]                  Next daily battles in 07:12:33 |   Back 100x40, countdown 11 gold
++----------------------------------------------------------+
+```
+- The beaten opponents are grey and still (`ColorAdjust`, as the 1v1 loser), the rest bounce (`character.draw`).
+- Motion: the squares pop in 0.12 s apart (grow out of their middle, 0.25 s), the counts and the bar count up from
+  0.8 s over 0.6 s. Escape and Back go to the main menu.
+- During a run the battle screen's top panel reads "Daily battle 3 / 5" over "Beaten so far: 2" (`drawStreak`), and
+  the end screen has one button: "Next battle (3/5)" or "See results" (`fightOutcome.offer` with labels and no back).
 
 ---
 
@@ -277,7 +312,8 @@ screen is up.
 | (o) Rock: Ruby             |      +----------------+        | (o) Rock: Sapphire        |
 | (fire) 3   (rounds) 2      |   only in random battles,      | ...one line per effect    |
 +--------------------------+     top centre                     +--------------------------+
-   280 wide, 56 + a line per effect, at (20, 20) and at the right edge
+   280 wide or more (as wide as the longer name line needs, both the same), 56 + a line per effect,
+   at (20, 20) and at the right edge
 
                          (the fighters, in the world)
 
@@ -288,6 +324,9 @@ screen is up.
 ```
 - **Health boxes** (`drawHealth`):
   - the name and level on the left, the hp numbers on the right, the portrait at the right end;
+  - both boxes widen together to fit the longer name line (`healthBoxWidth`, measured at the widest the health can be
+    written so they never change size), up to leaving 20 between them (200 for the streak panel); a name too long
+    even then is drawn smaller, down to 60%;
   - a red bar that eases to the shown health;
   - a line for the equipped rock, then one `iconText` line per effect, so the box grows downward with effects.
 - **Streak panel** (`drawStreak`): only when `battle.getDuel().isAgainstComputer()`, centred between the bars at
@@ -317,6 +356,34 @@ screen is up.
 - **1v1 waiting:** when it is the other player's turn, a 300×64 panel with the waiting sign and "Waiting for X" sits
   where the action panel would be.
 - The panel swallows clicks inside it. The rest of the screen passes clicks through (to the speech box).
+
+---
+
+### Battle intro (`battleIntro` + `guiBattleIntro`)
+
+Every fight starts with it (`battle.newBattle` → `battleIntro.forBattle`). It covers the whole screen; the battle
+screen and the fight itself (`battle.carryOn`) wait until it is over.
+
+```
+   +--------------------------------------------------------------+
+   |        Boy                                    Girl           |
+   |      ______                                 ______           |
+   |     /     /                                 \     \          |
+   |    / you /             VS                    	hem \         |
+   |   /_____/                                     \_____\        |
+   +--------------------------------------------------------------+
+     each 78% of the screen height (at most 42% of the width), middles at 26% from each side, feet 2% above the bottom
+```
+- The world darkens by up to 40%. The fighters bounce as they do in a box (`character.draw`) and are turned 6° towards
+  each other (rotated about the feet), each with its name (26, white, shadowed) over its head. VS (64, gold) pops in
+  the middle once they are nearly up.
+- **Timing:** rise from below the screen over `RISE` 0.5 s, stay `HOLD` 1 s, then the left one slides out to the left
+  and the right one out to the right over `LEAVE` 0.5 s (smoothstep). Everything uses real time.
+- **1v1:** `gameHandler.duelWithEffect` starts it as the menu world zooms out (`duel.introduce`, stand-ins with the
+  players' names and looks). The stand-ins are given the builds, so their trinkets are worn from the start. It stays up through space; the
+  fight's game puts its real fighters in, and it leaves as
+  that game starts zooming in (`gameHandler.zoomingIn`). The intro is shared between the two games, so it is static.
+  There is no "X vs Y" message any more.
 
 ---
 
@@ -390,8 +457,12 @@ room instead. The 1v1 panel widens its middle gap from 20 to `STREAK_COLUMN` = 1
 ## 11. Transitions between game and menu
 
 These are not menus, but they move menus around.
-- `handler.playWithEffect(save)`, `duelWithEffect(fight)`, `quitToMenu()` and `teleportWithEffect(...)` zoom out
-  through space and back in (`inSpaceTrip()`).
+- The main menu's game is parked in space (`screenTransition.park`, `isParked()`), all the way zoomed out. It is not
+  a trip: the menu shows and takes clicks (`inSpaceTrip()` and `inTransition()` leave it out).
+- From the menu, `playWithEffect(save)` and `duelWithEffect(fight)` only zoom in: the menu slides away
+  (`MENU_SLIDE_TIME`; a 1v1 waits for its fighters to rise instead, `INTRO_IN_SPACE`), then the new game zooms in
+  from space. `quitToMenu()` only zooms out, and the menu takes over in space. From a game, `duelWithEffect` (battle
+  again) and `teleportWithEffect(...)` still zoom out and back in (`inSpaceTrip()`).
 - During the trip the battle screen hides and returns when nearly landed (`nearlyLanded()`), and the main menu is
   hidden.
 - Quitting to the menu slides a fresh main menu over the game (`gui.setMenuOverlay(gui.makeMenu())`). The game is

@@ -68,8 +68,8 @@ public class guiDuelMenu extends guiElement {
     private static final int LOOK_COLUMNS = 8;
     private double lookSlot, lookGap, lookX, lookY;
 
-    //One made item per name, to draw the builds' little slots with
-    private Map<String, item> shown = new HashMap<String, item>();
+    //The builds' little slots, their items made once each
+    private buildSlots slots;
 
     //Where the labels and the waiting sign go, worked out in layout
     private double challengesLabelY, waitY, messageY, buildsLabelY, nameLabelY, lookLabelY;
@@ -80,6 +80,7 @@ public class guiDuelMenu extends guiElement {
     public guiDuelMenu (gui gui, Runnable leave) {
         super(gui);
         this.leave = leave;
+        slots = new buildSlots(gui);
 
         nameField = new guiTextField(gui, 16);
         nameField.setText(library.player);
@@ -160,57 +161,16 @@ public class guiDuelMenu extends guiElement {
 
     //---- The builds ----
 
-    //The main character of the game behind the menu holds the build while it is edited (it is not used for anything
-    //else there): the inventory opens on it with every rock and trinket above it
+    //The inventory opens on the build with every rock and trinket above it (buildSlots.edit), at the fight's level
     private void editBuild (int slot) {
         library.selected = slot;
-        duelBuild build = library.get(slot);
-        gameHandler handler = gui.getHandler();
-        character holder = handler.getMainCharacter();
-        build.giveTo(holder, handler.getItemRegistry());
-        //Shown at the level of the fight, so what the rocks do is worked out as it will be there
-        holder.setLevel(gui.getHandler().getSettings().getDuelLevel());
-        holder.clearEffects();
-        holder.resetHealth();
-        holder.syncShownHealth();
-        List<Supplier<item>> choices = new ArrayList<Supplier<item>>();
-        java.util.Set<String> seen = new java.util.HashSet<String>();
-        for (Supplier<item> maker : handler.getItemRegistry().getMakers()) {
-            item made = maker.get();
-            if (!seen.add(made.getName())) continue;
-            //Only the forms found in chests or dropped in the campaign; the others are made by turning those
-            if (!handler.isHandedOut(made.getName())) continue;
-            if (made instanceof gemstone || made instanceof trinket) choices.add(maker);
-        }
-        gui.openBuildInventory(new itemSource(choices), "Rocks and trinkets", () -> {
-            for (int i = 0; i < duelBuild.ROCKS; i++) {
-                itemStack stack = holder.getInventory().get(inventory.slotKind.ROCK, i);
-                build.setRock(i, stack != null ? stack.getItem() : null);
-            }
-            for (int i = 0; i < duelBuild.TRINKETS; i++) {
-                itemStack stack = holder.getInventory().get(inventory.slotKind.TRINKET, i);
-                build.setTrinket(i, stack != null ? stack.getItem() : null);
-            }
-            //Which rock slot is equipped (right click a rock to equip it, as in the campaign), or none
-            build.setEquipped(duelBuild.NONE);
-            for (int i = 0; i < duelBuild.ROCKS; i++) {
-                itemStack stack = holder.getInventory().get(inventory.slotKind.ROCK, i);
-                if (stack != null && stack.getItem() == holder.getGemstone()) build.setEquipped(i);
-            }
-            shown.clear();
+        buildSlots.edit(gui, library.get(slot), gui.getHandler().getSettings().getDuelLevel(), () -> {
+            slots.clear();
             library.save();
         });
     }
 
-    //A build's item for its little slot: slot 0-3 a rock, -1 and -2 the trinkets. Made once per build and slot
-    private item shownItem (duelBuild build, int slot) {
-        String key = System.identityHashCode(build) + "/" + slot;
-        if (!shown.containsKey(key)) {
-            itemRegistry registry = gui.getHandler().getItemRegistry();
-            shown.put(key, slot >= 0 ? build.makeRock(slot, registry) : build.makeTrinket(-1 - slot, registry));
-        }
-        return shown.get(key);
-    }
+    private item shownItem (duelBuild build, int slot) {return slots.item(build, slot);}
 
     //A build on its button: its four rocks and two trinkets in little slots (the equipped rock framed), in the middle
     private void drawBuild (GraphicsContext gc, int n) {
@@ -223,19 +183,7 @@ public class guiDuelMenu extends guiElement {
 
     //A build's rocks in a row of little slots from (sx, sy), and its trinkets half a slot after them if asked for
     private void drawSlots (GraphicsContext gc, duelBuild build, double sx, double sy, double slot, double gap, boolean trinkets) {
-        guiSkin skin = gui.getSkin();
-        int count = duelBuild.ROCKS + (trinkets ? duelBuild.TRINKETS : 0);
-        for (int i = 0; i < count; i++) {
-            boolean rock = i < duelBuild.ROCKS;
-            double x = sx + i*(slot + gap) + (rock ? 0 : slot/2);
-            skin.drawSlot(gc, x, sy, slot, rock && equippedSlot(build) == i);
-            item in = shownItem(build, rock ? i : -1 - (i - duelBuild.ROCKS));
-            if (in != null) {
-                in.drawIcon(gc, x + slot*0.1, sy + slot*0.1, slot*0.8);
-            } else {
-                skin.drawSlotHint(gc, rock ? inventory.slotKind.ROCK : inventory.slotKind.TRINKET, x, sy, slot);
-            }
-        }
+        slots.draw(gc, build, sx, sy, slot, gap, trinkets);
     }
 
     //The random build's row: each slot shows rock after rock (trinket after trinket), every slot on its own beat so the
@@ -301,13 +249,6 @@ public class guiDuelMenu extends guiElement {
     private Map<String, duelBuild> decodedBuilds = new HashMap<String, duelBuild>();
     private duelBuild decoded (String line) {
         return decodedBuilds.computeIfAbsent(line, duelBuild::decode);
-    }
-
-    //The rock slot a build has equipped (the first with a rock for builds saved before that was kept), -1 for none
-    private static int equippedSlot (duelBuild build) {
-        if (build.getEquipped() != duelBuild.FIRST) return build.getEquipped();
-        for (int i = 0; i < duelBuild.ROCKS; i++) if (build.getRock(i) != null) return i;
-        return -1;
     }
 
     //The character settings button: the portrait of who you play as on the left, as big as the button allows, and
@@ -557,7 +498,7 @@ public class guiDuelMenu extends guiElement {
                 double buttonWidth = 320*s;
                 width = buttonWidth + 2*pad;
                 panelWidth = width;
-                height = 2*pad + titleHeight + labelHeight + guiStrengthPicker.height(s) + 2*gap + buttonHeight;
+                height = 2*pad + titleHeight + labelHeight + strengthPicker.height(s) + 2*gap + buttonHeight;
                 place(screenWidth, screenHeight);
                 double top = y + pad + titleHeight;
                 strengthLabelY = top;

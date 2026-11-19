@@ -21,10 +21,11 @@ import javafx.scene.text.TextAlignment;
 //  Next (enter) goes on and starts the campaign after the last, back (escape) goes a step back, from the first to the list
 //- delete: asks before a savefile is deleted
 //- duel: the 1v1 pages, handed to guiDuelMenu
+//- daily: the daily battles (their loadout, or how today's try went), handed to guiDailyMenu
 //Starting a game goes through the gameHandler's launcher, which builds a fresh game for it
 public class guiMainMenu extends guiElement {
 
-    private enum page {MAIN, LOAD, NEW, DELETE, DUEL}
+    private enum page {MAIN, LOAD, NEW, DELETE, DUEL, DAILY}
     private page current = page.MAIN;
 
     private List<guiButton> mainButtons = new ArrayList<guiButton>();
@@ -32,6 +33,12 @@ public class guiMainMenu extends guiElement {
     //The 1v1 pages. Set returnToDuel when a 1v1 ends, so the menu opens on them again (gameHandler.quitToMenu)
     private guiDuelMenu duelMenu;
     public static boolean returnToDuel = false;
+
+    //The daily battles' pages. returnToDaily: set when a run of them is left, so the menu opens on how it went
+    private guiDailyMenu dailyMenu;
+    public static boolean returnToDaily = false;
+    //Its button on the first page: "Play daily battles", or the time until the next ones once today's try is used
+    private guiButton dailyButton;
 
     private mapGrid saves;
     private guiButton newCampaignButton, loadBackButton;
@@ -44,7 +51,7 @@ public class guiMainMenu extends guiElement {
         "How strong they play. Kept for this campaign");
     //The last step: how strong the computer plays, with no text field (newFields only has the name steps)
     private static final int STEPS = 4;
-    private aiStrength newStrength = aiStrength.DEFAULT;
+    private aiStrength newStrength = aiStrength.CAMPAIGN;
     private guiStrengthPicker strengthPicker;
     private int step = 0;
     private guiButton startButton, newBackButton;
@@ -61,10 +68,13 @@ public class guiMainMenu extends guiElement {
         slideFrom(edge.TOP);
         gameHandler handler = gui.getHandler();
 
-        mainButtons.add(new guiButton(gui, "Play", () -> openLoad()));
-        mainButtons.add(new guiButton(gui, "Settings", () -> gui.openVisuals()));
+        dailyMenu = new guiDailyMenu(gui, () -> show(page.MAIN));
+        dailyButton = new guiButton(gui, "Play daily battles", () -> openDaily());
+        mainButtons.add(dailyButton);
+        mainButtons.add(new guiButton(gui, "Play story", () -> openLoad()));
         duelMenu = new guiDuelMenu(gui, () -> show(page.MAIN));
-        mainButtons.add(new guiButton(gui, "1v1", () -> show(page.DUEL)));
+        mainButtons.add(new guiButton(gui, "Play 1v1s", () -> show(page.DUEL)));
+        mainButtons.add(new guiButton(gui, "Settings", () -> gui.openVisuals()));
         mainButtons.add(new guiButton(gui, "Quit game", () -> javafx.application.Platform.exit()));
 
         //At most three campaigns side by side
@@ -79,7 +89,8 @@ public class guiMainMenu extends guiElement {
         newFields.add(playerField);
         newFields.add(girlField);
         for (guiTextField field : newFields) field.onEnter(() -> nextStep());
-        strengthPicker = new guiStrengthPicker(gui, () -> newStrength, chosen -> newStrength = chosen);
+        //At most CAMPAIGN_MAX_DEPTH ahead, with the difficulty it comes to under it
+        strengthPicker = new guiStrengthPicker(gui, () -> newStrength, chosen -> newStrength = chosen, aiStrength.CAMPAIGN_MAX_DEPTH, true);
         startButton = new guiButton(gui, "Next", () -> nextStep());
         newBackButton = new guiButton(gui, "Back", () -> previousStep());
 
@@ -94,6 +105,23 @@ public class guiMainMenu extends guiElement {
         //ending fight opens on the 1v1 page too
         if (returnToDuel) current = page.DUEL;
         if (handler.inMenu()) returnToDuel = false;
+        if (returnToDaily) {
+            dailyMenu.open();
+            current = page.DAILY;
+        }
+        if (handler.inMenu()) returnToDaily = false;
+    }
+
+    //Straight into the loadout (in the inventory, with Play), or how today's try went once it is used
+    private void openDaily () {
+        if (!guiDailyMenu.hasResult()) {
+            guiDailyMenu.editLoadout(gui);
+            return;
+        }
+        swapPage(() -> {
+            dailyMenu.open();
+            current = page.DAILY;
+        });
     }
 
     //Another page: the old one goes out at the bottom as the new one comes down (guiElement.swapPage)
@@ -133,7 +161,7 @@ public class guiMainMenu extends guiElement {
             nameField.setText("Campaign " + (saveFile.list().size() + 1));
             playerField.setText("Boy");
             girlField.setText("Girl");
-            newStrength = aiStrength.DEFAULT;
+            newStrength = aiStrength.CAMPAIGN;
             step = 0;
             current = page.NEW;
         });
@@ -172,6 +200,7 @@ public class guiMainMenu extends guiElement {
             case NEW:    previousStep(); break;
             case DELETE: openLoad(); break;
             case DUEL:   duelMenu.back(); break;
+            case DAILY:  dailyMenu.back(); break;
             default:     break;
         }
     }
@@ -208,6 +237,15 @@ public class guiMainMenu extends guiElement {
             setBounds(duelMenu.x, duelMenu.y, duelMenu.width, duelMenu.height);
             return;
         }
+        if (current == page.DAILY) {
+            dailyMenu.layout(screenWidth, screenHeight);
+            setBounds(dailyMenu.x, dailyMenu.y, dailyMenu.width, dailyMenu.height);
+            return;
+        }
+        //Green (as Save) while today's try is there, red (as Cancel) once it is used
+        boolean played = daily.shared().playedToday();
+        dailyButton.setText(played ? "Daily battles: next in " + daily.countdown() : "Play daily battles");
+        dailyButton.setColor(played ? "#E04040" : "#40C040");
         double s = gui.s();
         double pad = gui.getSkin().getBorder() + 8*s;
         double buttonWidth = 320*s, buttonHeight = 40*s, gap = 8*s;
@@ -228,7 +266,7 @@ public class guiMainMenu extends guiElement {
             }
             case NEW: {
                 //A name step has its text field, the last step the strength's two rows (guiStrengthPicker)
-                double content = nameStep() ? buttonHeight : guiStrengthPicker.height(s);
+                double content = nameStep() ? buttonHeight : strengthPicker.height(s);
                 width = buttonWidth + 2*pad;
                 height = 2*pad + titleHeight + textHeight + content + 2*gap + 2*buttonHeight + gap;
                 setPosition(screenWidth, screenHeight);
@@ -273,6 +311,10 @@ public class guiMainMenu extends guiElement {
             duelMenu.draw(gc);
             return;
         }
+        if (current == page.DAILY) {
+            dailyMenu.draw(gc);
+            return;
+        }
         double s = gui.s();
         double border = gui.getSkin().getBorder();
         double pad = border + 8*s;
@@ -303,6 +345,7 @@ public class guiMainMenu extends guiElement {
     @Override
     public boolean click (double mx, double my, boolean rightClick) {
         if (current == page.DUEL) return duelMenu.click(mx, my, rightClick);
+        if (current == page.DAILY) return dailyMenu.click(mx, my, rightClick);
         for (guiElement element : currentElements()) {
             if (element.contains(mx, my)) {
                 return element.click(mx, my, rightClick);
@@ -326,6 +369,10 @@ public class guiMainMenu extends guiElement {
             duelMenu.hover(mx, my);
             return;
         }
+        if (current == page.DAILY) {
+            dailyMenu.hover(mx, my);
+            return;
+        }
         for (guiElement element : currentElements()) element.hover(mx, my);
         if (current == page.LOAD) saves.hover(mx, my);
     }
@@ -334,6 +381,7 @@ public class guiMainMenu extends guiElement {
     @Override
     public boolean keyPressed (KeyCode code) {
         if (current == page.DUEL) return duelMenu.keyPressed(code);
+        if (current == page.DAILY) return dailyMenu.keyPressed(code);
         if (code == KeyCode.ESCAPE) {
             back();
             return true;
@@ -348,6 +396,7 @@ public class guiMainMenu extends guiElement {
     @Override
     public boolean keyTyped (String typed) {
         if (current == page.DUEL) return duelMenu.keyTyped(typed);
+        if (current == page.DAILY) return dailyMenu.keyTyped(typed);
         if (current == page.NEW && nameStep()) newFields.get(step).keyTyped(typed);
         return true;
     }

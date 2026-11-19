@@ -921,6 +921,8 @@ public class gameHandler {
             unitHeight = worlds.get(0).getUnitWidthHeight().get(1);
         }
         if (duel != null) duel.start(this);
+        //The main menu is out in space, zoomed all the way out, so leaving it only zooms in and quitting only zooms out
+        if (save == null && duel == null) transition.park();
     }
 
     public void addCharacter (character c) {characters.add(c);}
@@ -933,9 +935,15 @@ public class gameHandler {
     //From the 1v1 page of the main menu, once both players are connected: the menu slides away, the background world
     //zooms out into space, and the fight's world zooms in from there, as when starting a campaign
     public void duelWithEffect (duel fight) {
-        if (transition.isActive()) return;
-        transition.startSpace(() -> launcher.duel(fight));
+        if (inTransition()) return;
+        //The two fighters rise up giant (in space already from the menu, as the world zooms out from a 1v1), and leave
+        //as the fight's world zooms in
+        fight.introduce(this);
+        transition.startSpace(() -> launcher.duel(fight), INTRO_IN_SPACE);
     }
+
+    //From the menu, already in space: how long the fighters are up before the fight's game takes over
+    private static final double INTRO_IN_SPACE = battleIntro.RISE + battleIntro.HOLD/2;
 
     //Beating the girl (Master) finishes the game as before (the time goes to the highscore), and then she steps aside
     //from the portal behind her, which lights once she is taken (portalLit) and leads to the areas after her
@@ -1763,10 +1771,12 @@ public class gameHandler {
     }
 
     //Between the menu and a game (zooming through space): the main menu and the hotbar are away
-    public boolean inSpaceTrip () {return transition.isSpace();}
+    public boolean inSpaceTrip () {return transition.isSpace() && !transition.isParked();}
     //Nearly down from space (LANDED_SHARE of the zoom in): a fight going on shows its screen again from here
     public static final double LANDED_SHARE = 0.85;
     public boolean nearlyLanded () {return transition.spaceLandedShare(LANDED_SHARE);}
+    //Zooming in from space, any of the way (a 1v1's intro leaves then, battleIntro)
+    public boolean zoomingIn () {return transition.spaceLandedShare(0);}
 
     //How many chunks across the trip zooms out to: so far that the sun and the black hole (spaceView) are both in view
     public double spaceTripAcross () {
@@ -1778,19 +1788,23 @@ public class gameHandler {
         return spaceView.acrossToSeeAll(w.getSquare()[2], getWIDTH(), getHEIGHT());
     }
 
-    //From the main menu: the menu slides away at once, the background world zooms out into space, then the campaign
-    //starts and zooms in from there
+    //From the main menu, which is out in space already: the menu slides away, then the campaign starts and zooms in
     public void playWithEffect (saveFile campaign) {
-        if (transition.isActive()) return;
-        transition.startSpace(() -> launcher.play(campaign));
+        if (inTransition()) return;
+        //Already in space: the menu slides away, then the campaign zooms in
+        transition.startSpace(() -> launcher.play(campaign), guiElement.MENU_SLIDE_TIME);
     }
 
-    //Saves first, then the world zooms out into space, and the menu's background world zooms in from there, with the
-    //menu sliding in at the end
+    //Saves first, then the world zooms out into space and the main menu takes over there (it stays in space) and slides in
     public void quitToMenu () {
-        if (transition.isActive()) return;
-        //Out of a 1v1 the menu opens on the 1v1 page again
-        if (duel != null) guiMainMenu.returnToDuel = true;
+        if (inTransition()) return;
+        //Out of a 1v1 the menu opens on the 1v1 page again, out of the daily battles on how they went
+        if (duel != null && duel.getRun() != null) {
+            guiMainMenu.returnToDaily = true;
+            daily.shared().stop();
+        } else if (duel != null) {
+            guiMainMenu.returnToDuel = true;
+        }
         saveGame();
         transition.startSpace(() -> launcher.openMenu());
     }
@@ -1914,7 +1928,7 @@ public class gameHandler {
 
     //The black that closes in and opens up around the player when teleporting
     private screenTransition transition = new screenTransition(this);
-    public boolean inTransition () {return transition.isActive();}
+    public boolean inTransition () {return transition.isActive() && !transition.isParked();}
     public boolean isLeaving () {return transition.isLeaving();}
 
     //Teleports the player with the full show: green sparks burst out, the screen closes in as a diamond,

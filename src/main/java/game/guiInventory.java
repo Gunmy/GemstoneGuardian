@@ -67,12 +67,20 @@ public class guiInventory extends guiElement {
     //the right) runs save and closes; Cancel (red, on the left) and escape close without it
     private Runnable buildSave;
     private guiButton saveButton, backButton;
+    //Whether Save can be pressed now (the daily battles' Play needs a rock in the build)
+    private java.util.function.BooleanSupplier canSave = () -> true;
 
     public void openForBuild (slotGroup catalogue, String title, Runnable save) {
+        openForBuild(catalogue, title, save, "Save", "Cancel", null);
+    }
+
+    //With its own words on the buttons (the daily battles: Play and Back), and canSave (null: always)
+    public void openForBuild (slotGroup catalogue, String title, Runnable save, String saveLabel, String backLabel, java.util.function.BooleanSupplier canSave) {
         clearClosed();
         build = true;
         grids = buildGrids;
         buildSave = save;
+        this.canSave = canSave != null ? canSave : () -> true;
         if (saveButton == null) {
             saveButton = new guiButton(gui, "Save", () -> {
                 Runnable saving = buildSave;
@@ -85,6 +93,8 @@ public class guiInventory extends guiElement {
             backButton = new guiButton(gui, "Cancel", () -> setVisible(false));
             backButton.setColor("#E04040");
         }
+        saveButton.setText(saveLabel);
+        backButton.setText(backLabel);
         openWith(catalogue, title);
     }
 
@@ -209,6 +219,7 @@ public class guiInventory extends guiElement {
             double buttonsY = Math.round(y + height + infoGap*s);
             backButton.setBounds(Math.round(x + width/2 - buttonWidth - infoGap*s/2), buttonsY, buttonWidth, buttonHeight);
             saveButton.setBounds(Math.round(x + width/2 + infoGap*s/2), buttonsY, buttonWidth, buttonHeight);
+            saveButton.setEnabled(canSave.getAsBoolean());
             double topHeight = rows*slotSize + (rows-1)*gap;
             elementalY = Math.round(y + pad + (topHeight - elementalHeight)/2);
         }

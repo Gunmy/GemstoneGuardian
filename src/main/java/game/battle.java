@@ -80,6 +80,8 @@ public class battle {
     public battleAI.hints getHints (gameHandler handler) {
         if (!activeBattle || !waitingForPlayer || you == null || !handler.getSettings().cheatMode()) return null;
         if (duel != null && !duel.isAgainstComputer()) return null;
+        //Never in a run (the daily battles): they are graded
+        if (graded()) return null;
         cheated = true;
         if (hints == null) hints = battleAI.hintsFor(you, them, aiStrength.of(handler));
         if (!hints.isDone()) return null;
@@ -94,6 +96,73 @@ public class battle {
             return null;
         }
         return hints.join();
+    }
+
+    //---- Grading the player's actions (in a run, fightRun) ----
+
+    //Each of the player's turns: every action scored by the standard judge (the trained one, 3 ahead), worked out on a
+    //thread from the start of the turn, never shown. The action taken is put with the scores (taken) and graded once
+    //they are done (gradeTaken, every frame), by how much chance it gave up against the best one
+    private CompletableFuture<battleAI.hints> turnScores;
+    private static class taken {
+        final CompletableFuture<battleAI.hints> scores;
+        final int kind, index;
+        taken (CompletableFuture<battleAI.hints> scores, int kind, int index) {
+            this.scores = scores;
+            this.kind = kind;
+            this.index = index;
+        }
+    }
+    private final java.util.List<taken> toGrade = new java.util.ArrayList<taken>();
+    //How long the end of a fight waits for the last scores before they are left ungraded
+    private static final long LAST_GRADE_WAIT_MS = 2000;
+
+    private boolean graded () {return duel != null && duel.getRun() != null;}
+
+    private void scoreTurn () {
+        if (graded() && you != null && them != null) turnScores = battleAI.hintsFor(you, them, aiStrength.DEFAULT);
+    }
+
+    //The action about to be done, worked out before it runs (the rocks and items move about after)
+    private void take (int kind, int index) {
+        if (turnScores != null && index >= 0) toGrade.add(new taken(turnScores, kind, index));
+        turnScores = null;
+    }
+
+    private void takeItem (item used) {
+        int k = battleSim.rockOrder(you).indexOf(used);
+        if (k >= 0) {take(battleSim.SWITCH, k); return;}
+        k = battleSim.itemOrder(you).indexOf(used);
+        take(battleSim.ITEM, k);
+    }
+
+    //Grades the taken actions whose scores are done (all of them at the end of the fight, waiting a little)
+    private void gradeTaken (boolean last) {
+        if (!graded()) {toGrade.clear(); return;}
+        java.util.Iterator<taken> it = toGrade.iterator();
+        while (it.hasNext()) {
+            taken t = it.next();
+            if (!t.scores.isDone() && last) {
+                try {
+                    t.scores.get(LAST_GRADE_WAIT_MS, java.util.concurrent.TimeUnit.MILLISECONDS);
+                } catch (Exception e) {
+                    //Left ungraded
+                }
+            }
+            if (!t.scores.isDone() && !last) continue;
+            it.remove();
+            if (!t.scores.isDone() || t.scores.isCompletedExceptionally()) continue;
+            battleAI.hints h = t.scores.join();
+            double mine = h.of(t.kind, t.index);
+            if (Double.isNaN(mine) || h.values.length < 2) continue;
+            double best = Double.NEGATIVE_INFINITY, worst = Double.POSITIVE_INFINITY;
+            for (double v : h.values) {
+                best = Math.max(best, v);
+                worst = Math.min(worst, v);
+            }
+            if (best - worst < fightRun.UNGRADED_SPREAD) continue;
+            duel.getRun().graded(best - mine);
+        }
     }
 
     //The fight in numbers, for the win and lose screens (fightOutcome)
@@ -119,6 +188,8 @@ public class battle {
         numbers = new fightOutcome.stats();
         aiPlan = null;
         hints = null;
+        turnScores = null;
+        toGrade.clear();
         cheated = false;
         this.you = you;
         this.them = them;
@@ -132,6 +203,8 @@ public class battle {
         them.syncShownHealth();
         this.yourBar = you.getShownHealthPercentage();
         this.theirBar = them.getShownHealthPercentage();
+        //The two fighters rise up giant first; nobody moves until they are gone (carryOn)
+        battleIntro.forBattle(you, them);
     }
 
     //Whose turn it is, for savefiles: true when the player moves next
@@ -169,7 +242,7 @@ public class battle {
         }
 
         dialogueContainer messages = you.getHandler().getDiealoguecontainer();
-        if (n >= 0 && n < 3 && stone.usesLeft(n, you)) {yourAction(() -> messages.grouped(() -> stone.useMove(n, you, them))); endTurn();}
+        if (n >= 0 && n < 3 && stone.usesLeft(n, you)) {take(battleSim.MOVE, n); yourAction(() -> messages.grouped(() -> stone.useMove(n, you, them))); endTurn();}
     }
 
     //Using a rock equips it, using anything else does what the item does. Both take the turn
@@ -183,6 +256,7 @@ public class battle {
             return;
         }
 
+        takeItem(item);
         yourAction(() -> you.getHandler().getDiealoguecontainer().grouped(() -> {
             item.use(you, them);
             if (item.isConsumable()) you.consume(item);
@@ -197,6 +271,8 @@ public class battle {
             endTurn();
             return;
         }
+        //Giving up is not graded
+        turnScores = null;
         you.kill();
         endTurn();
     }
@@ -281,7 +357,11 @@ public class battle {
             //second try). The guest is sent it too (duel.forward)
             finalBlow(handler);
             fightOutcome outcome = fightOutcome.duel(you, them, them.getHealth() <= 0.5, numbers);
-            if (duel.isAgainstComputer()) {
+            if (graded()) {
+                //A fight of a run: counted, then on to the next one or to how it went
+                gradeTaken(true);
+                duel.runFightOver(outcome);
+            } else if (duel.isAgainstComputer()) {
                 duel.countStreak(outcome, cheated);
                 duel.offerRematch(outcome);
             }
@@ -331,6 +411,9 @@ public class battle {
     }
 
     public void carryOn (gameHandler handler) {
+        gradeTaken(false);
+        //The fight waits for its intro (battleIntro) to be over
+        if (battleIntro.playing()) return;
 
         if (mirror()) {
             //The other player's fight: the panel comes up when the host says it is our turn and its messages are read
@@ -347,6 +430,7 @@ public class battle {
         if (!checkForDead(handler) && !handler.getDiealoguecontainer().isActive() && !waitingForPlayer) {
             if (opponentDoneMove) {
                 waitingForPlayer = true;
+                scoreTurn();
             } else {
                 if (opponentMove() && !checkForDead(handler)) {
                     //Each one's burning, poison and healing with the damage it does

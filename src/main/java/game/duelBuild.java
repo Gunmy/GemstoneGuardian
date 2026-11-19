@@ -109,16 +109,21 @@ public class duelBuild {
     //A build at random from the rocks and trinkets the campaign hands out (handedOut): four different rocks, one of
     //them equipped, and up to two trinkets
     public static duelBuild random (gameHandler handler) {
+        java.util.Random rdm = new java.util.Random();
+        return random(handler, rdm, rdm.nextInt(TRINKETS + 1));
+    }
+
+    //The same from rdm (the same rdm gives the same build: the daily battles), with this many trinkets (if there are)
+    public static duelBuild random (gameHandler handler, java.util.Random rdm, int trinkets) {
         List<String> rockNames = new ArrayList<String>(), trinketNames = new ArrayList<String>();
         handedOut(handler, rockNames, trinketNames);
-        java.util.Collections.shuffle(rockNames);
-        java.util.Collections.shuffle(trinketNames);
-        java.util.Random rdm = new java.util.Random();
+        java.util.Collections.shuffle(rockNames, rdm);
+        java.util.Collections.shuffle(trinketNames, rdm);
         duelBuild build = new duelBuild();
         int rockCount = Math.min(ROCKS, rockNames.size());
         for (int i = 0; i < rockCount; i++) build.setRock(i, rockNames.get(i));
         if (rockCount == 0) build.setRock(0, "Rock");
-        int trinketCount = Math.min(rdm.nextInt(TRINKETS + 1), trinketNames.size());
+        int trinketCount = Math.min(Math.min(TRINKETS, trinkets), trinketNames.size());
         for (int i = 0; i < trinketCount; i++) build.setTrinket(i, trinketNames.get(i));
         build.setEquipped(rdm.nextInt(Math.max(1, rockCount)));
         return build;

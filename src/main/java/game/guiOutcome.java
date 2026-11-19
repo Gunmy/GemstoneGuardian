@@ -31,7 +31,7 @@ public class guiOutcome extends guiElement {
     public boolean click (double mx, double my, boolean rightClick) {
         if (!choosing()) return false;
         if (againButton.contains(mx, my)) return againButton.click(mx, my, rightClick);
-        if (backButton.contains(mx, my)) return backButton.click(mx, my, rightClick);
+        if (outcome().hasBack() && backButton.contains(mx, my)) return backButton.click(mx, my, rightClick);
         return true;
     }
 
@@ -48,7 +48,17 @@ public class guiOutcome extends guiElement {
     public void layout (double screenWidth, double screenHeight) {
         setBounds(0, 0, screenWidth, screenHeight);
         double s = gui.s(), bw = 200*s, bh = 40*s, gap = 12*s, by = Math.round(screenHeight - 46*s - 12*s - bh);
-        againButton.setBounds(Math.round(screenWidth/2 - bw - gap/2), by, bw, bh);
+        fightOutcome o = outcome();
+        if (o != null) {
+            againButton.setText(o.againLabel());
+            backButton.setText(o.backLabel());
+        }
+        //One button (no back) sits in the middle
+        if (o != null && !o.hasBack()) {
+            againButton.setBounds(Math.round(screenWidth/2 - bw/2), by, bw, bh);
+        } else {
+            againButton.setBounds(Math.round(screenWidth/2 - bw - gap/2), by, bw, bh);
+        }
         backButton.setBounds(Math.round(screenWidth/2 + gap/2), by, bw, bh);
     }
 
@@ -80,7 +90,7 @@ public class guiOutcome extends guiElement {
 
         if (choosing()) {
             againButton.draw(gc);
-            backButton.draw(gc);
+            if (o.hasBack()) backButton.draw(gc);
         }
 
         //Space, once it does something

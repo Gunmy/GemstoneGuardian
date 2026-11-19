@@ -41,6 +41,8 @@ public class gui {
     private guiDialogue dialogueBox;
     //The win and lose screens of a fight (fightOutcome), shown instead of the speech box
     private guiOutcome outcomeScreen;
+    //The two fighters, giant, at the start of a fight (battleIntro)
+    private guiBattleIntro introScreen;
     private guiSettings settingsScreen;
     private guiTeleports teleportScreen;
     private guiMainMenu mainMenu;
@@ -86,6 +88,7 @@ public class gui {
         inventoryScreen = new guiInventory(this);
         dialogueBox = new guiDialogue(this);
         outcomeScreen = new guiOutcome(this);
+        introScreen = new guiBattleIntro(this);
         settingsScreen = new guiSettings(this);
         teleportScreen = new guiTeleports(this);
         mainMenu = new guiMainMenu(this);
@@ -98,6 +101,7 @@ public class gui {
         elements.add(battleScreen);
         elements.add(inventoryScreen);
         elements.add(outcomeScreen);
+        elements.add(introScreen);
         elements.add(dialogueBox);
         elements.add(settingsScreen);
         elements.add(teleportScreen);
@@ -185,6 +189,11 @@ public class gui {
     //when its Save button is pressed (Back and escape close it without)
     public void openBuildInventory (slotGroup catalogue, String title, Runnable save) {
         inventoryScreen.openForBuild(catalogue, title, save);
+    }
+
+    //The same with its own button words and when save can be pressed (the daily battles' Play)
+    public void openBuildInventory (slotGroup catalogue, String title, Runnable save, String saveLabel, String backLabel, java.util.function.BooleanSupplier canSave) {
+        inventoryScreen.openForBuild(catalogue, title, save, saveLabel, backLabel, canSave);
     }
 
     public void closeInventory () {
@@ -366,7 +375,9 @@ public class gui {
         boolean outcome = !menu && handler.getOutcome() != null;
         hud.setVisible(!menu && !trip && menuOverlay == null && !handler.isLeaving() && !inventoryOpen() && !handler.getBattle().isActive() && !outcome);
         //A fight's screen goes at once when zooming out into space and is back when nearly down again
-        battleScreen.setVisible(!menu && (!trip || handler.nearlyLanded()) && handler.getBattle().isActive() && !outcome);
+        //and waits for the fight's intro (the two fighters, giant) to be over
+        battleScreen.setVisible(!menu && (!trip || handler.nearlyLanded()) && handler.getBattle().isActive() && !outcome && !battleIntro.playing());
+        introScreen.setVisible(battleIntro.playing());
         outcomeScreen.setVisible(outcome);
         dialogueBox.setVisible(!menu && handler.getDiealoguecontainer().isActive() && !outcome);
         //The visuals page opened from the main menu is shown in its place
