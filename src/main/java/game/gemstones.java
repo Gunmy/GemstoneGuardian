@@ -255,9 +255,12 @@ public class gemstones {
         //uranium or by healite pulling at it. Where it strikes, the sparks are every colour
         stone.shakeParticles(1).shakeLightning(0.6, itemInfluence.COSMIC, "#B060FF")
             .reactsTo(itemInfluence.RADIATION, 1).reactsTo(itemInfluence.COSMIC, 0.8).reactsTo(itemInfluence.COSMIC_CONDUCTION, 1);
-        //Them lifted off the ground and slammed back down, a meteor streaking down onto them out of a growing shadow (costing you some health), and meteorites torn out of you circling faster and faster before they all crash into them
+        //Three meteorites sent down from space onto them one after another, a meteor streaking down onto them out of a growing shadow (costing you some health), and meteorites torn out of you circling faster and faster before they all crash into them
         stone.animations(
-            a().then(lift(T, 0, 0.6, 0.35)).then(kick(0.68, 0.15)).then(hit(0.68)).rare(a().then(streak(T, "#6A7A9A", 0.1, 0.55, 0.9, COSMIC))),
+            a().then(streak(T, "#6A7A9A", 0, 0.45, 0.45, COSMIC)).then(hit(0.45)).then(shards(T, COSMIC, 0.45, 5, 1.2, false, false))
+                .then(streak(T, "#6A7A9A", 0.15, 0.45, 0.45, COSMIC)).then(hit(0.6)).then(shards(T, COSMIC, 0.6, 5, 1.2, false, false))
+                .then(streak(T, "#6A7A9A", 0.3, 0.45, 0.55, COSMIC)).then(hit(0.75)).then(shards(T, COSMIC, 0.75, 8, 1.5, false, false)).then(kick(0.75, 0.12))
+                .rare(a().then(streak(T, "#B4A8FF", 0.45, 0.4, 0.35, COSMIC)).then(streak(T, "#6A7A9A", 0.55, 0.4, 0.35, COSMIC)).then(hit(0.95))),
             a().then(tint(U, "#887BFE", 0, 0.4, 0.5, true, false)).then(streak(T, "#6A7A9A", 0.3, 0.6, 0.7, COSMIC)).then(shards(T, COSMIC, 0.9, 10, 1.6, false, false)).then(flash("#B4A8FF", 0.9, 0.5)).skybolt("#887BFE", 3).then(hit(0.9)).rare(a().then(streak(T, "#6A7A9A", 0.0, 0.4, 0.35, COSMIC)).then(streak(T, "#6A7A9A", 0.15, 0.4, 0.35, COSMIC)).then(streak(T, "#B4A8FF", 0.3, 0.4, 0.35, COSMIC))),
             a().then(tint(U, "#FF4060", 0, 0.2, 0.6, false, false)).then(spin(U, "#6A7A9A", 0, 1.0, 5, 0.3, 1.0, true)).then(hit(1.15)).then(hit(1.3)).then(kick(1.4, 0.15)).then(shards(T, COSMIC, 1.3, 12, 1.8, false, false)).rare(a().then(spin(U, "#B4A8FF", 0, 1.0, 12, 0.22, 1.6, true))));
         return stone;

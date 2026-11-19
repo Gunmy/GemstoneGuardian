@@ -183,7 +183,7 @@ Nothing grows or spreads out of the fighters' feet (no spikes, cubes, mountains,
 ### Gravitational Slam
 - **Idea:** B is lifted 0.5 T off the ground (sprite moved up with a shrinking shadow), hangs 0.3 s, and is slammed back down hard: `cameraKick push` down, `crater`, short `tileRipple`. *Types:* `shadowDrop` (shadow only), `crater`, `tileRipple`. *Lucky:* B is lifted out of the top of the view and comes back down as a `meteorStreak`.
 - **Before:** generic particles: fromSpace, impact, orbit, fountain, quake, shake
-- **Now:** the idea, built from: lift, crater, kick, hit (lucky version adds: streak)
+- **Now:** changed by the owner (lifting them did not make sense): three meteorites sent down from space onto B one after another (0.15 s apart, landing at 0.45, 0.6 and 0.75 s, the last a bit bigger), each with a hit and a few cosmic shards, a camera kick on the last. Built from: streak, hit, shards, kick (lucky version adds: two more streaks, one pale purple)
 
 ### Cosmic Crush
 - **Idea:** `darkness 0.6`; a few stars (single light pixels) appear; A glows and its sprite drops 1 px (cost); a `meteorStreak` with blue trail falls from the top corner onto B after a growing `shadowDrop`; impact: `crater`, `shardBurst` blue, `flash`. *Types:* `darkness`, `meteorStreak`, `shadowDrop`, `crater`, `flash`. *Lucky:* a shower: 4 smaller meteors land in a pattern around B, then the big one.
